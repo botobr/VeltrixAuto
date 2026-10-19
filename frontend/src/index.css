@@ -1,0 +1,10 @@
+:root {
+    --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+    --mono: ui-monospace, Consolas, monospace;
+}
+
+body {
+    font-family: var(--sans);
+    margin: 0px;
+    padding: 0px;
+}
