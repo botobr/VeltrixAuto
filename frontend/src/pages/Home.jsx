@@ -21,7 +21,7 @@ const Home = () => {
                         ) : (
                             <Link className="gomb gomb-arany" to="/login">Belépés a fiókba <span aria-hidden="true">↗</span></Link>
                         )}
-                        <a className="gomb gomb-atlatszo" href="#elonyok">Fedezd fel</a>
+                        <Link className="gomb gomb-atlatszo" to="/autok">Autók megtekintése</Link>
                     </div>
                     <div className="home-bizalom">
                         <span className="bizalom-jel" aria-hidden="true">✦</span>

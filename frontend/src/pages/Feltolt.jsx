@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { API_URL } from '../context/auth';
+import { autoValasztasiLehetosegek } from './autoValasztasiLehetosegek';
 import './Feltolt.css';
 
 const kezdoAdatok = {
@@ -9,6 +10,9 @@ const kezdoAdatok = {
     kivitel: '',
     uzemanyag: '',
     szarmazasi_hely: '',
+    elado_nev: '',
+    elado_telefonszam: '',
+    leiras: '',
     evjarat: '',
     vetel_ar: '',
     teljesitmeny: '',
@@ -17,17 +21,20 @@ const kezdoAdatok = {
 };
 
 const mezok = [
+    ['elado_nev', 'Eladó neve', 'pl. Kovács Péter', 'text'],
+    ['elado_telefonszam', 'Eladó telefonszáma', 'pl. +36 30 123 4567', 'tel'],
     ['marka', 'Márka', 'pl. BMW', 'text'],
     ['modell', 'Modell', 'pl. 320d', 'text'],
-    ['szin', 'Szín', 'pl. sötétzöld', 'text'],
-    ['kivitel', 'Kivitel', 'pl. kombi', 'text'],
-    ['uzemanyag', 'Üzemanyag', 'pl. dízel', 'text'],
-    ['szarmazasi_hely', 'Származási hely', 'pl. Magyarország', 'text'],
+    ['szin', 'Szín', 'Válassz színt', 'select'],
+    ['kivitel', 'Kivitel', 'Válassz kivitelt', 'select'],
+    ['uzemanyag', 'Üzemanyag', 'Válassz üzemanyagot', 'select'],
+    ['szarmazasi_hely', 'Származási hely', 'Válassz származási helyet', 'select'],
     ['evjarat', 'Évjárat', 'pl. 2020', 'number'],
     ['vetel_ar', 'Vételár (Ft)', 'pl. 8990000', 'number'],
     ['teljesitmeny', 'Teljesítmény (LE)', 'pl. 190', 'number'],
     ['hengerur_tartalom', 'Hengerűrtartalom (cm³)', 'pl. 1995', 'number'],
     ['kmora_allas', 'Kilométeróra állása (km)', 'pl. 85000', 'number'],
+    ['leiras', 'Leírás', 'Írj az autó állapotáról, felszereltségéről vagy előéletéről…', 'textarea'],
 ];
 
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -39,6 +46,7 @@ const fileToDataUrl = (file) => new Promise((resolve, reject) => {
 
 const Feltolt = () => {
     const [adatok, setAdatok] = useState(kezdoAdatok);
+    const [egyediMezok, setEgyediMezok] = useState({});
     const [kep, setKep] = useState('');
     const [kepNev, setKepNev] = useState('');
     const [uzenet, setUzenet] = useState(null);
@@ -92,6 +100,7 @@ const Feltolt = () => {
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.error || 'Az autó feltöltése nem sikerült.');
             setAdatok(kezdoAdatok);
+            setEgyediMezok({});
             setKep('');
             setKepNev('');
             event.target.reset();
@@ -113,20 +122,61 @@ const Feltolt = () => {
             <form className="feltolt-kartya" onSubmit={handleSubmit}>
                 <div className="feltolt-urlap-grid">
                     {mezok.map(([name, label, placeholder, type]) => (
-                        <label className="feltolt-mezo" key={name} htmlFor={name}>
+                        <label className={`feltolt-mezo ${name === 'leiras' ? 'feltolt-mezo-leiras' : ''}`} key={name} htmlFor={name}>
                             <span>{label}</span>
-                            <input
-                                id={name}
-                                name={name}
-                                type={type}
-                                value={adatok[name]}
-                                onChange={handleChange}
-                                placeholder={placeholder}
-                                min={type === 'number' ? 0 : undefined}
-                                max={name === 'evjarat' ? new Date().getFullYear() + 1 : undefined}
-                                step={type === 'number' ? 'any' : undefined}
-                                required
-                            />
+                            {type === 'textarea' ? (
+                                <textarea
+                                    id={name}
+                                    name={name}
+                                    value={adatok[name]}
+                                    onChange={handleChange}
+                                    placeholder={placeholder}
+                                    maxLength={2000}
+                                    rows={5}
+                                />
+                            ) : type === 'select' ? (
+                                <>
+                                    <select
+                                        id={name}
+                                        name={name}
+                                        value={egyediMezok[name] ? '__egyedi__' : adatok[name]}
+                                        onChange={(event) => {
+                                            const egyedi = event.target.value === '__egyedi__';
+                                            setEgyediMezok((elozo) => ({ ...elozo, [name]: egyedi }));
+                                            setAdatok((elozo) => ({ ...elozo, [name]: egyedi ? '' : event.target.value }));
+                                        }}
+                                        required
+                                    >
+                                        <option value="" disabled>{placeholder}</option>
+                                        {autoValasztasiLehetosegek[name].map((lehetoseg) => <option key={lehetoseg} value={lehetoseg}>{lehetoseg}</option>)}
+                                        <option value="__egyedi__">Egyéb – saját megadás</option>
+                                    </select>
+                                    {egyediMezok[name] && (
+                                        <input
+                                            aria-label={`${label} megadása`}
+                                            name={name}
+                                            type="text"
+                                            value={adatok[name]}
+                                            onChange={handleChange}
+                                            placeholder={`Írd be: ${label.toLocaleLowerCase('hu')}`}
+                                            required
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                <input
+                                    id={name}
+                                    name={name}
+                                    type={type}
+                                    value={adatok[name]}
+                                    onChange={handleChange}
+                                    placeholder={placeholder}
+                                    min={type === 'number' ? 0 : undefined}
+                                    max={name === 'evjarat' ? new Date().getFullYear() + 1 : undefined}
+                                    step={type === 'number' ? 'any' : undefined}
+                                    required
+                                />
+                            )}
                         </label>
                     ))}
                 </div>

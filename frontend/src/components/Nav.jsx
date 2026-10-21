@@ -41,6 +41,9 @@ const Nav = () => {
                     >
                         Autó feltöltése
                     </Link>
+                    <Link className="gomb gomb-arany nav-feltoltes" to="/autok">
+                        Hirdetett autók
+                    </Link>
                 </div>
             </nav>
             {hiba && <p className="nav-hiba" role="alert">{hiba}</p>}

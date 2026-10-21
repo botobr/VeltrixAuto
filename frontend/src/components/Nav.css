@@ -51,36 +51,10 @@
     width: 42px;
 }
 
-.nav-linkek,
 .nav-fiok {
     align-items: center;
     display: flex;
     gap: 27px;
-}
-
-.nav-link {
-    color: var(--halvany);
-    font-size: 0.9rem;
-    padding: 10px 0;
-    position: relative;
-    text-decoration: none;
-    transition: color 150ms ease;
-}
-
-.nav-link:hover,
-.nav-link.aktiv {
-    color: var(--arany-vilagos);
-}
-
-.nav-link.aktiv::after {
-    background: var(--arany);
-    border-radius: 2px;
-    bottom: 0;
-    content: '';
-    height: 2px;
-    left: 0;
-    position: absolute;
-    right: 0;
 }
 
 .nav-belepes {
@@ -130,15 +104,13 @@
         padding: 14px 18px;
     }
 
-    .nav-linkek {
-        gap: 18px;
-        order: 3;
-        width: 100%;
-    }
-
     .nav-fiok {
         gap: 10px;
         margin-left: auto;
+    }
+
+    .nav-feltoltes {
+        padding: 0 13px;
     }
 
     .nav-felhasznalo {

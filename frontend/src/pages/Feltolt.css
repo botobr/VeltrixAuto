@@ -50,7 +50,9 @@
     font-weight: 600;
 }
 
-.feltolt-mezo input:not([type='file']) {
+.feltolt-mezo input:not([type='file']),
+.feltolt-mezo select,
+.feltolt-mezo textarea {
     background: rgba(7, 14, 11, 0.78);
     border: 1px solid var(--vonal);
     border-radius: 10px;
@@ -63,9 +65,41 @@
     width: 100%;
 }
 
+.feltolt-mezo textarea {
+    min-height: 125px;
+    padding: 12px 13px;
+    resize: vertical;
+}
+
+.feltolt-mezo-leiras {
+    grid-column: 1 / -1;
+    justify-items: center;
+    text-align: center;
+}
+
+.feltolt-mezo-leiras textarea {
+    max-width: 680px;
+}
+
 .feltolt-mezo input:focus {
     border-color: var(--arany);
     box-shadow: 0 0 0 3px rgba(203, 168, 92, 0.12);
+}
+
+.feltolt-mezo select:focus {
+    border-color: var(--arany);
+    box-shadow: 0 0 0 3px rgba(203, 168, 92, 0.12);
+    outline: none;
+}
+
+.feltolt-mezo textarea:focus {
+    border-color: var(--arany);
+    box-shadow: 0 0 0 3px rgba(203, 168, 92, 0.12);
+    outline: none;
+}
+
+.feltolt-mezo select {
+    cursor: pointer;
 }
 
 .feltolt-mezo input::placeholder {
@@ -73,11 +107,16 @@
 }
 
 .feltolt-kep-sor {
-    align-items: end;
+    align-items: center;
     display: grid;
-    gap: 22px;
-    grid-template-columns: minmax(0, 1fr) minmax(140px, 220px);
+    gap: 16px;
+    grid-template-columns: minmax(0, 680px);
+    justify-content: center;
     margin-top: 24px;
+}
+
+.kep-valaszto {
+    text-align: center;
 }
 
 .kep-valaszto input[type='file'] {
@@ -88,6 +127,7 @@
     cursor: pointer;
     font: inherit;
     padding: 12px;
+    width: 100%;
 }
 
 .kep-valaszto input[type='file']::file-selector-button {
@@ -110,6 +150,7 @@
     border: 1px solid var(--vonal);
     border-radius: 12px;
     object-fit: cover;
+    max-width: 320px;
     width: 100%;
 }
 

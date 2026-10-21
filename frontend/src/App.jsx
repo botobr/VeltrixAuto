@@ -6,6 +6,7 @@ import { useAuth } from './context/auth';
 import Feltolt from './pages/Feltolt';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Autok from './pages/Autok';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -23,6 +24,7 @@ function App() {
                 <Nav />
                 <Routes>
                     <Route path="/" element={<Home />} />
+                    <Route path="/autok" element={<Autok />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/feltolt" element={<ProtectedRoute><Feltolt /></ProtectedRoute>} />
                     <Route path="*" element={<Navigate to="/" replace />} />
