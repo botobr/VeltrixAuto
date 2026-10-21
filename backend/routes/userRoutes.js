@@ -18,6 +18,9 @@ router.post('/new-user', adminRequired, async (req, res) => {
     try {
         const { nev, email, jelszo, statusz } = req.body;
         const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+        if (!nev?.trim() || !normalizedEmail || typeof jelszo !== 'string' || jelszo.length < 6 || statusz !== 'admin') {
+            return res.status(400).json({ error: 'A név, email, legalább 6 karakteres jelszó és admin státusz kötelező.' });
+        }
         const newUser = new UserModel({ nev, email: normalizedEmail, jelszo, statusz });
         await newUser.save();
         return res.status(201).json({ message: 'Felhasználó sikeresen létrehozva!' });
@@ -44,6 +47,10 @@ router.put('/update-user/:id', adminRequired, async (req, res) => {
         const user = await UserModel.findById(req.params.id);
         if (!user) {
             return res.status(404).json({ error: 'Felhasználó nem található!' });
+        }
+
+        if (!nev?.trim() || !email?.trim() || (jelszo && jelszo.length < 6) || statusz !== 'admin') {
+            return res.status(400).json({ error: 'A megadott felhasználói adatok nem megfelelőek.' });
         }
 
         user.nev = nev;

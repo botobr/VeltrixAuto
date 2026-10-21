@@ -5,7 +5,6 @@ const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 const { MongoStore } = require('connect-mongo');
-const ejs = require('ejs');
 const path = require('path');
 
 const authRoutes = require('./routes/authRoutes');

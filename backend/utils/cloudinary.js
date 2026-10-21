@@ -7,6 +7,11 @@ cloudinary.config({
 });
 
 const uploadImage = (imageData) => new Promise((resolve, reject) => {
+    if (typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
+        reject(new Error('Érvénytelen képformátum.'));
+        return;
+    }
+
     cloudinary.uploader.upload_stream(
         {
             folder: 'veltrix/autok',
@@ -22,4 +27,19 @@ const uploadImage = (imageData) => new Promise((resolve, reject) => {
     ).end(Buffer.from(imageData.split(',').pop(), 'base64'));
 });
 
-module.exports = { uploadImage };
+const deleteImage = (publicId) => new Promise((resolve, reject) => {
+    if (!publicId) {
+        resolve();
+        return;
+    }
+
+    cloudinary.uploader.destroy(publicId, (error, result) => {
+        if (error) {
+            reject(error);
+            return;
+        }
+        resolve(result);
+    });
+});
+
+module.exports = { uploadImage, deleteImage };

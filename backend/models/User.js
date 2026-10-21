@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
         nev: {
             type: String,
             required: true,
+            trim: true,
         },
         email: {
             type: String,
@@ -17,6 +18,7 @@ const userSchema = new mongoose.Schema(
         jelszo: {
             type: String,
             required: true,
+            minlength: 6,
         },
         statusz: {
             type: String,

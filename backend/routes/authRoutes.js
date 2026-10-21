@@ -4,16 +4,42 @@ const publicUser = require('../utils/userResponse');
 const { authRequired } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
+const loginProbal = new Map();
 
-router.post('/login', async (req, res) => {
+const loginLimit = (req, res, next) => {
+    const ip = req.ip;
+    const probalkozas = loginProbal.get(ip);
+    if (probalkozas && probalkozas.letiltvaEddig > Date.now()) {
+        const masodperc = Math.ceil((probalkozas.letiltvaEddig - Date.now()) / 1000);
+        return res.status(429).json({ error: `Túl sok próbálkozás. Próbáld újra ${masodperc} másodperc múlva.` });
+    }
+    next();
+};
+
+const sikertelenLogin = (ip) => {
+    const probalkozas = loginProbal.get(ip) || { db: 0 };
+    probalkozas.db += 1;
+    if (probalkozas.db >= 5) {
+        probalkozas.letiltvaEddig = Date.now() + 15 * 60 * 1000;
+    }
+    loginProbal.set(ip, probalkozas);
+};
+
+router.post('/login', loginLimit, async (req, res) => {
     try {
         const { email, jelszo } = req.body;
         const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+        if (!normalizedEmail || typeof jelszo !== 'string' || !jelszo) {
+            return res.status(400).json({ error: 'Email és jelszó megadása kötelező.' });
+        }
         const user = await UserModel.findOne({ email: normalizedEmail });
 
         if (!user || !(await user.comparePassword(jelszo))) {
+            sikertelenLogin(req.ip);
             return res.status(401).json({ error: 'Hibás email vagy jelszó!' });
         }
+
+        loginProbal.delete(req.ip);
 
         req.session.regenerate((error) => {
             if (error) {
