@@ -1,4 +1,6 @@
 const dotenv = require('dotenv');
+dotenv.config();
+
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
@@ -11,7 +13,6 @@ const autoRoutes = require('./routes/autoRoutes');
 const userRoutes = require('./routes/userRoutes');
 const dbConnection = require('./utils/dbConnect.js');
 
-dotenv.config();
 const PORT = process.env.PORT || 3600;
 
 const app = express();
