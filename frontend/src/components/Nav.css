@@ -1,12 +1,141 @@
 .nav-kontener {
-    background-color: blue;
+    align-items: center;
+    border-bottom: 1px solid rgba(203, 168, 92, 0.18);
     display: flex;
-    flex-direction: row;
-    justify-content: center;
-    padding: 1em;
+    justify-content: space-between;
+    margin: 0 auto;
+    max-width: 1280px;
+    min-height: 82px;
+    padding: 0 32px;
+}
 
-    a {
-        color: white;
-        text-decoration: none;
+.nav-fejlec {
+    background: rgba(9, 16, 12, 0.86);
+    position: relative;
+    z-index: 2;
+}
+
+.nav-logo {
+    align-items: center;
+    color: var(--szoveg);
+    display: inline-flex;
+    font-family: var(--display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    gap: 11px;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+}
+
+.nav-logo > span:last-child {
+    display: grid;
+    gap: 2px;
+}
+
+.nav-logo small {
+    color: var(--halvany);
+    font-family: var(--sans);
+    font-size: 0.55rem;
+    letter-spacing: 0.29em;
+}
+
+.nav-emblema {
+    align-items: center;
+    border: 1px solid var(--arany);
+    border-radius: 50%;
+    color: var(--arany-vilagos);
+    display: flex;
+    font-size: 1.15rem;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.nav-linkek,
+.nav-fiok {
+    align-items: center;
+    display: flex;
+    gap: 27px;
+}
+
+.nav-link {
+    color: var(--halvany);
+    font-size: 0.9rem;
+    padding: 10px 0;
+    position: relative;
+    text-decoration: none;
+    transition: color 150ms ease;
+}
+
+.nav-link:hover,
+.nav-link.aktiv {
+    color: var(--arany-vilagos);
+}
+
+.nav-link.aktiv::after {
+    background: var(--arany);
+    border-radius: 2px;
+    bottom: 0;
+    content: '';
+    height: 2px;
+    left: 0;
+    position: absolute;
+    right: 0;
+}
+
+.nav-belepes {
+    min-height: 40px;
+    padding: 0 18px;
+}
+
+.nav-felhasznalo {
+    color: var(--halvany);
+    font-size: 0.87rem;
+}
+
+.nav-kilepes {
+    background: transparent;
+    border: 1px solid var(--vonal);
+    border-radius: 999px;
+    color: var(--arany-vilagos);
+    cursor: pointer;
+    min-height: 40px;
+    padding: 0 17px;
+}
+
+.nav-kilepes:hover {
+    background: rgba(203, 168, 92, 0.1);
+}
+
+.nav-hiba {
+    background: #371f1b;
+    color: #ffc1b8;
+    font-size: 0.85rem;
+    margin: 0;
+    padding: 9px 24px;
+    text-align: center;
+}
+
+@media (max-width: 680px) {
+    .nav-kontener {
+        flex-wrap: wrap;
+        gap: 14px;
+        min-height: auto;
+        padding: 14px 18px;
+    }
+
+    .nav-linkek {
+        gap: 18px;
+        order: 3;
+        width: 100%;
+    }
+
+    .nav-fiok {
+        gap: 10px;
+        margin-left: auto;
+    }
+
+    .nav-felhasznalo {
+        display: none;
     }
 }

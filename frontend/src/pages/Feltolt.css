@@ -1,0 +1,156 @@
+.feltolt-oldal {
+    margin: 0 auto;
+    max-width: 1080px;
+    padding: clamp(40px, 7vw, 78px) 24px 90px;
+}
+
+.feltolt-fejlec {
+    margin: 0 auto 34px;
+    max-width: 720px;
+    text-align: center;
+}
+
+.feltolt-fejlec h1 {
+    font-family: var(--display);
+    font-size: clamp(2.2rem, 6vw, 3.7rem);
+    letter-spacing: -0.045em;
+    margin: 7px 0 12px;
+}
+
+.feltolt-fejlec > p:last-child {
+    color: var(--halvany);
+    line-height: 1.7;
+    margin: 0;
+}
+
+.feltolt-kartya {
+    background: linear-gradient(145deg, rgba(24, 43, 34, 0.94), rgba(13, 24, 19, 0.97));
+    border: 1px solid var(--vonal);
+    border-radius: 22px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+    margin: 0 auto;
+    max-width: 900px;
+    padding: clamp(22px, 5vw, 42px);
+}
+
+.feltolt-urlap-grid {
+    display: grid;
+    gap: 21px 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.feltolt-mezo {
+    display: grid;
+    gap: 9px;
+}
+
+.feltolt-mezo > span {
+    color: #ece9e0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.feltolt-mezo input:not([type='file']) {
+    background: rgba(7, 14, 11, 0.78);
+    border: 1px solid var(--vonal);
+    border-radius: 10px;
+    color: var(--szoveg);
+    font: inherit;
+    min-height: 47px;
+    outline: none;
+    padding: 0 13px;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+    width: 100%;
+}
+
+.feltolt-mezo input:focus {
+    border-color: var(--arany);
+    box-shadow: 0 0 0 3px rgba(203, 168, 92, 0.12);
+}
+
+.feltolt-mezo input::placeholder {
+    color: #7f8981;
+}
+
+.feltolt-kep-sor {
+    align-items: end;
+    display: grid;
+    gap: 22px;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 220px);
+    margin-top: 24px;
+}
+
+.kep-valaszto input[type='file'] {
+    background: rgba(7, 14, 11, 0.55);
+    border: 1px dashed rgba(203, 168, 92, 0.5);
+    border-radius: 10px;
+    color: var(--halvany);
+    cursor: pointer;
+    font: inherit;
+    padding: 12px;
+}
+
+.kep-valaszto input[type='file']::file-selector-button {
+    background: rgba(203, 168, 92, 0.16);
+    border: 1px solid rgba(203, 168, 92, 0.36);
+    border-radius: 7px;
+    color: var(--arany-vilagos);
+    cursor: pointer;
+    margin-right: 12px;
+    padding: 8px 10px;
+}
+
+.kep-valaszto small {
+    color: var(--halvany);
+    font-size: 0.8rem;
+}
+
+.feltolt-elo-nezet {
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--vonal);
+    border-radius: 12px;
+    object-fit: cover;
+    width: 100%;
+}
+
+.feltolt-kuldes {
+    margin-top: 28px;
+    min-width: 210px;
+}
+
+.feltolt-uzenet {
+    border-radius: 10px;
+    line-height: 1.5;
+    margin: 22px 0 0;
+    padding: 12px 15px;
+}
+
+.feltolt-uzenet.siker {
+    background: rgba(98, 157, 110, 0.14);
+    border: 1px solid rgba(115, 184, 128, 0.34);
+    color: #b9edc1;
+}
+
+.feltolt-uzenet.hiba {
+    background: rgba(175, 69, 58, 0.14);
+    border: 1px solid rgba(224, 111, 97, 0.35);
+    color: #ffc1b8;
+}
+
+@media (max-width: 640px) {
+    .feltolt-urlap-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .feltolt-kep-sor {
+        grid-template-columns: 1fr;
+    }
+
+    .feltolt-elo-nezet {
+        max-width: 260px;
+    }
+
+    .feltolt-kuldes {
+        width: 100%;
+    }
+}

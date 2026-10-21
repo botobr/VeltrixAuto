@@ -1,16 +1,234 @@
 .home-kontener {
-    align-items: center;
-    background-attachment: fixed;
-    background-image: url('../assets/hatter.jpg');
-    background-position: bottom;
-    background-size: cover;
-    display: flex;
-    height: calc(100vh - 53px);
-    justify-content: center;
+    margin: 0 auto;
+    max-width: 1440px;
+    padding: 0 32px;
+}
 
-    h1 {
-        color: white;
-        font-size: 2em;
-        text-shadow: 5px 5px 5px black;
+.home-hero {
+    align-items: center;
+    display: grid;
+    gap: 5vw;
+    grid-template-columns: 1fr 0.92fr;
+    min-height: min(700px, calc(100vh - 82px));
+    padding: 42px 0 62px;
+    position: relative;
+}
+
+.home-tartalom {
+    max-width: 590px;
+    padding: 20px 0 28px 5vw;
+    position: relative;
+    z-index: 1;
+}
+
+.home-tartalom h1 {
+    font-family: var(--display);
+    font-size: clamp(3.1rem, 7vw, 6rem);
+    font-weight: 500;
+    letter-spacing: -0.055em;
+    line-height: 0.99;
+    margin: 23px 0;
+}
+
+.home-tartalom h1 span {
+    color: var(--arany-vilagos);
+    font-style: italic;
+}
+
+.home-leiras {
+    color: var(--halvany);
+    font-size: 1.03rem;
+    line-height: 1.85;
+    margin: 0;
+    max-width: 490px;
+}
+
+.home-akciok {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.home-akciok .gomb {
+    gap: 18px;
+}
+
+.home-bizalom {
+    align-items: center;
+    border-top: 1px solid var(--vonal);
+    display: flex;
+    gap: 14px;
+    margin-top: 54px;
+    max-width: 370px;
+    padding-top: 18px;
+}
+
+.bizalom-jel {
+    align-items: center;
+    border: 1px solid rgba(203, 168, 92, 0.5);
+    border-radius: 50%;
+    color: var(--arany);
+    display: flex;
+    font-size: 1.2rem;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+}
+
+.home-bizalom p {
+    color: var(--halvany);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.home-bizalom strong {
+    color: var(--szoveg);
+    font-size: 0.88rem;
+}
+
+.home-kep {
+    background: linear-gradient(145deg, rgba(77, 93, 74, 0.4), rgba(14, 26, 20, 0.08)),
+        url('https://upload.wikimedia.org/wikipedia/commons/1/18/1995_Honda_NSX_Type_T.jpg') center / cover;
+    border: 1px solid rgba(203, 168, 92, 0.38);
+    border-radius: 48% 48% 8px 8px;
+    box-shadow: 0 25px 100px rgba(0, 0, 0, 0.38);
+    height: min(590px, 67vw);
+    min-height: 380px;
+    overflow: hidden;
+    position: relative;
+}
+
+.home-kep::before {
+    background: linear-gradient(180deg, rgba(9, 16, 12, 0.02) 40%, rgba(9, 16, 12, 0.8));
+    content: '';
+    inset: 0;
+    position: absolute;
+}
+
+.home-kep-keret {
+    border: 1px solid rgba(235, 217, 160, 0.5);
+    border-radius: 48% 48% 4px 4px;
+    inset: 14px;
+    position: absolute;
+}
+
+.home-kep-cimke {
+    bottom: 45px;
+    display: grid;
+    gap: 7px;
+    left: 38px;
+    position: absolute;
+}
+
+.home-kep-cimke span {
+    color: white;
+    font-family: var(--display);
+    font-size: 1.5rem;
+    letter-spacing: 0.2em;
+}
+
+.home-kep-cimke small {
+    color: var(--arany-vilagos);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+}
+
+.home-sorszam {
+    bottom: 30px;
+    color: var(--halvany);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    position: absolute;
+    right: 8px;
+}
+
+.home-elonyok {
+    border-top: 1px solid var(--vonal);
+    display: grid;
+    gap: 35px;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 48px 5vw 60px;
+}
+
+.home-elonyok > div > span {
+    color: var(--arany);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+}
+
+.home-elonyok h2 {
+    font-family: var(--display);
+    font-size: 1.35rem;
+    font-weight: 500;
+    margin: 12px 0 8px;
+}
+
+.home-elonyok p {
+    color: var(--halvany);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    margin: 0;
+    max-width: 300px;
+}
+
+@media (max-width: 850px) {
+    .home-kontener {
+        padding: 0 22px;
+    }
+
+    .home-hero {
+        gap: 22px;
+        grid-template-columns: 1fr 0.8fr;
+    }
+
+    .home-tartalom {
+        padding-left: 0;
+    }
+
+    .home-kep {
+        height: 540px;
+        min-height: 350px;
+    }
+}
+
+@media (max-width: 640px) {
+    .home-kontener {
+        padding: 0 18px;
+    }
+
+    .home-hero {
+        gap: 22px;
+        grid-template-columns: 1fr;
+        padding-top: 34px;
+    }
+
+    .home-tartalom h1 {
+        font-size: clamp(3rem, 14vw, 4.6rem);
+    }
+
+    .home-bizalom {
+        margin-top: 30px;
+    }
+
+    .home-kep {
+        border-radius: 44% 44% 8px 8px;
+        height: min(115vw, 490px);
+        min-height: 320px;
+    }
+
+    .home-kep-keret {
+        border-radius: inherit;
+    }
+
+    .home-sorszam {
+        bottom: 8px;
+    }
+
+    .home-elonyok {
+        gap: 27px;
+        grid-template-columns: 1fr;
+        padding: 38px 4px 52px;
     }
 }

@@ -1,0 +1,110 @@
+.login-oldal {
+    display: grid;
+    min-height: calc(100vh - 84px);
+    padding: 48px 20px;
+    place-items: center;
+}
+
+.login-kartya {
+    background: linear-gradient(145deg, rgba(24, 43, 34, 0.97), rgba(13, 24, 19, 0.98));
+    border: 1px solid var(--vonal);
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+    max-width: 440px;
+    padding: 42px;
+    position: relative;
+    width: 100%;
+}
+
+.login-disz {
+    align-items: center;
+    border: 1px solid var(--arany);
+    border-radius: 50%;
+    color: var(--arany);
+    display: flex;
+    font-family: var(--display);
+    font-size: 1.5rem;
+    height: 48px;
+    justify-content: center;
+    margin-bottom: 30px;
+    width: 48px;
+}
+
+.login-kartya h1 {
+    font-family: var(--display);
+    font-size: clamp(2rem, 6vw, 2.6rem);
+    letter-spacing: -0.04em;
+    margin: 0;
+}
+
+.login-leiras {
+    color: var(--halvany);
+    line-height: 1.7;
+    margin: 12px 0 28px;
+}
+
+.login-urlap {
+    display: grid;
+    gap: 10px;
+}
+
+.login-urlap label {
+    color: #e9e6dc;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.login-urlap input {
+    background: rgba(7, 14, 11, 0.8);
+    border: 1px solid var(--vonal);
+    border-radius: 10px;
+    color: var(--szoveg);
+    font: inherit;
+    min-height: 48px;
+    outline: none;
+    padding: 0 14px;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.login-urlap input:focus {
+    border-color: var(--arany);
+    box-shadow: 0 0 0 3px rgba(203, 168, 92, 0.14);
+}
+
+.login-urlap input::placeholder {
+    color: #7f8981;
+}
+
+.login-gomb {
+    margin-top: 14px;
+    width: 100%;
+}
+
+.login-vissza {
+    color: var(--halvany);
+    display: block;
+    font-size: 0.9rem;
+    margin-top: 24px;
+    text-align: center;
+    text-decoration: none;
+}
+
+.login-vissza:hover {
+    color: var(--arany-vilagos);
+}
+
+.login-hiba {
+    background: rgba(175, 69, 58, 0.14);
+    border: 1px solid rgba(224, 111, 97, 0.35);
+    border-radius: 9px;
+    color: #ffc1b8;
+    margin: 8px 0 0;
+    padding: 11px 13px;
+}
+
+@media (max-width: 520px) {
+    .login-kartya {
+        padding: 30px 24px;
+    }
+}

@@ -1,10 +1,109 @@
 :root {
-    --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+    --sans: 'Segoe UI', Roboto, Arial, sans-serif;
+    --display: 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
     --mono: ui-monospace, Consolas, monospace;
+    --hatter: #0b120e;
+    --panel: #14221a;
+    --panel-vilagos: #1a2b21;
+    --arany: #cba85c;
+    --arany-vilagos: #e2c77f;
+    --szoveg: #f4f1e8;
+    --halvany: #aab3aa;
+    --vonal: rgba(203, 168, 92, 0.23);
+    background: var(--hatter);
+    color: var(--szoveg);
+    color-scheme: dark;
+    font-family: var(--sans);
+    font-synthesis: none;
+    font-weight: 400;
+    text-rendering: optimizeLegibility;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    min-width: 320px;
+    scroll-behavior: smooth;
 }
 
 body {
     font-family: var(--sans);
-    margin: 0px;
-    padding: 0px;
+    margin: 0;
+    min-height: 100vh;
+    padding: 0;
+}
+
+body::before {
+    background: radial-gradient(ellipse at 78% 18%, rgba(45, 75, 54, 0.24), transparent 36%),
+        radial-gradient(ellipse at 8% 84%, rgba(133, 103, 48, 0.09), transparent 32%);
+    content: '';
+    inset: 0;
+    pointer-events: none;
+    position: fixed;
+    z-index: -1;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--arany-vilagos);
+    outline-offset: 3px;
+}
+
+.felirat {
+    color: var(--arany);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    margin: 0;
+}
+
+.gomb {
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 0.9rem;
+    font-weight: 700;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 21px;
+    text-decoration: none;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.gomb:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.gomb:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.gomb-arany {
+    background: linear-gradient(135deg, var(--arany-vilagos), var(--arany));
+    color: #172016;
+}
+
+.gomb-arany:hover:not(:disabled) {
+    background: #ecd58e;
+}
+
+.gomb-atlatszo {
+    background: rgba(255, 255, 255, 0.025);
+    border-color: rgba(232, 227, 210, 0.24);
+    color: var(--szoveg);
+}
+
+.gomb-atlatszo:hover {
+    border-color: var(--arany);
 }
