@@ -88,6 +88,12 @@
     padding: 0 18px;
 }
 
+.nav-feltoltes {
+    min-height: 40px;
+    padding: 0 18px;
+    white-space: nowrap;
+}
+
 .nav-felhasznalo {
     color: var(--halvany);
     font-size: 0.87rem;

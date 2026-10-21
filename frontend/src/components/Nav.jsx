@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/auth';
 import './Nav.css';
@@ -26,11 +26,13 @@ const Nav = () => {
                     <span>VELTRIX<small>AUTÓK</small></span>
                 </Link>
                 <div className="nav-linkek">
-                    {user && (
-                        <NavLink to="/feltolt" className={({ isActive }) => `nav-link${isActive ? ' aktiv' : ''}`}>
-                            Autó feltöltése
-                        </NavLink>
-                    )}
+                    <Link
+                        className="gomb gomb-arany nav-feltoltes"
+                        to={user ? '/feltolt' : '/login'}
+                        state={user ? undefined : { from: '/feltolt' }}
+                    >
+                        Autó feltöltése
+                    </Link>
                 </div>
                 <div className="nav-fiok">
                     {user ? (
