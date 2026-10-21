@@ -17,7 +17,8 @@ router.get('/felhasznalok', adminRequired, async (req, res) => {
 router.post('/new-user', adminRequired, async (req, res) => {
     try {
         const { nev, email, jelszo, statusz } = req.body;
-        const newUser = new UserModel({ nev, email, jelszo, statusz });
+        const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+        const newUser = new UserModel({ nev, email: normalizedEmail, jelszo, statusz });
         await newUser.save();
         return res.status(201).json({ message: 'Felhasználó sikeresen létrehozva!' });
     } catch (error) {
@@ -46,7 +47,7 @@ router.put('/update-user/:id', adminRequired, async (req, res) => {
         }
 
         user.nev = nev;
-        user.email = email;
+        user.email = typeof email === 'string' ? email.trim().toLowerCase() : email;
         user.statusz = statusz;
         if (jelszo) {
             user.jelszo = jelszo;

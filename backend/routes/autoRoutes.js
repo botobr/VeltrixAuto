@@ -1,6 +1,7 @@
 const express = require('express');
 const AutokModel = require('../models/Autok');
 const { adminRequired } = require('../middlewares/authMiddleware');
+const { uploadImage } = require('../utils/cloudinary');
 
 const router = express.Router();
 
@@ -16,9 +17,27 @@ router.get('/autok', async (req, res) => {
 router.post('/new-auto', adminRequired, async (req, res) => {
     try {
         const { marka, modell, szin, kivitel, uzemanyag, szarmazasi_hely, evjarat, vetel_ar, teljesitmeny, hengerur_tartalom, kmora_allas, kep } = req.body;
-        const newAuto = new AutokModel({ marka, modell, szin, kivitel, uzemanyag, szarmazasi_hely, evjarat, vetel_ar, teljesitmeny, hengerur_tartalom, kmora_allas, kep });
+        if (typeof kep !== 'string' || !kep.startsWith('data:image/')) {
+            return res.status(400).json({ error: 'Érvényes autóképet kell feltölteni.' });
+        }
+
+        const uploadedImage = await uploadImage(kep);
+        const newAuto = new AutokModel({
+            marka,
+            modell,
+            szin,
+            kivitel,
+            uzemanyag,
+            szarmazasi_hely,
+            evjarat,
+            vetel_ar,
+            teljesitmeny,
+            hengerur_tartalom,
+            kmora_allas,
+            kep: uploadedImage.secure_url,
+        });
         await newAuto.save();
-        return res.status(201).json({ message: 'Autó sikeresen létrehozva!' });
+        return res.status(201).json({ message: 'Autó sikeresen létrehozva!', auto: newAuto });
     } catch (error) {
         res.status(500).json({ error: `Hiba: ${error.message}` });
     }

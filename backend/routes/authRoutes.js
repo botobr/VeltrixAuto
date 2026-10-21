@@ -8,7 +8,8 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
     try {
         const { email, jelszo } = req.body;
-        const user = await UserModel.findOne({ email });
+        const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+        const user = await UserModel.findOne({ email: normalizedEmail });
 
         if (!user || !(await user.comparePassword(jelszo))) {
             return res.status(401).json({ error: 'Hibás email vagy jelszó!' });
