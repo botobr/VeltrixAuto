@@ -25,15 +25,6 @@ const Nav = () => {
                     <span className="nav-emblema">V</span>
                     <span>VELTRIX<small>AUTÓK</small></span>
                 </Link>
-                <div className="nav-linkek">
-                    <Link
-                        className="gomb gomb-arany nav-feltoltes"
-                        to={user ? '/feltolt' : '/login'}
-                        state={user ? undefined : { from: '/feltolt' }}
-                    >
-                        Autó feltöltése
-                    </Link>
-                </div>
                 <div className="nav-fiok">
                     {user ? (
                         <>
@@ -43,6 +34,13 @@ const Nav = () => {
                     ) : (
                         <Link className="gomb gomb-arany nav-belepes" to="/login">Bejelentkezés</Link>
                     )}
+                    <Link
+                        className="gomb gomb-arany nav-feltoltes"
+                        to={user ? '/feltolt' : '/login'}
+                        state={user ? undefined : { from: '/feltolt' }}
+                    >
+                        Autó feltöltése
+                    </Link>
                 </div>
             </nav>
             {hiba && <p className="nav-hiba" role="alert">{hiba}</p>}
