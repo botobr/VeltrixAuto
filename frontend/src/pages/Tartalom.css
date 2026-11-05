@@ -1,0 +1,255 @@
+.tartalom-hero {
+    max-width: 860px;
+    padding: clamp(36px, 7vw, 80px) 0 clamp(28px, 4vw, 44px);
+}
+
+.tartalom-hero h1 {
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 1.05;
+    margin: 20px 0 18px;
+}
+
+.tartalom-hero > p:not(.felirat) {
+    color: var(--halvany);
+    font-size: 1.05rem;
+    line-height: 1.75;
+    margin: 0;
+}
+
+.tartalom-ugro {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.tartalom-ugro .csip {
+    text-decoration: none;
+}
+
+.tartalom-szekcio {
+    padding-top: clamp(40px, 6vw, 72px);
+}
+
+.ertek-racs {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+
+.ertek {
+    border-radius: 24px;
+    padding: 26px;
+}
+
+.ertek h2 {
+    font-size: 1.05rem;
+    margin: 18px 0 8px;
+}
+
+.ertek p {
+    color: var(--halvany);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    margin: 0;
+}
+
+.telephely-lista {
+    display: grid;
+    gap: 16px;
+}
+
+.telephely-kartya {
+    display: grid;
+    gap: 16px;
+    padding: clamp(20px, 3vw, 30px);
+}
+
+.kapcsolat-doboz {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    padding: clamp(24px, 4vw, 40px);
+}
+
+.kapcsolat-doboz h2 {
+    margin: 0 0 8px;
+}
+
+.kapcsolat-doboz p {
+    color: var(--halvany);
+    margin: 0;
+}
+
+.kapcsolat-gombok {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.cegadatok {
+    display: grid;
+    gap: 0 32px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    margin: 20px 0 0;
+}
+
+.cegadatok div {
+    border-bottom: 1px solid var(--vonal);
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 10px 0;
+}
+
+.cegadatok dt {
+    color: var(--halvany);
+}
+
+.cegadatok dd {
+    font-weight: 600;
+    margin: 0;
+    text-align: right;
+}
+
+.cegadatok a {
+    color: inherit;
+}
+
+/* ---------- Szolgáltatások ---------- */
+
+.szolgaltatas-lista {
+    display: grid;
+    gap: 16px;
+}
+
+.szolgaltatas {
+    display: grid;
+    gap: 22px;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: clamp(22px, 4vw, 36px);
+    scroll-margin-top: 96px;
+}
+
+.szolgaltatas h2 {
+    font-size: 1.4rem;
+    margin: 6px 0 12px;
+}
+
+.szolgaltatas p {
+    color: #d1d0d8;
+    line-height: 1.75;
+    margin: 0 0 12px;
+    max-width: 760px;
+}
+
+.szolgaltatas-kalkulator {
+    margin: 22px 0 6px;
+}
+
+.lepesek {
+    counter-reset: lepes;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.lepes {
+    border-radius: 22px;
+    padding: 24px;
+}
+
+.lepes-szam {
+    font-family: var(--display);
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.lepes h3 {
+    font-size: 1.05rem;
+    margin: 12px 0 8px;
+}
+
+.lepes p {
+    color: var(--halvany);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    margin: 0;
+}
+
+#vasarlas {
+    scroll-margin-top: 96px;
+}
+
+/* ---------- Jogi oldalak ---------- */
+
+.jogi-szoveg {
+    line-height: 1.75;
+    max-width: 920px;
+    padding: clamp(22px, 4vw, 44px);
+}
+
+.jogi-szoveg h2 {
+    font-size: 1.15rem;
+    margin: 32px 0 12px;
+}
+
+.jogi-szoveg h2:first-child {
+    margin-top: 0;
+}
+
+.jogi-szoveg p,
+.jogi-szoveg li {
+    color: #d1d0d8;
+}
+
+.jogi-szoveg a {
+    color: var(--szoveg);
+}
+
+.jogi-tabla-tarto {
+    margin: 12px 0 18px;
+    overflow-x: auto;
+}
+
+.jogi-tabla {
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    min-width: 640px;
+    width: 100%;
+}
+
+.jogi-tabla th,
+.jogi-tabla td {
+    border-bottom: 1px solid var(--vonal);
+    padding: 10px 12px 10px 0;
+    text-align: left;
+    vertical-align: top;
+}
+
+.jogi-tabla th {
+    color: var(--halvanyabb);
+    font-size: 0.74rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.jogi-tabla code {
+    background: var(--panel-eros);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+}
+
+@media (max-width: 600px) {
+    .szolgaltatas {
+        grid-template-columns: 1fr;
+    }
+}

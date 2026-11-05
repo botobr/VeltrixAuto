@@ -2,75 +2,28 @@
     align-items: end;
     display: flex;
     flex-wrap: wrap;
-    gap: 28px;
+    gap: 24px;
     justify-content: space-between;
-    padding: clamp(40px, 7vw, 88px) 0 clamp(32px, 4vw, 48px);
+    padding: clamp(32px, 6vw, 72px) 0 clamp(24px, 3vw, 36px);
 }
 
 .autok-bemutato h1 {
-    font-size: clamp(2.4rem, 6vw, 4.6rem);
+    font-size: clamp(2.2rem, 5.5vw, 4.2rem);
     font-weight: 800;
     letter-spacing: -0.05em;
     line-height: 1;
-    margin: 22px 0 16px;
-}
-
-.autok-bevezeto {
-    color: var(--halvany);
-    font-size: 1.02rem;
-    line-height: 1.75;
-    margin: 0;
-    max-width: 520px;
-}
-
-.autok-szamlalo {
-    align-items: center;
-    border-radius: 24px;
-    display: flex;
-    gap: 16px;
-    padding: 20px 26px;
-}
-
-.autok-szamlalo strong {
-    font-family: var(--display);
-    font-size: clamp(2.6rem, 5vw, 3.6rem);
-    font-weight: 800;
-    line-height: 1;
-}
-
-.autok-szamlalo span {
-    color: var(--halvany);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    line-height: 1.5;
-    text-transform: uppercase;
-}
-
-/* ---------- Eszköztár ---------- */
-
-.autok-eszkoztar {
-    align-items: center;
-    border-radius: 20px;
-    display: flex;
-    gap: 10px;
-    padding: 8px;
-    position: sticky;
-    top: 84px;
-    z-index: 5;
+    margin: 20px 0 0;
 }
 
 .autok-kereso {
     align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid transparent;
-    border-radius: 14px;
+    border-radius: 18px;
     color: var(--halvany);
     display: flex;
-    flex: 1;
+    flex: 0 1 460px;
     gap: 12px;
-    min-height: 50px;
-    padding: 0 16px;
+    min-height: 56px;
+    padding: 0 18px;
     transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -85,6 +38,7 @@
     border: 0;
     color: var(--szoveg);
     flex: 1;
+    font-size: 1rem;
     min-width: 0;
     outline: 0;
 }
@@ -93,20 +47,106 @@
     color: var(--halvanyabb);
 }
 
-.autok-rendezes select {
-    border-color: transparent;
-    border-radius: 14px;
-    min-width: 220px;
+.autok-elrendezes {
+    align-items: start;
+    display: grid;
+    gap: 28px;
+    grid-template-columns: 290px minmax(0, 1fr);
+}
+
+.autok-talalatok {
+    min-width: 0;
+}
+
+.autok-eszkoztar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.autok-eszkoztar-jobb {
+    align-items: center;
+    display: flex;
+    gap: 8px;
 }
 
 .autok-talalat {
     color: var(--halvany);
-    font-size: 0.85rem;
-    margin: 18px 4px 20px;
+    margin: 0;
 }
 
-.autok-muvelet-hiba {
-    margin-bottom: 18px;
+.autok-talalat strong {
+    color: var(--szoveg);
+    font-family: var(--display);
+    font-size: 1.2rem;
+    margin-right: 4px;
+}
+
+.autok-rendezes select {
+    border-radius: 999px;
+    font-size: 0.88rem;
+    min-height: 40px;
+    min-width: 210px;
+}
+
+.autok-szuro-gomb {
+    display: none;
+}
+
+.aktiv-szurok {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.aktiv-szuro {
+    align-items: center;
+    background: rgba(255, 106, 43, 0.12);
+    border: 1px solid rgba(255, 106, 43, 0.4);
+    border-radius: 999px;
+    color: var(--szoveg);
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 0.8rem;
+    font-weight: 600;
+    gap: 6px;
+    padding: 6px 10px 6px 12px;
+}
+
+.aktiv-szuro:hover {
+    background: rgba(255, 106, 43, 0.22);
+}
+
+.mentes-urlap {
+    border-radius: 18px;
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    width: min(100%, 420px);
+}
+
+.mentes-gombok {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.mentes-siker {
+    align-items: center;
+    color: #bbf7d0;
+    display: inline-flex;
+    font-size: 0.85rem;
+    gap: 6px;
+}
+
+.mentes-siker a {
+    color: inherit;
+    font-weight: 700;
 }
 
 .autok-tobb {
@@ -115,150 +155,30 @@
     margin-top: 36px;
 }
 
-/* ---------- Állapotok ---------- */
+@media (max-width: 1000px) {
+    .autok-elrendezes {
+        grid-template-columns: 1fr;
+    }
 
-.autok-allapot {
-    align-items: center;
-    display: flex;
-    flex-direction: column;
-    min-height: 280px;
-    justify-content: center;
-    padding: 36px;
-    text-align: center;
+    .autok-szuro-gomb {
+        display: inline-flex;
+    }
 }
 
-.autok-allapot-ikon {
-    align-items: center;
-    background: var(--gradiens);
-    border-radius: 16px;
-    box-shadow: var(--ragyogas);
-    color: #fff;
-    display: flex;
-    font-size: 1.4rem;
-    font-weight: 800;
-    height: 52px;
-    justify-content: center;
-    margin-bottom: 16px;
-    width: 52px;
-}
+@media (max-width: 560px) {
+    .autok-kereso {
+        flex-basis: 100%;
+    }
 
-.autok-allapot h3 {
-    font-size: 1.3rem;
-    margin: 0 0 8px;
-}
+    .autok-eszkoztar-jobb {
+        width: 100%;
+    }
 
-.autok-allapot p {
-    color: var(--halvany);
-    line-height: 1.6;
-    margin: 0 0 20px;
-}
-
-.autok-cta {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: space-between;
-    margin-top: 64px;
-    padding: clamp(24px, 4vw, 40px);
-}
-
-.autok-cta h2 {
-    font-size: clamp(1.4rem, 3vw, 2rem);
-    margin: 14px 0 0;
-}
-
-/* ---------- Modal ---------- */
-
-.modal-hatter {
-    animation: elhalvanyul 200ms ease both;
-    backdrop-filter: blur(8px);
-    background: rgba(3, 3, 6, 0.7);
-    display: flex;
-    inset: 0;
-    overflow-y: auto;
-    padding: 24px 16px;
-    position: fixed;
-    z-index: 50;
-}
-
-@keyframes elhalvanyul {
-    from { opacity: 0; }
-}
-
-.modal {
-    animation: beuszas 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-    background: linear-gradient(160deg, rgba(30, 30, 40, 0.92), rgba(14, 14, 20, 0.96));
-    margin: auto;
-    max-width: 820px;
-    outline: none;
-    padding: clamp(22px, 4vw, 40px);
-    width: 100%;
-}
-
-.modal-fejlec {
-    align-items: start;
-    display: flex;
-    gap: 16px;
-    justify-content: space-between;
-    margin-bottom: 28px;
-}
-
-.modal-fejlec h2 {
-    font-size: clamp(1.3rem, 3vw, 1.8rem);
-    margin: 14px 0 0;
-}
-
-.modal-bezaras {
-    background: var(--panel);
-    border: 1px solid var(--vonal-eros);
-    border-radius: 50%;
-    color: var(--szoveg);
-    cursor: pointer;
-    flex: none;
-    font-size: 1.5rem;
-    height: 42px;
-    line-height: 1;
-    transition: background 160ms ease, transform 160ms ease;
-    width: 42px;
-}
-
-.modal-bezaras:hover:not(:disabled) {
-    background: var(--panel-eros);
-    transform: rotate(90deg);
-}
-
-.modal-kep {
-    margin-top: 20px;
-}
-
-.modal-uzenet {
-    margin-top: 18px;
-}
-
-.modal-akciok {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 28px;
-}
-
-@media (max-width: 640px) {
-    .autok-eszkoztar {
-        align-items: stretch;
-        flex-direction: column;
-        position: static;
+    .autok-rendezes {
+        flex: 1;
     }
 
     .autok-rendezes select {
         min-width: 0;
-    }
-
-    .modal-akciok {
-        flex-direction: column-reverse;
-    }
-
-    .modal-akciok .gomb {
-        width: 100%;
     }
 }

@@ -1,0 +1,85 @@
+.hitel {
+    display: grid;
+    gap: 28px;
+    grid-template-columns: 1.2fr 1fr;
+    padding: clamp(20px, 3vw, 32px);
+}
+
+.hitel-mezok {
+    display: grid;
+    gap: 22px;
+}
+
+.hitel-futamidok {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.csuszka {
+    accent-color: var(--tuz-2);
+    cursor: pointer;
+    width: 100%;
+}
+
+.hitel-eredmeny {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--vonal);
+    border-radius: 20px;
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    padding: 24px;
+}
+
+.hitel-eredmeny > span {
+    color: var(--halvany);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.hitel-eredmeny strong {
+    font-family: var(--display);
+    font-size: clamp(1.8rem, 3.4vw, 2.4rem);
+    line-height: 1.1;
+}
+
+.hitel-eredmeny dl {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0 0;
+}
+
+.hitel-eredmeny dl div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+}
+
+.hitel-eredmeny dt {
+    color: var(--halvany);
+}
+
+.hitel-eredmeny dd {
+    font-weight: 700;
+    margin: 0;
+}
+
+.hitel-eredmeny p {
+    color: var(--halvanyabb);
+    font-size: 0.76rem;
+    line-height: 1.55;
+    margin: 14px 0 0;
+}
+
+.hitel-eredmeny a {
+    color: var(--halvany);
+}
+
+@media (max-width: 760px) {
+    .hitel {
+        grid-template-columns: 1fr;
+    }
+}

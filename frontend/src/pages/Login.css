@@ -88,6 +88,39 @@
     width: 100%;
 }
 
+.login-valtas {
+    color: var(--halvany);
+    font-size: 0.9rem;
+    margin: 24px 0 0;
+    text-align: center;
+}
+
+.login-valtas a {
+    color: var(--szoveg);
+    font-weight: 700;
+}
+
+.login-elonyok {
+    display: grid;
+    gap: 10px;
+    list-style: none;
+    margin: 14px 0 26px;
+    padding: 0;
+}
+
+.login-elonyok li {
+    align-items: center;
+    color: var(--halvany);
+    display: flex;
+    font-size: 0.9rem;
+    gap: 10px;
+}
+
+.login-elonyok .ikon {
+    color: var(--tuz-2);
+    flex: none;
+}
+
 .login-vissza {
     color: var(--halvany);
     display: block;

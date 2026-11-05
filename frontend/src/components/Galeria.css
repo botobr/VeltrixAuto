@@ -1,0 +1,174 @@
+.galeria {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.galeria-fo {
+    aspect-ratio: 16 / 10;
+    background: #0d0d12;
+    border: 1px solid var(--vonal);
+    border-radius: var(--r-nagy);
+    overflow: hidden;
+    position: relative;
+}
+
+.galeria-ures {
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    display: flex;
+    font-family: var(--display);
+    font-size: 2rem;
+    justify-content: center;
+    letter-spacing: 0.4em;
+}
+
+.galeria-nagyit {
+    background: none;
+    border: 0;
+    cursor: zoom-in;
+    height: 100%;
+    padding: 0;
+    width: 100%;
+}
+
+.galeria-nagyit img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.galeria-lepes {
+    align-items: center;
+    backdrop-filter: blur(10px);
+    background: rgba(10, 10, 14, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    height: 46px;
+    justify-content: center;
+    opacity: 0;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: opacity 180ms ease, background 180ms ease;
+    width: 46px;
+}
+
+.galeria-fo:hover .galeria-lepes,
+.galeria-lepes:focus-visible,
+.galeria-nagyito .galeria-lepes {
+    opacity: 1;
+}
+
+.galeria-lepes:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.galeria-elozo { left: 14px; }
+.galeria-kovetkezo { right: 14px; }
+
+.galeria-szamlalo {
+    backdrop-filter: blur(10px);
+    background: rgba(10, 10, 14, 0.6);
+    border-radius: 999px;
+    bottom: 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    position: absolute;
+    right: 14px;
+}
+
+.galeria-szurok {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.galeria-szurok small {
+    color: var(--halvanyabb);
+    margin-left: 2px;
+}
+
+.galeria-belyegek {
+    display: grid;
+    gap: 8px;
+    grid-auto-columns: 96px;
+    grid-auto-flow: column;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.galeria-belyegek button {
+    aspect-ratio: 4 / 3;
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    opacity: 0.55;
+    overflow: hidden;
+    padding: 0;
+    transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+.galeria-belyegek button:hover,
+.galeria-belyegek button.aktiv {
+    opacity: 1;
+}
+
+.galeria-belyegek button.aktiv {
+    border-color: var(--tuz-2);
+}
+
+.galeria-belyegek img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.galeria-nagyito {
+    align-items: center;
+    animation: elhalvanyul 200ms ease both;
+    background: rgba(3, 3, 6, 0.95);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: 56px 16px;
+    position: fixed;
+    z-index: 80;
+}
+
+.galeria-nagyito img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.galeria-nagyito-bezar {
+    height: 46px;
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    width: 46px;
+}
+
+.galeria-nagyito .galeria-szamlalo {
+    bottom: 20px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+}
+
+@keyframes elhalvanyul {
+    from { opacity: 0; }
+}
+
+@media (hover: none) {
+    .galeria-lepes {
+        opacity: 1;
+    }
+}

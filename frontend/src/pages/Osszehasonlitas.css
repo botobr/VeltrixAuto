@@ -1,0 +1,129 @@
+.osszehasonlitas-fejlec {
+    padding: clamp(32px, 6vw, 64px) 0 28px;
+}
+
+.osszehasonlitas-fejlec h1 {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    margin: 18px 0 10px;
+}
+
+.osszehasonlitas-fejlec p {
+    color: var(--halvany);
+    margin: 0;
+}
+
+.osszehasonlitas-ures p {
+    max-width: 460px;
+}
+
+.osszehasonlitas-gorgeto {
+    border: 1px solid var(--vonal);
+    border-radius: var(--r-nagy);
+    overflow-x: auto;
+}
+
+.osszehasonlitas-tabla {
+    border-collapse: collapse;
+    min-width: calc(180px + var(--oszlopok) * 220px);
+    table-layout: fixed;
+    width: 100%;
+}
+
+.osszehasonlitas-tabla th,
+.osszehasonlitas-tabla td {
+    border-bottom: 1px solid var(--vonal);
+    padding: 13px 16px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.osszehasonlitas-tabla tbody th {
+    background: #0e0e14;
+    color: var(--halvany);
+    font-size: 0.85rem;
+    font-weight: 600;
+    left: 0;
+    position: sticky;
+    width: 180px;
+    z-index: 1;
+}
+
+.osszehasonlitas-tabla thead th:first-child {
+    background: #0e0e14;
+    left: 0;
+    position: sticky;
+    width: 180px;
+    z-index: 1;
+}
+
+.osszehasonlitas-tabla td {
+    font-weight: 700;
+}
+
+.osszehasonlitas-tabla td.legjobb {
+    background: rgba(74, 222, 128, 0.07);
+    color: #bbf7d0;
+}
+
+.osszehasonlitas-tabla td .ikon {
+    color: var(--siker);
+    margin-left: 6px;
+    vertical-align: -1px;
+}
+
+.osszehasonlitas-tabla tbody tr:hover td,
+.osszehasonlitas-tabla tbody tr:hover th {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.halvany {
+    color: var(--halvanyabb);
+}
+
+.osszehasonlitas-auto {
+    display: grid;
+    gap: 6px;
+    position: relative;
+}
+
+.osszehasonlitas-auto a {
+    color: inherit;
+    display: grid;
+    gap: 4px;
+    text-decoration: none;
+}
+
+.osszehasonlitas-auto img,
+.osszehasonlitas-kep-hiany {
+    aspect-ratio: 16 / 10;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    object-fit: cover;
+    width: 100%;
+}
+
+.osszehasonlitas-kep-hiany {
+    align-items: center;
+    background: #15151d;
+    color: var(--halvanyabb);
+    display: flex;
+    font-family: var(--display);
+    justify-content: center;
+    letter-spacing: 0.3em;
+}
+
+.osszehasonlitas-auto strong {
+    font-family: var(--display);
+    font-size: 1.05rem;
+}
+
+.osszehasonlitas-auto .auto-cimke {
+    justify-self: start;
+}
+
+.osszehasonlitas-torles {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    z-index: 1;
+}

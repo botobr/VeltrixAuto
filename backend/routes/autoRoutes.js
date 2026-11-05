@@ -1,203 +1,225 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const AutokModel = require('../models/Autok');
+const TelephelyModel = require('../models/Telephely');
+const UserModel = require('../models/User');
 const { adminRequired } = require('../middlewares/authMiddleware');
-const { uploadImage, deleteImage } = require('../utils/cloudinary');
+const { uploadImage, deleteImagesQuietly } = require('../utils/cloudinary');
+const { autoAdatokEllenorzese, allapotEllenorzese } = require('../utils/autoMezok');
+const { autoValasz, publikusFeltetelek, rendezesEpitese, szuroEpitese } = require('../utils/autoSzuro');
+const { idSlugbol } = require('../utils/slug');
+const { ujAutoErtesites } = require('../utils/ertesitesek');
+const korlatozo = require('../utils/rateLimit');
 
 const router = express.Router();
 
-const szovegMezok = ['marka', 'modell', 'szin', 'kivitel', 'uzemanyag', 'szarmazasi_hely'];
-const szamMezok = ['evjarat', 'vetel_ar', 'teljesitmeny', 'hengerur_tartalom', 'kmora_allas'];
-const opcionalisMezok = ['elado_nev', 'elado_telefonszam', 'leiras'];
-const keresettMezok = ['marka', 'modell', 'uzemanyag', 'kivitel', 'szin'];
+const esemenyLimit = korlatozo({ ablakMs: 10 * 60 * 1000, max: 300 });
+const kepLimit = korlatozo({ ablakMs: 10 * 60 * 1000, max: 200, uzenet: 'Túl sok képfeltöltés. Próbáld újra később.' });
 
-const rendezesiSorrend = {
-    arNovekvo: { vetel_ar: 1, _id: 1 },
-    arCsokkeno: { vetel_ar: -1, _id: -1 },
-    ujElol: { createdAt: -1, _id: -1 },
-    regiElol: { createdAt: 1, _id: 1 },
-    evjaratCsokkeno: { evjarat: -1, _id: -1 },
+const TELEPHELY_MEZOK = 'nev iranyitoszam varos cim megye telefon email nyitvatartas szelesseg hosszusag';
+const LISTA_TELEPHELY_MEZOK = 'nev varos megye';
+
+const admin = (req) => req.session?.statusz === 'admin';
+
+const hibasValasz = (res, hibak) => res.status(400).json({ error: hibak[0], hibak });
+
+/** Csak olyan képet engedünk menteni, amely nincs egy másik autóhoz rendelve. */
+const idegenKepek = async (kepek, sajatId) => {
+    const publicIds = kepek.map((kep) => kep.publicId);
+    const masik = await AutokModel.findOne({
+        _id: { $ne: sajatId },
+        $or: [{ 'kepek.publicId': { $in: publicIds } }, { kepPublicId: { $in: publicIds } }],
+    }).select('_id');
+    return Boolean(masik);
 };
 
-const hibasAutoAdatok = (adatok) => {
-    const hianyzoSzoveg = szovegMezok.some((mezo) => (
-        typeof adatok[mezo] !== 'string' || !adatok[mezo].trim()
-    ));
-    const hibasSzam = szamMezok.some((mezo) => (
-        adatok[mezo] === '' || adatok[mezo] === null
-        || !Number.isFinite(Number(adatok[mezo])) || Number(adatok[mezo]) < 0
-    ));
-    const hibasOpcionalis = opcionalisMezok.some((mezo) => (
-        adatok[mezo] != null && typeof adatok[mezo] !== 'string'
-    ));
-    return hianyzoSzoveg || hibasSzam || hibasOpcionalis;
-};
+const telephelyLetezik = async (id) => !id || Boolean(await TelephelyModel.exists({ _id: id }));
 
-const autoAdatok = (adatok) => {
-    const eredmeny = {};
-    for (const mezo of szovegMezok) eredmeny[mezo] = adatok[mezo].trim();
-    for (const mezo of szamMezok) eredmeny[mezo] = Number(adatok[mezo]);
-    for (const mezo of opcionalisMezok) eredmeny[mezo] = (adatok[mezo] || '').trim();
-    return eredmeny;
-};
-
-const biztonsagosKereses = (ertek) => (
-    String(ertek).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-);
-
-const ervenyesId = (id) => mongoose.Types.ObjectId.isValid(id);
-
-// A kép törlése nem akaszthatja meg a sikeres adatbázis-műveletet.
-const kepTorleseCsendben = async (publicId) => {
-    try {
-        await deleteImage(publicId);
-    } catch (error) {
-        console.error(`Kép törlése sikertelen (${publicId}): ${error.message}`);
-    }
-};
+// ---------- Nyilvános lekérdezések ----------
 
 router.get('/autok', async (req, res) => {
-    try {
-        const { q, marka, modell, uzemanyag, minAr, maxAr, evjaratTol, evjaratIg, rendezes } = req.query;
-        const oldal = Math.max(Number.parseInt(req.query.oldal, 10) || 1, 1);
-        const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
-        const szuro = {};
+    const oldal = Math.max(Number.parseInt(req.query.oldal, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
+    const kiemeltek = req.query.kiemelt === '1';
 
-        if (typeof q === 'string' && q.trim()) {
-            const kifejezesek = q.trim().split(/\s+/).slice(0, 6);
-            szuro.$and = kifejezesek.map((kifejezes) => {
-                const minta = new RegExp(biztonsagosKereses(kifejezes), 'i');
-                const feltetelek = keresettMezok.map((mezo) => ({ [mezo]: minta }));
-                if (/^\d{4}$/.test(kifejezes)) feltetelek.push({ evjarat: Number(kifejezes) });
-                return { $or: feltetelek };
-            });
-        }
-        if (marka) szuro.marka = new RegExp(biztonsagosKereses(marka), 'i');
-        if (modell) szuro.modell = new RegExp(biztonsagosKereses(modell), 'i');
-        if (uzemanyag) szuro.uzemanyag = new RegExp(biztonsagosKereses(uzemanyag), 'i');
-        if (minAr || maxAr) szuro.vetel_ar = {};
-        if (minAr && Number.isFinite(Number(minAr))) szuro.vetel_ar.$gte = Number(minAr);
-        if (maxAr && Number.isFinite(Number(maxAr))) szuro.vetel_ar.$lte = Number(maxAr);
-        if (evjaratTol || evjaratIg) szuro.evjarat = {};
-        if (evjaratTol && Number.isFinite(Number(evjaratTol))) szuro.evjarat.$gte = Number(evjaratTol);
-        if (evjaratIg && Number.isFinite(Number(evjaratIg))) szuro.evjarat.$lte = Number(evjaratIg);
+    const szuro = await szuroEpitese(req.query);
+    if (kiemeltek) szuro.$and = [...(szuro.$and || []), { kiemelt: true }];
 
-        const rendezesKulcs = Object.hasOwn(rendezesiSorrend, rendezes) ? rendezes : 'ujElol';
-        const [osszes, autok] = await Promise.all([
-            AutokModel.countDocuments(szuro),
-            AutokModel.find(szuro)
-                .sort(rendezesiSorrend[rendezesKulcs])
-                .skip((oldal - 1) * limit)
-                .limit(limit),
-        ]);
+    const [osszes, autok] = await Promise.all([
+        AutokModel.countDocuments(szuro),
+        AutokModel.find(szuro)
+            .sort(rendezesEpitese(req.query.rendezes))
+            .skip((oldal - 1) * limit)
+            .limit(limit)
+            .populate('telephely', LISTA_TELEPHELY_MEZOK),
+    ]);
 
-        return res.status(200).json({
-            autok,
-            lapozas: { oldal, limit, osszes, oldalak: Math.ceil(osszes / limit) },
-        });
-    } catch (error) {
-        res.status(500).json({ error: `Hiba: ${error.message}` });
-    }
+    return res.status(200).json({
+        autok: autok.map((auto) => autoValasz(auto)),
+        lapozas: { oldal, limit, osszes, oldalak: Math.ceil(osszes / limit) },
+    });
 });
 
-router.post('/new-auto', adminRequired, async (req, res) => {
-    try {
-        const adatok = req.body || {};
-        if (hibasAutoAdatok(adatok)) {
-            return res.status(400).json({ error: 'Minden autóadatot helyesen kell megadni.' });
-        }
-        if (typeof adatok.kep !== 'string' || !adatok.kep.startsWith('data:image/')) {
-            return res.status(400).json({ error: 'Érvényes autóképet kell feltölteni.' });
-        }
+/** A szűrőpanelhez: elérhető márkák/modellek, megyék, értéktartományok. */
+router.get('/autok/szurok', async (req, res) => {
+    const alap = { $and: [...publikusFeltetelek(), { statusz: { $ne: 'elkelt' } }] };
+    const [markak, tartomanyok, telephelyek] = await Promise.all([
+        AutokModel.aggregate([
+            { $match: alap },
+            { $group: { _id: '$marka', modellek: { $addToSet: '$modell' }, db: { $sum: 1 } } },
+            { $sort: { _id: 1 } },
+        ]),
+        AutokModel.aggregate([
+            { $match: alap },
+            {
+                $group: {
+                    _id: null,
+                    minAr: { $min: '$vetel_ar' }, maxAr: { $max: '$vetel_ar' },
+                    minEv: { $min: '$evjarat' }, maxEv: { $max: '$evjarat' },
+                    maxKm: { $max: '$kmora_allas' }, maxLe: { $max: '$teljesitmeny' },
+                },
+            },
+        ]),
+        TelephelyModel.find().select(LISTA_TELEPHELY_MEZOK).sort({ nev: 1 }),
+    ]);
 
-        const uploadedImage = await uploadImage(adatok.kep);
-        const newAuto = new AutokModel({
-            ...autoAdatok(adatok),
-            kep: uploadedImage.secure_url,
-            kepPublicId: uploadedImage.public_id,
-        });
-        try {
-            await newAuto.save();
-        } catch (error) {
-            await kepTorleseCsendben(uploadedImage.public_id);
-            throw error;
-        }
-        return res.status(201).json({ message: 'Autó sikeresen létrehozva!', auto: newAuto });
-    } catch (error) {
-        res.status(500).json({ error: `Hiba: ${error.message}` });
-    }
-});
-
-router.delete('/delete-auto/:id', adminRequired, async (req, res) => {
-    try {
-        if (!ervenyesId(req.params.id)) {
-            return res.status(404).json({ error: 'Autó nem található!' });
-        }
-        const auto = await AutokModel.findByIdAndDelete(req.params.id);
-        if (!auto) {
-            return res.status(404).json({ error: 'Autó nem található!' });
-        }
-
-        await kepTorleseCsendben(auto.kepPublicId);
-        return res.status(200).json({ message: 'Autó sikeresen törölve!' });
-    } catch (error) {
-        res.status(500).json({ error: `Hiba: ${error.message}` });
-    }
+    return res.status(200).json({
+        markak: markak.map((m) => ({ marka: m._id, db: m.db, modellek: m.modellek.sort((a, b) => a.localeCompare(b, 'hu')) })),
+        megyek: [...new Set(telephelyek.map((t) => t.megye))].sort((a, b) => a.localeCompare(b, 'hu')),
+        telephelyek,
+        tartomanyok: tartomanyok[0] ? { ...tartomanyok[0], _id: undefined } : null,
+    });
 });
 
 router.get('/autok/:id', async (req, res) => {
-    try {
-        if (!ervenyesId(req.params.id)) {
-            return res.status(404).json({ error: 'Autó nem található!' });
-        }
-        const auto = await AutokModel.findById(req.params.id);
-        if (!auto) {
-            return res.status(404).json({ error: 'Autó nem található!' });
-        }
-        return res.status(200).json({ auto });
-    } catch (error) {
-        res.status(500).json({ error: `Hiba: ${error.message}` });
+    const id = idSlugbol(req.params.id);
+    if (!id) {
+        return res.status(404).json({ error: 'Autó nem található!' });
     }
+    const feltetel = admin(req) ? { _id: id } : { $and: [{ _id: id }, ...publikusFeltetelek()] };
+    const auto = await AutokModel.findOne(feltetel).populate('telephely', TELEPHELY_MEZOK);
+    if (!auto) {
+        return res.status(404).json({ error: 'Autó nem található!' });
+    }
+
+    const hasonlok = await AutokModel.find({
+        $and: [
+            ...publikusFeltetelek(),
+            { _id: { $ne: auto._id } },
+            { statusz: { $ne: 'elkelt' } },
+            { $or: [{ marka: auto.marka }, { kivitel: auto.kivitel, vetel_ar: { $gte: auto.vetel_ar * 0.6, $lte: auto.vetel_ar * 1.4 } }] },
+        ],
+    }).sort({ createdAt: -1 }).limit(3).populate('telephely', LISTA_TELEPHELY_MEZOK);
+
+    return res.status(200).json({
+        auto: autoValasz(auto, { admin: admin(req) }),
+        hasonlok: hasonlok.map((elem) => autoValasz(elem)),
+    });
+});
+
+/** Megtekintés és telefonszám-kattintás számlálása (a frontend munkamenetenként egyszer küldi). */
+router.post('/autok/:id/esemeny', esemenyLimit, async (req, res) => {
+    const id = idSlugbol(req.params.id);
+    const mezo = { megtekintes: 'megtekintesek', telefon: 'telefonKattintasok' }[req.body?.tipus];
+    if (!id || !mezo) {
+        return res.status(400).json({ error: 'Érvénytelen esemény.' });
+    }
+    if (!admin(req)) {
+        await AutokModel.updateOne({ _id: id }, { $inc: { [mezo]: 1 } });
+    }
+    return res.status(204).end();
+});
+
+// ---------- Képek (admin) ----------
+
+router.post('/kepek', adminRequired, kepLimit, async (req, res) => {
+    const kep = req.body?.kep;
+    if (typeof kep !== 'string' || !kep.startsWith('data:image/')) {
+        return res.status(400).json({ error: 'Érvényes képet kell küldeni.' });
+    }
+    const feltoltott = await uploadImage(kep);
+    return res.status(201).json({ url: feltoltott.secure_url, publicId: feltoltott.public_id });
+});
+
+/** Mentés nélkül elvetett, frissen feltöltött képek takarítása. Hirdetéshez tartozó képet nem töröl. */
+router.delete('/kepek', adminRequired, async (req, res) => {
+    const publicIds = Array.isArray(req.body?.publicIds)
+        ? req.body.publicIds.filter((id) => typeof id === 'string' && id.startsWith('veltrix/autok/')).slice(0, 50)
+        : [];
+    const hasznalt = await AutokModel.find({
+        $or: [{ 'kepek.publicId': { $in: publicIds } }, { kepPublicId: { $in: publicIds } }],
+    }).select('kepek.publicId kepPublicId');
+    const foglalt = new Set(hasznalt.flatMap((auto) => [auto.kepPublicId, ...auto.kepek.map((k) => k.publicId)]));
+    await deleteImagesQuietly(publicIds.filter((id) => !foglalt.has(id)));
+    return res.status(204).end();
+});
+
+// ---------- Hirdetések kezelése (admin) ----------
+
+router.post('/new-auto', adminRequired, async (req, res) => {
+    const { adatok, hibak } = autoAdatokEllenorzese(req.body);
+    if (hibak.length) return hibasValasz(res, hibak);
+    if (!(await telephelyLetezik(adatok.telephely))) return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
+    if (await idegenKepek(adatok.kepek, null)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
+
+    const ujAuto = await AutokModel.create(adatok);
+    if (ujAuto.lathato && ujAuto.statusz !== 'elkelt') {
+        ujAutoErtesites(ujAuto);
+    }
+    return res.status(201).json({ message: 'Autó sikeresen létrehozva!', auto: autoValasz(ujAuto, { admin: true }) });
 });
 
 router.put('/update-auto/:id', adminRequired, async (req, res) => {
-    try {
-        const adatok = req.body || {};
-        if (hibasAutoAdatok(adatok)) {
-            return res.status(400).json({ error: 'Minden autóadatot helyesen kell megadni.' });
-        }
-        if (!ervenyesId(req.params.id)) {
-            return res.status(404).json({ error: 'Autó nem található!' });
-        }
-        const auto = await AutokModel.findById(req.params.id);
-        if (!auto) {
-            return res.status(404).json({ error: 'Autó nem található!' });
-        }
-
-        auto.set(autoAdatok(adatok));
-
-        let regiKepPublicId;
-        let ujKepPublicId;
-        if (typeof adatok.kep === 'string' && adatok.kep.startsWith('data:image/')) {
-            const uploadedImage = await uploadImage(adatok.kep);
-            regiKepPublicId = auto.kepPublicId;
-            ujKepPublicId = uploadedImage.public_id;
-            auto.kep = uploadedImage.secure_url;
-            auto.kepPublicId = uploadedImage.public_id;
-        }
-
-        let updatedAuto;
-        try {
-            updatedAuto = await auto.save();
-        } catch (error) {
-            await kepTorleseCsendben(ujKepPublicId);
-            throw error;
-        }
-        await kepTorleseCsendben(regiKepPublicId);
-        return res.status(200).json({ message: 'Autó sikeresen frissítve!', updatedAuto });
-    } catch (error) {
-        res.status(500).json({ error: `Hiba: ${error.message}` });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).json({ error: 'Autó nem található!' });
     }
+    const { adatok, hibak } = autoAdatokEllenorzese(req.body);
+    if (hibak.length) return hibasValasz(res, hibak);
+
+    const auto = await AutokModel.findById(req.params.id);
+    if (!auto) {
+        return res.status(404).json({ error: 'Autó nem található!' });
+    }
+    if (!(await telephelyLetezik(adatok.telephely))) return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
+    if (await idegenKepek(adatok.kepek, auto._id)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
+
+    const regiKepek = new Set([auto.kepPublicId, ...auto.kepek.map((kep) => kep.publicId)].filter(Boolean));
+    auto.set(adatok);
+    const updatedAuto = await auto.save();
+
+    const megmaradt = new Set(updatedAuto.kepek.map((kep) => kep.publicId));
+    await deleteImagesQuietly([...regiKepek].filter((id) => !megmaradt.has(id)));
+
+    return res.status(200).json({ message: 'Autó sikeresen frissítve!', updatedAuto: autoValasz(updatedAuto, { admin: true }) });
+});
+
+/** Gyors állapotváltás: státusz, láthatóság, kiemelés, lejárat. */
+router.patch('/autok/:id/allapot', adminRequired, async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).json({ error: 'Autó nem található!' });
+    }
+    const { adatok, hibak } = allapotEllenorzese(req.body);
+    if (hibak.length) return hibasValasz(res, hibak);
+
+    const auto = await AutokModel.findByIdAndUpdate(req.params.id, { $set: adatok }, { returnDocument: 'after', runValidators: true });
+    if (!auto) {
+        return res.status(404).json({ error: 'Autó nem található!' });
+    }
+    return res.status(200).json({ message: 'Állapot frissítve.', auto: autoValasz(auto, { admin: true }) });
+});
+
+router.delete('/delete-auto/:id', adminRequired, async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).json({ error: 'Autó nem található!' });
+    }
+    const auto = await AutokModel.findByIdAndDelete(req.params.id);
+    if (!auto) {
+        return res.status(404).json({ error: 'Autó nem található!' });
+    }
+
+    await UserModel.updateMany({ kedvencek: auto._id }, { $pull: { kedvencek: auto._id } });
+    await deleteImagesQuietly([auto.kepPublicId, ...auto.kepek.map((kep) => kep.publicId)]);
+    return res.status(200).json({ message: 'Autó sikeresen törölve!' });
 });
 
 module.exports = router;

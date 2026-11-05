@@ -1,22 +1,46 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth';
+import { useSeo } from '../lib/useSeo';
 import './Login.css';
 
+export const JelszoMezo = ({ id, value, onChange, autoComplete, placeholder, minLength }) => {
+    const [lathato, setLathato] = useState(false);
+    return (
+        <div className="login-jelszo">
+            <input
+                className="bemenet"
+                id={id}
+                type={lathato ? 'text' : 'password'}
+                autoComplete={autoComplete}
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                minLength={minLength}
+                required
+            />
+            <button type="button" className="login-mutat" onClick={() => setLathato((elozo) => !elozo)} aria-pressed={lathato}>
+                {lathato ? 'Elrejt' : 'Mutat'}
+            </button>
+        </div>
+    );
+};
+
 const Login = () => {
-    const { user, login } = useAuth();
+    const { user, admin, login } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState('');
     const [jelszo, setJelszo] = useState('');
-    const [jelszoLathato, setJelszoLathato] = useState(false);
     const [hiba, setHiba] = useState('');
     const [folyamatban, setFolyamatban] = useState(false);
 
-    const cel = location.state?.from || '/autok';
+    useSeo({ cim: 'Bejelentkezés', noindex: true });
+
+    const cel = (felhasznalo) => location.state?.from || (felhasznalo?.statusz === 'admin' ? '/admin' : '/fiok');
 
     if (user && !folyamatban) {
-        return <Navigate to={cel} replace />;
+        return <Navigate to={location.state?.from || (admin ? '/admin' : '/fiok')} replace />;
     }
 
     const handleSubmit = async (event) => {
@@ -24,8 +48,8 @@ const Login = () => {
         setHiba('');
         setFolyamatban(true);
         try {
-            await login(email.trim(), jelszo);
-            navigate(cel, { replace: true });
+            const felhasznalo = await login(email.trim(), jelszo);
+            navigate(cel(felhasznalo), { replace: true });
         } catch (error) {
             setHiba(error.message);
             setFolyamatban(false);
@@ -38,7 +62,7 @@ const Login = () => {
                 <div className="login-disz" aria-hidden="true">V</div>
                 <p className="felirat">Üdv újra itt</p>
                 <h1>Bejelentkezés</h1>
-                <p className="login-leiras">Lépj be a Veltrix fiókodba az autók kezeléséhez.</p>
+                <p className="login-leiras">{location.state?.uzenet || 'Lépj be a fiókodba a kedvenceid és mentett kereséseid eléréséhez.'}</p>
                 <form className="login-urlap" onSubmit={handleSubmit}>
                     <div className="mezo">
                         <span><label htmlFor="email">E-mail-cím</label></span>
@@ -55,33 +79,17 @@ const Login = () => {
                     </div>
                     <div className="mezo">
                         <span><label htmlFor="jelszo">Jelszó</label></span>
-                        <div className="login-jelszo">
-                            <input
-                                className="bemenet"
-                                id="jelszo"
-                                type={jelszoLathato ? 'text' : 'password'}
-                                autoComplete="current-password"
-                                value={jelszo}
-                                onChange={(event) => setJelszo(event.target.value)}
-                                placeholder="Add meg a jelszavad"
-                                required
-                            />
-                            <button
-                                type="button"
-                                className="login-mutat"
-                                onClick={() => setJelszoLathato((elozo) => !elozo)}
-                                aria-pressed={jelszoLathato}
-                            >
-                                {jelszoLathato ? 'Elrejt' : 'Mutat'}
-                            </button>
-                        </div>
+                        <JelszoMezo id="jelszo" autoComplete="current-password" value={jelszo} placeholder="Add meg a jelszavad"
+                            onChange={(event) => setJelszo(event.target.value)} />
                     </div>
                     {hiba && <p className="uzenet uzenet-hiba" role="alert">{hiba}</p>}
                     <button className="gomb gomb-fo login-gomb" type="submit" disabled={folyamatban}>
                         {folyamatban ? 'Bejelentkezés…' : 'Belépés'}
                     </button>
                 </form>
-                <Link className="login-vissza" to="/">← Vissza a főoldalra</Link>
+                <p className="login-valtas">
+                    Még nincs fiókod? <Link to="/regisztracio" state={location.state}>Regisztrálj ingyen</Link>
+                </p>
             </section>
         </main>
     );

@@ -1,0 +1,120 @@
+.auto-urlap {
+    display: grid;
+    gap: 18px;
+}
+
+.urlap-szekcio {
+    padding: clamp(20px, 3vw, 32px);
+}
+
+.urlap-szekcio h2 {
+    align-items: center;
+    display: flex;
+    font-size: 1.1rem;
+    gap: 12px;
+    margin: 0 0 22px;
+}
+
+.urlap-szekcio h2 > span {
+    align-items: center;
+    background: var(--gradiens);
+    border-radius: 10px;
+    display: inline-flex;
+    font-size: 0.85rem;
+    height: 30px;
+    justify-content: center;
+    width: 30px;
+}
+
+.urlap-szekcio h2 small {
+    color: var(--halvanyabb);
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.auto-urlap-racs {
+    display: grid;
+    gap: 20px 18px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+}
+
+.kotelezo {
+    color: var(--tuz-2) !important;
+    font-weight: 800 !important;
+}
+
+.mezo-sugo {
+    color: var(--halvanyabb);
+    font-size: 0.76rem;
+}
+
+.bemenet-egyseggel {
+    position: relative;
+}
+
+.bemenet-egyseggel .bemenet {
+    padding-right: 74px;
+}
+
+.bemenet-egyseggel span {
+    color: var(--halvanyabb);
+    font-size: 0.8rem;
+    font-weight: 700;
+    pointer-events: none;
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.harom-allas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 50px;
+    align-items: center;
+}
+
+.urlap-kapcsolok {
+    align-content: center;
+    gap: 14px;
+}
+
+.felszereltseg-valaszto {
+    display: grid;
+    gap: 20px;
+}
+
+.felszereltseg-valaszto fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.felszereltseg-valaszto legend {
+    color: var(--halvany);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    margin-bottom: 10px;
+    padding: 0;
+    text-transform: uppercase;
+}
+
+.felszereltseg-valaszto .csip {
+    align-items: center;
+    display: inline-flex;
+    gap: 5px;
+}
+
+.felszereltseg-uj {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    max-width: 480px;
+}
+
+.felszereltseg-uj .bemenet {
+    min-height: 40px;
+}

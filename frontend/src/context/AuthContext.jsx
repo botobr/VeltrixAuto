@@ -30,6 +30,23 @@ export const AuthProvider = ({ children }) => {
         return data.user;
     }, []);
 
+    const regisztracio = useCallback(async (adatok) => {
+        const data = await apiKeres('/auth/register', { method: 'POST', body: adatok }, 'A regisztráció nem sikerült.');
+        setUser(data.user);
+        return data.user;
+    }, []);
+
+    const profilMentese = useCallback(async (adatok) => {
+        const data = await apiKeres('/auth/me', { method: 'PUT', body: adatok }, 'A profil mentése nem sikerült.');
+        setUser(data.user);
+        return data;
+    }, []);
+
+    const fiokTorlese = useCallback(async (jelszo) => {
+        await apiKeres('/auth/me', { method: 'DELETE', body: { jelszo } }, 'A fiók törlése nem sikerült.');
+        setUser(null);
+    }, []);
+
     const logout = useCallback(async () => {
         try {
             await apiKeres('/auth/logout', { method: 'POST' }, 'Nem sikerült kijelentkezni.');
@@ -40,6 +57,33 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     }, []);
 
-    const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout]);
+    /** Kedvenc be/ki – optimista frissítéssel, hiba esetén visszaállítva. */
+    const kedvencValtas = useCallback(async (autoId) => {
+        if (!user) return false;
+        const kedvenc = user.kedvencek?.includes(autoId);
+        const elozo = user.kedvencek || [];
+        setUser((u) => ({ ...u, kedvencek: kedvenc ? elozo.filter((id) => id !== autoId) : [...elozo, autoId] }));
+        try {
+            const data = await apiKeres(`/fiok/kedvencek/${autoId}`, { method: kedvenc ? 'DELETE' : 'POST' }, 'A kedvencek mentése nem sikerült.');
+            setUser((u) => (u ? { ...u, kedvencek: data.kedvencek } : u));
+        } catch (error) {
+            setUser((u) => (u ? { ...u, kedvencek: elozo } : u));
+            if (error.status === 401) setUser(null);
+            throw error;
+        }
+        return true;
+    }, [user]);
+
+    const value = useMemo(() => ({
+        user,
+        loading,
+        admin: user?.statusz === 'admin',
+        login,
+        logout,
+        regisztracio,
+        profilMentese,
+        fiokTorlese,
+        kedvencValtas,
+    }), [user, loading, login, logout, regisztracio, profilMentese, fiokTorlese, kedvencValtas]);
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

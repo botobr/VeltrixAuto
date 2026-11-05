@@ -8,7 +8,7 @@
 }
 
 .home-tartalom h1 {
-    font-size: clamp(2.6rem, 6.2vw, 5.2rem);
+    font-size: clamp(2.4rem, 5.4vw, 4.6rem);
     font-weight: 800;
     letter-spacing: -0.05em;
     line-height: 1;
@@ -189,8 +189,68 @@
 
 .home-elonyok {
     display: grid;
-    gap: 18px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.home-elony {
+    color: inherit;
+    text-decoration: none;
+}
+
+.home-elony-ikon {
+    height: 44px;
+    width: 44px;
+}
+
+.gyorskereso {
+    align-items: end;
+    border-radius: 22px;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 1fr auto;
+    margin-top: 32px;
+    max-width: 580px;
+    padding: 10px;
+}
+
+.gyorskereso label {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 14px;
+    display: grid;
+    gap: 2px;
+    padding: 8px 14px;
+}
+
+.gyorskereso label span {
+    color: var(--halvanyabb);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.gyorskereso select {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--szoveg);
+    cursor: pointer;
+    font-weight: 700;
+    outline: none;
+    padding: 2px 0;
+}
+
+.gyorskereso select option {
+    background: #15151d;
+}
+
+.gyorskereso label:focus-within {
+    box-shadow: 0 0 0 2px var(--tuz-2);
+}
+
+.gyorskereso .gomb {
+    min-height: 56px;
 }
 
 .home-elony {
@@ -212,8 +272,8 @@
 }
 
 .home-elony h3 {
-    font-size: 1.15rem;
-    margin: 22px 0 10px;
+    font-size: 1.1rem;
+    margin: 20px 0 8px;
 }
 
 .home-elony p {
@@ -290,6 +350,21 @@
 
     .home-lebego-felso { left: -8px; }
     .home-lebego-also { right: -8px; }
+
+    .home-elonyok {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .gyorskereso {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .gyorskereso .gomb {
+        grid-column: 1 / -1;
+        min-height: 48px;
+    }
 
     .home-elonyok {
         grid-template-columns: 1fr;

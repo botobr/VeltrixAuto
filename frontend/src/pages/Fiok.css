@@ -1,0 +1,134 @@
+.fiok-fejlec {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: space-between;
+    padding: clamp(32px, 6vw, 64px) 0 28px;
+}
+
+.fiok-fejlec h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    margin: 18px 0 0;
+}
+
+.fiok-tartalom {
+    margin-top: 24px;
+}
+
+.fiok-megjegyzes {
+    color: var(--halvany);
+    font-size: 0.88rem;
+    margin: 0 0 16px;
+}
+
+.keresesek {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+}
+
+.kereses {
+    display: grid;
+    gap: 12px;
+    padding: 20px;
+}
+
+.kereses-fej {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.kereses-fej h3 {
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.kereses-uj {
+    background: var(--gradiens);
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    white-space: nowrap;
+}
+
+.kereses-cimkek {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.kereses-cimkek span {
+    background: var(--panel);
+    border: 1px solid var(--vonal);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    padding: 4px 10px;
+}
+
+.kereses-info {
+    color: var(--halvanyabb);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.kereses-muveletek {
+    align-items: center;
+    border-top: 1px solid var(--vonal);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+    padding-top: 12px;
+}
+
+.kereses-gombok {
+    display: flex;
+    gap: 8px;
+}
+
+.profil {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 1.3fr 1fr;
+    align-items: start;
+}
+
+.profil-blokk {
+    display: grid;
+    gap: 18px;
+    padding: clamp(22px, 3vw, 32px);
+}
+
+.profil-blokk h3 {
+    margin: 0;
+}
+
+.profil-blokk > p {
+    color: var(--halvany);
+    margin: 0;
+}
+
+.profil-mezok {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.profil-blokk > .gomb {
+    justify-self: start;
+}
+
+.profil-veszely {
+    border-color: rgba(255, 107, 129, 0.25);
+}
+
+@media (max-width: 860px) {
+    .profil,
+    .profil-mezok {
+        grid-template-columns: 1fr;
+    }
+}

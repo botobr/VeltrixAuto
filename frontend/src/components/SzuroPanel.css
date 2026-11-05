@@ -1,0 +1,157 @@
+.szuro-panel {
+    align-self: start;
+    border-radius: 24px;
+    display: grid;
+    gap: 6px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px;
+    position: sticky;
+    scrollbar-width: thin;
+    top: 92px;
+}
+
+.szuro-fejlec {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.szuro-fejlec h2 {
+    align-items: center;
+    display: flex;
+    font-size: 1rem;
+    gap: 8px;
+    margin: 0;
+}
+
+.szuro-szam {
+    align-items: center;
+    background: var(--gradiens);
+    border-radius: 999px;
+    display: inline-flex;
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    height: 22px;
+    justify-content: center;
+    min-width: 22px;
+    padding: 0 6px;
+}
+
+.szuro-bezaras,
+.szuro-mutat {
+    display: none !important;
+}
+
+.szuro-gyors {
+    border-bottom: 1px solid var(--vonal);
+    display: grid;
+    gap: 10px;
+    padding-bottom: 14px;
+}
+
+.szuro-csoport {
+    border: 0;
+    border-bottom: 1px solid var(--vonal);
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    min-width: 0;
+    padding: 12px 0 16px;
+}
+
+.szuro-csoport:last-of-type {
+    border-bottom: 0;
+}
+
+.szuro-csoport legend {
+    color: var(--szoveg);
+    float: left;
+    font-size: 0.8rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    padding: 0;
+    width: 100%;
+}
+
+.szuro-csoport legend small {
+    color: var(--halvanyabb);
+    font-weight: 600;
+}
+
+.szuro-csoport .bemenet {
+    font-size: 0.88rem;
+    min-height: 42px;
+    padding: 0 12px;
+}
+
+.szuro-csoport select.bemenet {
+    padding-right: 34px;
+    background-position: right 12px center;
+}
+
+.szuro-tartomany {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: 1fr auto 1fr;
+}
+
+.szuro-tartomany span {
+    color: var(--halvanyabb);
+}
+
+.szuro-csipek {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.szuro-kapcsolo {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    font-size: 0.86rem;
+    font-weight: 600;
+    gap: 10px;
+    position: relative;
+}
+
+@media (max-width: 1000px) {
+    .szuro-panel {
+        animation: none;
+        /* backdrop-filter nélkül: különben a panel lenne a fix elemek viszonyítási doboza */
+        align-self: stretch;
+        backdrop-filter: none;
+        background: #101017;
+        height: 100dvh;
+        border-radius: 0;
+        display: none;
+        inset: 0;
+        max-height: none;
+        padding: 20px 20px 0;
+        position: fixed;
+        top: 0;
+        z-index: 60;
+    }
+
+    .szuro-panel-nyitva {
+        display: grid;
+    }
+
+    .szuro-bezaras {
+        display: inline-flex !important;
+        margin-left: auto;
+    }
+
+    .szuro-mutat {
+        bottom: 0;
+        box-shadow: 0 -20px 30px 10px #101017;
+        display: inline-flex !important;
+        margin: 12px 0 16px;
+        position: sticky;
+    }
+}

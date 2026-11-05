@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth';
+import Ikon from './Ikon';
 import './Nav.css';
 
 const Nav = () => {
-    const { user, logout } = useAuth();
+    const { user, admin, logout } = useAuth();
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const [hiba, setHiba] = useState('');
@@ -36,6 +37,7 @@ const Nav = () => {
     };
 
     const monogram = (user?.nev || user?.email || '?').trim().charAt(0).toUpperCase();
+    const kedvencekSzama = user?.kedvencek?.length || 0;
 
     return (
         <header className={`nav-fejlec ${gorgetett ? 'nav-gorgetett' : ''} ${nyitva ? 'nav-nyitva' : ''}`}>
@@ -58,24 +60,35 @@ const Nav = () => {
 
                 <div className="nav-menu" id="nav-menu">
                     <div className="nav-linkek">
-                        <NavLink to="/" end>Főoldal</NavLink>
                         <NavLink to="/autok">Kínálat</NavLink>
-                        {user && <NavLink to="/feltolt">Feltöltés</NavLink>}
+                        <NavLink to="/szolgaltatasok">Szolgáltatások</NavLink>
+                        <NavLink to="/rolunk">Rólunk</NavLink>
+                        {admin && <NavLink to="/admin">Admin</NavLink>}
                     </div>
                     <div className="nav-fiok">
                         {user ? (
                             <>
-                                <span className="nav-felhasznalo" title={user.email}>
-                                    <span className="nav-avatar" aria-hidden="true">{monogram}</span>
+                                <Link className="nav-felhasznalo" to="/fiok" title="Fiókom">
+                                    <span className="nav-avatar" aria-hidden="true">
+                                        {monogram}
+                                        {kedvencekSzama > 0 && <span className="nav-jelveny">{kedvencekSzama}</span>}
+                                    </span>
                                     <span className="nav-felhasznalo-nev">{user.nev || user.email}</span>
-                                </span>
-                                <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={handleLogout}>Kilépés</button>
-                                <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/feltolt">
-                                    + Új hirdetés
                                 </Link>
+                                <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={handleLogout}>
+                                    <Ikon nev="kilep" meret={15} /> Kilépés
+                                </button>
+                                {admin && (
+                                    <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/admin/autok/uj">
+                                        <Ikon nev="plusz" meret={15} /> Új hirdetés
+                                    </Link>
+                                )}
                             </>
                         ) : (
-                            <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/login">Bejelentkezés</Link>
+                            <>
+                                <Link className="gomb gomb-uveg gomb-kicsi" to="/login" state={{ from: pathname }}>Belépés</Link>
+                                <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/regisztracio">Regisztráció</Link>
+                            </>
                         )}
                     </div>
                 </div>

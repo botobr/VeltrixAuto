@@ -1,0 +1,175 @@
+.kepkezelo {
+    display: grid;
+    gap: 14px;
+}
+
+.kep-zona {
+    align-items: center;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255, 106, 43, 0.1), transparent 60%),
+        rgba(0, 0, 0, 0.3);
+    border: 1.5px dashed var(--vonal-eros);
+    border-radius: var(--r);
+    cursor: pointer;
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    padding: 30px 20px;
+    text-align: center;
+    transition: border-color 180ms ease, background 180ms ease;
+}
+
+.kep-zona:hover,
+.kep-zona:focus-within,
+.kep-zona.aktiv {
+    border-color: var(--tuz-2);
+}
+
+.kep-zona.aktiv {
+    background: rgba(255, 106, 43, 0.1);
+}
+
+.kep-zona small {
+    color: var(--halvany);
+    font-size: 0.8rem;
+    max-width: 520px;
+}
+
+.kep-zona-ikon {
+    align-items: center;
+    background: var(--gradiens);
+    border-radius: 14px;
+    box-shadow: var(--ragyogas);
+    color: #fff;
+    display: flex;
+    height: 48px;
+    justify-content: center;
+    margin-bottom: 6px;
+    width: 48px;
+}
+
+.kepkezelo-hibak {
+    display: grid;
+    gap: 4px;
+    list-style: none;
+}
+
+.kepkezelo-sugo {
+    color: var(--halvany);
+    font-size: 0.84rem;
+    margin: 0;
+}
+
+.kepkezelo-racs {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.kepkezelo-elem {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--vonal);
+    border-radius: 14px;
+    cursor: grab;
+    display: grid;
+    overflow: hidden;
+    transition: border-color 150ms ease, transform 150ms ease;
+}
+
+.kepkezelo-elem:first-child {
+    border-color: rgba(255, 106, 43, 0.6);
+}
+
+.kepkezelo-elem.huzas-cel {
+    border-color: var(--tuz-1);
+    transform: scale(1.03);
+}
+
+.kepkezelo-kep {
+    align-items: center;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    justify-content: center;
+    position: relative;
+}
+
+.kepkezelo-kep img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.kepkezelo-sorszam {
+    backdrop-filter: blur(8px);
+    background: rgba(10, 10, 14, 0.7);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    left: 8px;
+    padding: 4px 9px;
+    position: absolute;
+    top: 8px;
+}
+
+.kepkezelo-elem:first-child .kepkezelo-sorszam {
+    background: var(--gradiens);
+}
+
+.kepkezelo-fogo {
+    backdrop-filter: blur(8px);
+    background: rgba(10, 10, 14, 0.7);
+    border-radius: 8px;
+    display: flex;
+    padding: 4px;
+    position: absolute;
+    right: 8px;
+    top: 8px;
+}
+
+.kepkezelo-vezerlok {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+}
+
+.kepkezelo-vezerlok .bemenet {
+    font-size: 0.82rem;
+    min-height: 36px;
+    padding: 0 30px 0 10px;
+    background-position: right 10px center;
+}
+
+.kepkezelo-gombok {
+    display: flex;
+    gap: 4px;
+    justify-content: space-between;
+}
+
+.kepkezelo-gombok .ikon-gomb {
+    background: var(--panel);
+    border-color: var(--vonal);
+    min-height: 32px;
+    min-width: 32px;
+    padding: 0;
+}
+
+.kepkezelo-torles:hover {
+    border-color: rgba(255, 107, 129, 0.6) !important;
+    color: #ffb3c0;
+}
+
+.kepkezelo-tolt {
+    cursor: default;
+}
+
+.kepkezelo-tolt small {
+    color: var(--halvany);
+    font-size: 0.74rem;
+    overflow: hidden;
+    padding: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

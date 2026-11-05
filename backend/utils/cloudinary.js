@@ -7,8 +7,8 @@ cloudinary.config({
 });
 
 const uploadImage = (imageData) => new Promise((resolve, reject) => {
-    if (typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
-        reject(new Error('Érvénytelen képformátum.'));
+    if (typeof imageData !== 'string' || !/^data:image\/(jpeg|png|webp|avif);base64,/.test(imageData)) {
+        reject(new Error('Érvénytelen képformátum (JPG, PNG, WebP vagy AVIF lehet).'));
         return;
     }
 
@@ -16,6 +16,8 @@ const uploadImage = (imageData) => new Promise((resolve, reject) => {
         {
             folder: 'veltrix/autok',
             resource_type: 'image',
+            // A túl nagy képeket a Cloudinary méretezi le, hogy a galéria gyors maradjon.
+            transformation: [{ width: 2400, height: 2400, crop: 'limit' }],
         },
         (error, result) => {
             if (error) {
@@ -42,4 +44,15 @@ const deleteImage = (publicId) => new Promise((resolve, reject) => {
     });
 });
 
-module.exports = { uploadImage, deleteImage };
+/** Több képet töröl; a hibát naplózza, de nem dobja tovább. */
+const deleteImagesQuietly = async (publicIds = []) => {
+    await Promise.all([...new Set(publicIds.filter(Boolean))].map(async (publicId) => {
+        try {
+            await deleteImage(publicId);
+        } catch (error) {
+            console.error(`Kép törlése sikertelen (${publicId}): ${error.message}`);
+        }
+    }));
+};
+
+module.exports = { uploadImage, deleteImage, deleteImagesQuietly };

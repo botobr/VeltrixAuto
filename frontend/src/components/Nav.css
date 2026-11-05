@@ -116,8 +116,12 @@
 
 .nav-felhasznalo {
     align-items: center;
+    border-radius: 999px;
     color: var(--halvany);
     display: inline-flex;
+    padding: 2px 10px 2px 2px;
+    text-decoration: none;
+    transition: background 160ms ease, color 160ms ease;
     font-size: 0.85rem;
     font-weight: 600;
     gap: 9px;
@@ -131,7 +135,30 @@
     white-space: nowrap;
 }
 
+.nav-felhasznalo:hover,
+.nav-felhasznalo.active {
+    background: var(--panel-eros);
+    color: var(--szoveg);
+}
+
+.nav-jelveny {
+    align-items: center;
+    background: var(--tuz-3);
+    border: 2px solid var(--hatter);
+    border-radius: 999px;
+    display: flex;
+    font-size: 0.6rem;
+    height: 18px;
+    justify-content: center;
+    min-width: 18px;
+    padding: 0 4px;
+    position: absolute;
+    right: -6px;
+    top: -6px;
+}
+
 .nav-avatar {
+    position: relative;
     align-items: center;
     background: linear-gradient(135deg, var(--lila), var(--tuz-3));
     border-radius: 50%;
@@ -197,7 +224,7 @@
     text-align: center;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 1060px) {
     .nav-kontener {
         flex-wrap: wrap;
         gap: 0;
@@ -250,5 +277,21 @@
 
     .nav-fiok .gomb {
         flex: 1;
+    }
+}
+
+@media print {
+    .nav-fejlec {
+        display: none;
+    }
+}
+
+@media (min-width: 1061px) and (max-width: 1240px) {
+    .nav-felhasznalo-nev {
+        display: none;
+    }
+
+    .nav-felhasznalo {
+        padding-right: 2px;
     }
 }
