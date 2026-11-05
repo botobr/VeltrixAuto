@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { API_URL, AuthContext } from './auth';
+import { apiKeres } from '../lib/api';
+import { AuthContext } from './auth';
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -7,14 +8,9 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         let active = true;
-        fetch(`${API_URL}/auth/me`, { credentials: 'include' })
-            .then(async (response) => {
-                if (!response.ok) return null;
-                const data = await response.json();
-                return data.user;
-            })
-            .then((currentUser) => {
-                if (active) setUser(currentUser);
+        apiKeres('/auth/me')
+            .then((data) => {
+                if (active) setUser(data.user);
             })
             .catch(() => {
                 if (active) setUser(null);
@@ -29,26 +25,17 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = useCallback(async (email, jelszo) => {
-        const response = await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email, jelszo }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Nem sikerült bejelentkezni.');
+        const data = await apiKeres('/auth/login', { method: 'POST', body: { email, jelszo } }, 'Nem sikerült bejelentkezni.');
         setUser(data.user);
         return data.user;
     }, []);
 
     const logout = useCallback(async () => {
-        const response = await fetch(`${API_URL}/auth/logout`, {
-            method: 'POST',
-            credentials: 'include',
-        });
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error || 'Nem sikerült kijelentkezni.');
+        try {
+            await apiKeres('/auth/logout', { method: 'POST' }, 'Nem sikerült kijelentkezni.');
+        } catch (error) {
+            // Ha a munkamenet már lejárt, a felhasználó ténylegesen ki van jelentkezve.
+            if (error.status !== 401) throw error;
         }
         setUser(null);
     }, []);

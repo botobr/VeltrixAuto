@@ -16,4 +16,5 @@ dbConnection()
     })
     .catch((error) => {
         console.error(`Hiba: ${error.message}`);
+        process.exit(1);
     });

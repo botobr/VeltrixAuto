@@ -64,6 +64,24 @@ const autokSchema = new mongoose.Schema(
         kepPublicId: {
             type: String,
         },
+        elado_nev: {
+            type: String,
+            trim: true,
+            maxlength: 120,
+            default: '',
+        },
+        elado_telefonszam: {
+            type: String,
+            trim: true,
+            maxlength: 40,
+            default: '',
+        },
+        leiras: {
+            type: String,
+            trim: true,
+            maxlength: 2000,
+            default: '',
+        },
     },
     { timestamps: true },
 );

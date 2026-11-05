@@ -1,0 +1,264 @@
+.autok-racs {
+    display: grid;
+    gap: 22px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+.auto-kartya {
+    background: linear-gradient(170deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+    border: 1px solid var(--vonal);
+    border-radius: 22px;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+    transition: transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 260ms ease, box-shadow 260ms ease;
+}
+
+/* Gradiens keret hoverkor */
+.auto-kartya::before {
+    background: var(--gradiens);
+    border-radius: inherit;
+    content: '';
+    inset: 0;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    opacity: 0;
+    padding: 1px;
+    pointer-events: none;
+    position: absolute;
+    transition: opacity 260ms ease;
+    z-index: 2;
+}
+
+.auto-kartya:hover {
+    box-shadow: 0 30px 60px -25px rgba(255, 80, 50, 0.35), 0 20px 40px -20px rgba(0, 0, 0, 0.7);
+    transform: translateY(-6px);
+}
+
+.auto-kartya:hover::before {
+    opacity: 1;
+}
+
+.auto-kep-tarto {
+    aspect-ratio: 16 / 10.5;
+    background: #111118;
+    overflow: hidden;
+    position: relative;
+}
+
+.auto-kep-tarto::after {
+    background: linear-gradient(180deg, rgba(7, 7, 10, 0.45) 0%, transparent 30%, transparent 55%, rgba(7, 7, 10, 0.9) 100%);
+    content: '';
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+}
+
+.auto-kep {
+    height: 100%;
+    object-fit: cover;
+    transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    width: 100%;
+}
+
+.auto-kartya:hover .auto-kep {
+    transform: scale(1.07);
+}
+
+.auto-kep-hiany {
+    align-items: center;
+    background: radial-gradient(circle at 50% 60%, rgba(255, 106, 43, 0.2), transparent 60%), #111118;
+    color: rgba(255, 255, 255, 0.35);
+    display: flex;
+    font-family: var(--display);
+    font-size: 1.3rem;
+    height: 100%;
+    justify-content: center;
+    letter-spacing: 0.35em;
+}
+
+.auto-cimkek {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    left: 14px;
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    z-index: 1;
+}
+
+.auto-cimke {
+    backdrop-filter: blur(10px);
+    background: rgba(10, 10, 14, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 6px 11px;
+}
+
+.auto-ar {
+    bottom: 12px;
+    left: 16px;
+    margin: 0;
+    position: absolute;
+    z-index: 1;
+}
+
+.auto-ar span {
+    color: #fff;
+    font-family: var(--display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+}
+
+.auto-kartya-tartalom {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 18px 20px 20px;
+}
+
+.auto-marka {
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-image: var(--gradiens);
+    color: transparent;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    width: fit-content;
+}
+
+.auto-nev {
+    font-size: 1.25rem;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.auto-adatok {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--vonal);
+    border-radius: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 16px 0 0;
+}
+
+.auto-adatok > div {
+    min-width: 0;
+    padding: 10px 12px;
+}
+
+.auto-adatok > div + div {
+    border-left: 1px solid var(--vonal);
+}
+
+.auto-adatok dt {
+    color: var(--halvanyabb);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.auto-adatok dd {
+    font-size: 0.86rem;
+    font-weight: 700;
+    margin: 3px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.auto-reszletek {
+    color: var(--halvany);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    gap: 6px 14px;
+    margin-top: 14px;
+}
+
+.auto-reszletek span {
+    align-items: center;
+    display: inline-flex;
+    gap: 6px;
+}
+
+.auto-szin-pont {
+    background: var(--gradiens);
+    border-radius: 50%;
+    height: 7px;
+    width: 7px;
+}
+
+.auto-leiras {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    color: var(--halvany);
+    display: -webkit-box;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin: 12px 0 0;
+    overflow: hidden;
+    white-space: pre-line;
+}
+
+.auto-elado {
+    align-items: center;
+    border-top: 1px solid var(--vonal);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 14px;
+}
+
+.auto-kitolto {
+    flex: 1;
+}
+
+.auto-elado > span {
+    display: grid;
+    font-size: 0.85rem;
+    gap: 1px;
+}
+
+.auto-elado small {
+    color: var(--halvanyabb);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.auto-admin {
+    border-top: 1px dashed var(--vonal-eros);
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 16px;
+    padding-top: 14px;
+}
+
+.auto-vaz {
+    animation: vaz-pulzus 1.3s ease-in-out infinite alternate;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)) top / 100% 58% no-repeat,
+        linear-gradient(170deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+    min-height: 400px;
+}
+
+@keyframes vaz-pulzus {
+    to { opacity: 0.45; }
+}
