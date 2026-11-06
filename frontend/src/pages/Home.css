@@ -287,7 +287,7 @@
     align-items: center;
     background: var(--gradiens);
     border-radius: var(--r-nagy);
-    box-shadow: 0 40px 100px -40px rgba(255, 70, 70, 0.7);
+    box-shadow: 0 40px 100px -40px rgba(201, 154, 53, 0.55);
     display: flex;
     flex-wrap: wrap;
     gap: 24px;
@@ -324,7 +324,7 @@
 }
 
 .home-cta-gomb {
-    background: #0b0b10;
+    background: #0b1a13;
     color: #fff;
 }
 

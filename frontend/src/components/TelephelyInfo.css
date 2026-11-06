@@ -116,7 +116,7 @@
 .telephely-terkep button {
     align-content: center;
     background:
-        radial-gradient(circle at 50% 40%, rgba(255, 106, 43, 0.14), transparent 60%),
+        radial-gradient(circle at 50% 40%, rgba(201, 154, 53, 0.14), transparent 60%),
         repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0 12px, transparent 12px 24px),
         rgba(0, 0, 0, 0.3);
     border: 0;

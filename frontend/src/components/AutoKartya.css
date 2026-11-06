@@ -27,7 +27,7 @@
 }
 
 .auto-kartya:hover {
-    box-shadow: 0 30px 60px -25px rgba(255, 80, 50, 0.35), 0 20px 40px -20px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 30px 60px -25px rgba(201, 154, 53, 0.32), 0 20px 40px -20px rgba(0, 0, 0, 0.7);
     transform: translateY(-6px);
 }
 
@@ -37,7 +37,7 @@
 }
 
 .auto-kartya-kiemelt {
-    box-shadow: 0 20px 50px -30px rgba(255, 90, 50, 0.6);
+    box-shadow: 0 20px 50px -30px rgba(201, 154, 53, 0.55);
 }
 
 .auto-kartya-elkelt .auto-kep {
@@ -46,7 +46,7 @@
 
 .auto-kep-tarto {
     aspect-ratio: 16 / 10.5;
-    background: #111118;
+    background: #0b1a13;
     overflow: hidden;
     position: relative;
 }
@@ -72,7 +72,7 @@
 
 .auto-kep-hiany {
     align-items: center;
-    background: radial-gradient(circle at 50% 60%, rgba(255, 106, 43, 0.2), transparent 60%), #111118;
+    background: radial-gradient(circle at 50% 60%, rgba(201, 154, 53, 0.2), transparent 60%), #0b1a13;
     color: rgba(255, 255, 255, 0.35);
     display: flex;
     font-family: var(--display);
