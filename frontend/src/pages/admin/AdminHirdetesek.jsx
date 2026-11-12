@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
+import { useAuth } from '../../context/auth';
 import { apiKeres } from '../../lib/api';
 import { STATUSZOK, autoNev, autoUrl, formatAr, formatDatum, formatSzam, kepMeret } from '../../lib/auto';
 
 const datumMezo = (ertek) => (ertek ? String(ertek).slice(0, 10) : '');
 
 const AdminHirdetesek = () => {
+    const { jog } = useAuth();
     const [szuro, setSzuro] = useState({ q: '', statusz: '', lathatosag: '', rendezes: 'ujElol' });
     const [q, setQ] = useState('');
     const [eredmeny, setEredmeny] = useState({ kulcs: null, autok: [] });
@@ -117,6 +119,7 @@ const AdminHirdetesek = () => {
                                             auto.azonosito,
                                             auto.telephely?.nev,
                                             `${formatSzam(auto.kmora_allas)} km`,
+                                            // Az eladási adatokat a backend csak pénzügyi joggal küldi.
                                             auto.statusz === 'elkelt' && auto.eladas_datum ? `Eladva ${formatDatum(auto.eladas_datum)}, ${formatAr(auto.eladasi_ar)}` : null,
                                         ].filter(Boolean).join(' · ')}
                                         {!auto.lathato && <span className="admin-jel">Rejtett</span>}
@@ -159,9 +162,11 @@ const AdminHirdetesek = () => {
 
                                 <div className="admin-hirdetes-muveletek">
                                     <Link className="gomb gomb-uveg gomb-kicsi" to={`/admin/autok/${auto._id}`}><Ikon nev="szerkeszt" meret={15} /> Szerkesztés</Link>
-                                    <button className="ikon-gomb" type="button" onClick={() => torles(auto)} disabled={foglalt} aria-label={`${autoNev(auto)} törlése`} title="Végleges törlés">
-                                        <Ikon nev="kuka" />
-                                    </button>
+                                    {jog('hirdetesTorles') && (
+                                        <button className="ikon-gomb" type="button" onClick={() => torles(auto)} disabled={foglalt} aria-label={`${autoNev(auto)} törlése`} title="Végleges törlés">
+                                            <Ikon nev="kuka" />
+                                        </button>
+                                    )}
                                 </div>
                             </article>
                         );

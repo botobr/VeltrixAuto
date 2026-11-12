@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const AutokModel = require('../models/Autok');
 const TelephelyModel = require('../models/Telephely');
 const UserModel = require('../models/User');
-const { adminRequired } = require('../middlewares/authMiddleware');
+const { jogSzukseges, munkamenetJoga } = require('../middlewares/authMiddleware');
 const { uploadImage, deleteImagesQuietly } = require('../utils/cloudinary');
 const { autoAdatokEllenorzese, allapotEllenorzese } = require('../utils/autoMezok');
 const { autoValasz, publikusFeltetelek, rendezesEpitese, szuroEpitese } = require('../utils/autoSzuro');
@@ -19,7 +19,18 @@ const kepLimit = korlatozo({ ablakMs: 10 * 60 * 1000, max: 200, uzenet: 'Túl so
 const TELEPHELY_MEZOK = 'nev iranyitoszam varos cim megye telefon email nyitvatartas szelesseg hosszusag';
 const LISTA_TELEPHELY_MEZOK = 'nev varos megye';
 
-const admin = (req) => req.session?.statusz === 'admin';
+/** Munkatárs (admin vagy értékesítő): látja a rejtett hirdetéseket és a belső adatokat. */
+const munkatars = (req) => munkamenetJoga(req, 'kezelofelulet');
+const belsoNezet = (req) => ({ admin: true, penzugy: munkamenetJoga(req, 'penzugy') });
+const ELADASI_MEZOK = ['eladas_datum', 'eladasi_ar'];
+
+/** Pénzügyi jog nélkül az eladási adatokat figyelmen kívül hagyjuk (a meglévők megmaradnak). */
+const penzugyiMezokKiszurese = (req, adatok) => {
+    if (munkamenetJoga(req, 'penzugy')) return adatok;
+    const szurt = { ...adatok };
+    for (const mezo of ELADASI_MEZOK) delete szurt[mezo];
+    return szurt;
+};
 
 const hibasValasz = (res, hibak) => res.status(400).json({ error: hibak[0], hibak });
 
@@ -96,7 +107,7 @@ router.get('/autok/:id', async (req, res) => {
     if (!id) {
         return res.status(404).json({ error: 'Autó nem található!' });
     }
-    const feltetel = admin(req) ? { _id: id } : { $and: [{ _id: id }, ...publikusFeltetelek()] };
+    const feltetel = munkatars(req) ? { _id: id } : { $and: [{ _id: id }, ...publikusFeltetelek()] };
     const auto = await AutokModel.findOne(feltetel).populate('telephely', TELEPHELY_MEZOK);
     if (!auto) {
         return res.status(404).json({ error: 'Autó nem található!' });
@@ -112,7 +123,7 @@ router.get('/autok/:id', async (req, res) => {
     }).sort({ createdAt: -1 }).limit(3).populate('telephely', LISTA_TELEPHELY_MEZOK);
 
     return res.status(200).json({
-        auto: autoValasz(auto, { admin: admin(req) }),
+        auto: autoValasz(auto, munkatars(req) ? belsoNezet(req) : {}),
         hasonlok: hasonlok.map((elem) => autoValasz(elem)),
     });
 });
@@ -124,7 +135,7 @@ router.post('/autok/:id/esemeny', esemenyLimit, async (req, res) => {
     if (!id || !mezo) {
         return res.status(400).json({ error: 'Érvénytelen esemény.' });
     }
-    if (!admin(req)) {
+    if (!munkatars(req)) {
         await AutokModel.updateOne({ _id: id }, { $inc: { [mezo]: 1 } });
     }
     return res.status(204).end();
@@ -132,7 +143,7 @@ router.post('/autok/:id/esemeny', esemenyLimit, async (req, res) => {
 
 // ---------- Képek (admin) ----------
 
-router.post('/kepek', adminRequired, kepLimit, async (req, res) => {
+router.post('/kepek', jogSzukseges('hirdetesSzerkesztes'), kepLimit, async (req, res) => {
     const kep = req.body?.kep;
     if (typeof kep !== 'string' || !kep.startsWith('data:image/')) {
         return res.status(400).json({ error: 'Érvényes képet kell küldeni.' });
@@ -142,7 +153,7 @@ router.post('/kepek', adminRequired, kepLimit, async (req, res) => {
 });
 
 /** Mentés nélkül elvetett, frissen feltöltött képek takarítása. Hirdetéshez tartozó képet nem töröl. */
-router.delete('/kepek', adminRequired, async (req, res) => {
+router.delete('/kepek', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
     const publicIds = Array.isArray(req.body?.publicIds)
         ? req.body.publicIds.filter((id) => typeof id === 'string' && id.startsWith('veltrix/autok/')).slice(0, 50)
         : [];
@@ -156,8 +167,10 @@ router.delete('/kepek', adminRequired, async (req, res) => {
 
 // ---------- Hirdetések kezelése (admin) ----------
 
-router.post('/new-auto', adminRequired, async (req, res) => {
-    const { adatok, hibak } = autoAdatokEllenorzese(req.body);
+router.post('/new-auto', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
+    const ellenorzes = autoAdatokEllenorzese(req.body);
+    const { hibak } = ellenorzes;
+    const adatok = penzugyiMezokKiszurese(req, ellenorzes.adatok);
     if (hibak.length) return hibasValasz(res, hibak);
     if (!(await telephelyLetezik(adatok.telephely))) return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
     if (await idegenKepek(adatok.kepek, null)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
@@ -166,14 +179,16 @@ router.post('/new-auto', adminRequired, async (req, res) => {
     if (ujAuto.lathato && ujAuto.statusz !== 'elkelt') {
         ujAutoErtesites(ujAuto);
     }
-    return res.status(201).json({ message: 'Autó sikeresen létrehozva!', auto: autoValasz(ujAuto, { admin: true }) });
+    return res.status(201).json({ message: 'Autó sikeresen létrehozva!', auto: autoValasz(ujAuto, belsoNezet(req)) });
 });
 
-router.put('/update-auto/:id', adminRequired, async (req, res) => {
+router.put('/update-auto/:id', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ error: 'Autó nem található!' });
     }
-    const { adatok, hibak } = autoAdatokEllenorzese(req.body);
+    const ellenorzes = autoAdatokEllenorzese(req.body);
+    const { hibak } = ellenorzes;
+    const adatok = penzugyiMezokKiszurese(req, ellenorzes.adatok);
     if (hibak.length) return hibasValasz(res, hibak);
 
     const auto = await AutokModel.findById(req.params.id);
@@ -190,11 +205,11 @@ router.put('/update-auto/:id', adminRequired, async (req, res) => {
     const megmaradt = new Set(updatedAuto.kepek.map((kep) => kep.publicId));
     await deleteImagesQuietly([...regiKepek].filter((id) => !megmaradt.has(id)));
 
-    return res.status(200).json({ message: 'Autó sikeresen frissítve!', updatedAuto: autoValasz(updatedAuto, { admin: true }) });
+    return res.status(200).json({ message: 'Autó sikeresen frissítve!', updatedAuto: autoValasz(updatedAuto, belsoNezet(req)) });
 });
 
 /** Gyors állapotváltás: státusz, láthatóság, kiemelés, lejárat. */
-router.patch('/autok/:id/allapot', adminRequired, async (req, res) => {
+router.patch('/autok/:id/allapot', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ error: 'Autó nem található!' });
     }
@@ -208,10 +223,10 @@ router.patch('/autok/:id/allapot', adminRequired, async (req, res) => {
     }
     auto.set(adatok);
     await auto.save();
-    return res.status(200).json({ message: 'Állapot frissítve.', auto: autoValasz(auto, { admin: true }) });
+    return res.status(200).json({ message: 'Állapot frissítve.', auto: autoValasz(auto, belsoNezet(req)) });
 });
 
-router.delete('/delete-auto/:id', adminRequired, async (req, res) => {
+router.delete('/delete-auto/:id', jogSzukseges('hirdetesTorles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ error: 'Autó nem található!' });
     }

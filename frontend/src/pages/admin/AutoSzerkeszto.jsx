@@ -3,12 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import AutoKartya from '../../components/AutoKartya';
 import AutoUrlap from '../../components/AutoUrlap';
 import Ikon from '../../components/Ikon';
+import { useAuth } from '../../context/auth';
 import { API_URL, apiKeres } from '../../lib/api';
 import { autoNev, egyediMezokAdatokbol, kuldhetoAdatok, szamMezokElonezethez, uresUrlap, urlapAdatokbol } from '../../lib/auto';
 import { useSeo } from '../../lib/useSeo';
 import './Admin.css';
 
 const Szerkeszto = ({ auto, telephelyek }) => {
+    const { jog } = useAuth();
     const navigate = useNavigate();
     const uj = !auto;
     const [adatok, setAdatok] = useState(() => {
@@ -62,6 +64,7 @@ const Szerkeszto = ({ auto, telephelyek }) => {
         <form className="szerkeszto" onSubmit={kuldes} noValidate={false}>
             <div className="szerkeszto-elrendezes">
                 <AutoUrlap
+                    penzugy={jog('penzugy')}
                     adatok={adatok}
                     setAdatok={setAdatok}
                     egyediMezok={egyediMezok}

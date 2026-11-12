@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
+import { useAuth } from '../../context/auth';
 import { apiKeres } from '../../lib/api';
 import { formatDatumIdo, kepMeret } from '../../lib/auto';
 
@@ -25,6 +26,7 @@ const Megjegyzes = ({ erdeklodes, onMentes }) => {
 };
 
 const AdminErdeklodesek = () => {
+    const { jog } = useAuth();
     const [params, setParams] = useSearchParams();
     const statusz = params.get('statusz') || '';
     const autoSzuro = params.get('auto') || '';
@@ -141,7 +143,9 @@ const AdminErdeklodesek = () => {
                                         {STATUSZOK.map(([ertek, cimke]) => <option key={ertek} value={ertek}>{cimke}</option>)}
                                     </select>
                                 </label>
-                                <button className="ikon-gomb" type="button" onClick={() => torles(e)} aria-label="Érdeklődés törlése"><Ikon nev="kuka" /></button>
+                                {jog('erdeklodesTorles') && (
+                                    <button className="ikon-gomb" type="button" onClick={() => torles(e)} aria-label="Érdeklődés törlése"><Ikon nev="kuka" /></button>
+                                )}
                             </footer>
                         </article>
                     ))}

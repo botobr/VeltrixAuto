@@ -114,9 +114,10 @@ const alvazszamMaszk = (alvazszam) => (alvazszam ? `${alvazszam.slice(0, 11)}•
 
 /**
  * Az autó válaszformája. Nyilvános nézetben a belső adatok (statisztika, teljes
- * alvázszám, Cloudinary-azonosítók) nem kerülnek ki.
+ * alvázszám, Cloudinary-azonosítók) nem kerülnek ki; a pénzügyi adatok (eladási
+ * ár és dátum) csak `penzugy` jog mellett.
  */
-const autoValasz = (auto, { admin = false } = {}) => {
+const autoValasz = (auto, { admin = false, penzugy = false } = {}) => {
     const adat = auto.toObject ? auto.toObject({ virtuals: false }) : { ...auto };
     if ((!adat.kepek || adat.kepek.length === 0) && adat.kep) {
         adat.kepek = [{ url: adat.kep, publicId: adat.kepPublicId || '', tipus: 'kulso', leiras: '' }];
@@ -134,9 +135,11 @@ const autoValasz = (auto, { admin = false } = {}) => {
         delete adat.telefonKattintasok;
         delete adat.lathato;
         delete adat.lejarat;
+        delete adat.__v;
+    }
+    if (!admin || !penzugy) {
         delete adat.eladas_datum;
         delete adat.eladasi_ar;
-        delete adat.__v;
     }
     return adat;
 };

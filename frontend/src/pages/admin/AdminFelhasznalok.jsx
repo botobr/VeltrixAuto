@@ -4,10 +4,10 @@ import { useAuth } from '../../context/auth';
 import { apiKeres } from '../../lib/api';
 import { formatDatum } from '../../lib/auto';
 
-const SZEREPKOROK = { admin: 'Admin', felhasznalo: 'Vásárló' };
+const SZEREPKOROK = { admin: 'Admin', ertekesito: 'Értékesítő', felhasznalo: 'Vásárló' };
 
 const UjFelhasznalo = ({ onLetrehozva, onMegse }) => {
-    const [adatok, setAdatok] = useState({ nev: '', email: '', jelszo: '', statusz: 'admin' });
+    const [adatok, setAdatok] = useState({ nev: '', email: '', jelszo: '', statusz: 'ertekesito' });
     const [hiba, setHiba] = useState('');
     const beallit = (mezo) => (event) => setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
 

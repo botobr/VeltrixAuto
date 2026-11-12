@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const AutokModel = require('../models/Autok');
 const ErdeklodesModel = require('../models/Erdeklodes');
 const UserModel = require('../models/User');
-const { adminRequired } = require('../middlewares/authMiddleware');
+const { jogSzukseges } = require('../middlewares/authMiddleware');
 const { publikusFeltetelek } = require('../utils/autoSzuro');
 const { emailKuldes, oldalUrl } = require('../utils/email');
 const { autoSlug } = require('../utils/slug');
@@ -104,7 +104,7 @@ router.post('/erdeklodesek', erdeklodesLimit, async (req, res) => {
 
 // ---------- Admin ----------
 
-router.get('/admin/erdeklodesek', adminRequired, async (req, res) => {
+router.get('/admin/erdeklodesek', jogSzukseges('erdeklodesKezeles'), async (req, res) => {
     const szuro = {};
     if (ERDEKLODES_STATUSZOK.includes(req.query.statusz)) szuro.statusz = req.query.statusz;
     if (mongoose.Types.ObjectId.isValid(req.query.auto)) szuro.auto = req.query.auto;
@@ -139,7 +139,7 @@ router.get('/admin/erdeklodesek', adminRequired, async (req, res) => {
     });
 });
 
-router.patch('/admin/erdeklodesek/:id', adminRequired, async (req, res) => {
+router.patch('/admin/erdeklodesek/:id', jogSzukseges('erdeklodesKezeles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ error: 'Érdeklődés nem található!' });
     }
@@ -161,7 +161,7 @@ router.patch('/admin/erdeklodesek/:id', adminRequired, async (req, res) => {
     return res.status(200).json({ erdeklodes });
 });
 
-router.delete('/admin/erdeklodesek/:id', adminRequired, async (req, res) => {
+router.delete('/admin/erdeklodesek/:id', jogSzukseges('erdeklodesTorles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ error: 'Érdeklődés nem található!' });
     }

@@ -27,7 +27,7 @@ export const JelszoMezo = ({ id, value, onChange, autoComplete, placeholder, min
 };
 
 const Login = () => {
-    const { user, admin, login } = useAuth();
+    const { user, munkatars, login } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState('');
@@ -37,10 +37,10 @@ const Login = () => {
 
     useSeo({ cim: 'Bejelentkezés', noindex: true });
 
-    const cel = (felhasznalo) => location.state?.from || (felhasznalo?.statusz === 'admin' ? '/admin' : '/fiok');
+    const cel = (felhasznalo) => location.state?.from || (felhasznalo?.jogok?.includes('kezelofelulet') ? '/admin' : '/fiok');
 
     if (user && !folyamatban) {
-        return <Navigate to={location.state?.from || (admin ? '/admin' : '/fiok')} replace />;
+        return <Navigate to={location.state?.from || (munkatars ? '/admin' : '/fiok')} replace />;
     }
 
     const handleSubmit = async (event) => {

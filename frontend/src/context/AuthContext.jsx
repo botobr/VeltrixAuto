@@ -74,16 +74,21 @@ export const AuthProvider = ({ children }) => {
         return true;
     }, [user]);
 
+    /** A backendtől kapott jogok alapján (utils/jogosultsagok.js) – csak megjelenítéshez, az ellenőrzés a szerveren van. */
+    const jog = useCallback((nev) => Boolean(user?.jogok?.includes(nev)), [user]);
+
     const value = useMemo(() => ({
         user,
         loading,
         admin: user?.statusz === 'admin',
+        munkatars: jog('kezelofelulet'),
+        jog,
         login,
         logout,
         regisztracio,
         profilMentese,
         fiokTorlese,
         kedvencValtas,
-    }), [user, loading, login, logout, regisztracio, profilMentese, fiokTorlese, kedvencValtas]);
+    }), [user, loading, jog, login, logout, regisztracio, profilMentese, fiokTorlese, kedvencValtas]);
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

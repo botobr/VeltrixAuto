@@ -209,10 +209,27 @@ const telephelyekOsszefesulese = (telephelyek, keszlet, eladas) => {
 };
 
 /**
- * A teljes dashboard-adatcsomag.
- * @param {{ idoszak?: string, most?: Date }} opciok
+ * Pénzügyi jog nélkül (értékesítő) a bevételi adatok ki sem kerülnek a válaszból:
+ * a bevétel-blokk, a havi idősor, és minden ár/bevétel mező a listákban.
  */
-const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date() } = {}) => {
+const penzugyNelkul = (adat) => {
+    const { bevetel, havi, ...tobbi } = adat;
+    return {
+        ...tobbi,
+        bevetel: null,
+        havi: null,
+        eladasok: { idoszak: bevetel.eladottDb, elozo: bevetel.elozoEladottDb, valtozas: bevetel.eladottValtozas, atlagNap: bevetel.atlagNap },
+        markak: adat.markak.map(({ bevetel: _b, ...marka }) => marka),
+        telephelyek: adat.telephelyek.map(({ bevetel: _b, ...telephely }) => telephely),
+        legutobbEladott: adat.legutobbEladott.map(({ eladasi_ar: _a, ...auto }) => auto),
+    };
+};
+
+/**
+ * A teljes dashboard-adatcsomag.
+ * @param {{ idoszak?: string, most?: Date, penzugy?: boolean }} opciok
+ */
+const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date(), penzugy = false } = {}) => {
     const idoszak = idoszakFeldolgozasa(nyersIdoszak, most);
     const { tol, elozoTol } = idoszak;
     const napiTol = new Date(most.getTime() - (NAPI_NAPOK + 1) * NAP_MS);
@@ -250,7 +267,7 @@ const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date() } = {}
     const erdeklodes = szamlalo(erdeklodesStatusz);
     const szerepkorok = szamlalo(felhasznalok);
 
-    return {
+    const adat = {
         generalva: most.toISOString(),
         idoszak,
         bevetel: {
@@ -268,7 +285,7 @@ const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date() } = {}
         },
         havi: idosorKitoltese(utolsoHonapok(HAVI_HONAPOK, most), eladas.havi, ['bevetel', 'db']),
         legutobbEladott: eladas.legutobb.map(({ _datum, _ar, ...auto }) => ({
-            ...autoValasz(auto, { admin: true }),
+            ...autoValasz(auto, { admin: true, penzugy: true }),
             eladas_datum: _datum,
             eladasi_ar: _ar,
         })),
@@ -303,14 +320,21 @@ const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date() } = {}
             telefonKattintasok: forgalom[0]?.telefonKattintasok || 0,
         },
         top: top.map((auto) => autoValasz(auto, { admin: true })),
-        felhasznalok: { felhasznalo: szerepkorok.felhasznalo || 0, admin: szerepkorok.admin || 0, ujak: ujFelhasznalok },
+        felhasznalok: {
+            felhasznalo: szerepkorok.felhasznalo || 0,
+            admin: szerepkorok.admin || 0,
+            ertekesito: szerepkorok.ertekesito || 0,
+            ujak: ujFelhasznalok,
+        },
     };
+    return penzugy ? adat : penzugyNelkul(adat);
 };
 
 module.exports = {
     AR_SAVOK,
     IDOSZAKOK,
     dashboardAdatok,
+    penzugyNelkul,
     idoszakFeldolgozasa,
     budapestiNap,
     utolsoNapok,

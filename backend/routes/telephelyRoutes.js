@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const AutokModel = require('../models/Autok');
 const TelephelyModel = require('../models/Telephely');
-const { adminRequired } = require('../middlewares/authMiddleware');
+const { jogSzukseges } = require('../middlewares/authMiddleware');
 
 const { NAPOK } = TelephelyModel;
 const router = express.Router();
@@ -48,14 +48,14 @@ router.get('/telephelyek', async (req, res) => {
     return res.status(200).json({ telephelyek });
 });
 
-router.post('/telephelyek', adminRequired, async (req, res) => {
+router.post('/telephelyek', jogSzukseges('telephelyKezeles'), async (req, res) => {
     const { adatok, hibak } = telephelyEllenorzese(req.body);
     if (hibak.length) return res.status(400).json({ error: hibak[0], hibak });
     const telephely = await TelephelyModel.create(adatok);
     return res.status(201).json({ message: 'Telephely létrehozva.', telephely });
 });
 
-router.put('/telephelyek/:id', adminRequired, async (req, res) => {
+router.put('/telephelyek/:id', jogSzukseges('telephelyKezeles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'Telephely nem található!' });
     const { adatok, hibak } = telephelyEllenorzese(req.body);
     if (hibak.length) return res.status(400).json({ error: hibak[0], hibak });
@@ -64,7 +64,7 @@ router.put('/telephelyek/:id', adminRequired, async (req, res) => {
     return res.status(200).json({ message: 'Telephely frissítve.', telephely });
 });
 
-router.delete('/telephelyek/:id', adminRequired, async (req, res) => {
+router.delete('/telephelyek/:id', jogSzukseges('telephelyKezeles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'Telephely nem található!' });
     const hasznalatban = await AutokModel.countDocuments({ telephely: req.params.id });
     if (hasznalatban > 0) {

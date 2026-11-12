@@ -201,7 +201,7 @@ const Profil = () => {
 };
 
 const Fiok = () => {
-    const { user, admin } = useAuth();
+    const { user, munkatars } = useAuth();
     const [params, setParams] = useSearchParams();
     const lap = LAPOK.some(([kulcs]) => kulcs === params.get('lap')) ? params.get('lap') : 'kedvencek';
 
@@ -214,7 +214,7 @@ const Fiok = () => {
                     <p className="felirat">Fiókom</p>
                     <h1>Szia, <span className="gradiens-szoveg">{user.nev.split(' ').at(-1)}!</span></h1>
                 </div>
-                {admin && <Link className="gomb gomb-uveg" to="/admin">Admin felület <Ikon nev="jobbra" meret={15} /></Link>}
+                {munkatars && <Link className="gomb gomb-uveg" to="/admin">Admin felület <Ikon nev="jobbra" meret={15} /></Link>}
             </header>
 
             <div className="fulek" role="tablist" aria-label="Fiók menü">

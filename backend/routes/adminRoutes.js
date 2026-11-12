@@ -1,12 +1,13 @@
 const express = require('express');
 const AutokModel = require('../models/Autok');
 const ErdeklodesModel = require('../models/Erdeklodes');
-const { adminRequired } = require('../middlewares/authMiddleware');
+const { jogSzukseges } = require('../middlewares/authMiddleware');
+const { vanJoga } = require('../utils/jogosultsagok');
 const { autoValasz, rendezesEpitese, szuroEpitese } = require('../utils/autoSzuro');
 const { dashboardAdatok } = require('../utils/dashboard');
 
 const router = express.Router();
-router.use('/admin', adminRequired);
+router.use('/admin', jogSzukseges('kezelofelulet'));
 
 /** Minden hirdetés (rejtett és lejárt is), statisztikával és érdeklődésszámmal. */
 router.get('/admin/autok', async (req, res) => {
@@ -32,7 +33,7 @@ router.get('/admin/autok', async (req, res) => {
 
     return res.status(200).json({
         autok: autok.map((auto) => ({
-            ...autoValasz(auto, { admin: true }),
+            ...autoValasz(auto, { admin: true, penzugy: vanJoga(req.session.statusz, 'penzugy') }),
             erdeklodesek: erdeklodesSzam.get(String(auto._id))?.db || 0,
             ujErdeklodesek: erdeklodesSzam.get(String(auto._id))?.uj || 0,
         })),
@@ -41,7 +42,7 @@ router.get('/admin/autok', async (req, res) => {
 
 /** Dashboard: bevétel, eladások, készlet, érdeklődések – minden számítás a szerveren. */
 router.get('/admin/dashboard', async (req, res) => {
-    const adatok = await dashboardAdatok({ idoszak: req.query.idoszak });
+    const adatok = await dashboardAdatok({ idoszak: req.query.idoszak, penzugy: vanJoga(req.session.statusz, 'penzugy') });
     res.set('Cache-Control', 'no-store');
     return res.status(200).json(adatok);
 });

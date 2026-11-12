@@ -5,7 +5,7 @@ import Ikon from './Ikon';
 import './Nav.css';
 
 const Nav = () => {
-    const { user, admin, logout } = useAuth();
+    const { user, munkatars, jog, logout } = useAuth();
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const [hiba, setHiba] = useState('');
@@ -63,7 +63,7 @@ const Nav = () => {
                         <NavLink to="/autok">Kínálat</NavLink>
                         <NavLink to="/szolgaltatasok">Szolgáltatások</NavLink>
                         <NavLink to="/rolunk">Rólunk</NavLink>
-                        {admin && <NavLink to="/admin">Admin</NavLink>}
+                        {munkatars && <NavLink to="/admin">Admin</NavLink>}
                     </div>
                     <div className="nav-fiok">
                         {user ? (
@@ -78,7 +78,7 @@ const Nav = () => {
                                 <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={handleLogout}>
                                     <Ikon nev="kilep" meret={15} /> Kilépés
                                 </button>
-                                {admin && (
+                                {jog('hirdetesSzerkesztes') && (
                                     <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/admin/autok/uj">
                                         <Ikon nev="plusz" meret={15} /> Új hirdetés
                                     </Link>

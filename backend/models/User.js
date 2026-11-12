@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-
-const SZEREPKOROK = ['admin', 'felhasznalo'];
+const { SZEREPKOROK } = require('../utils/jogosultsagok');
 
 const mentettKeresesSchema = new mongoose.Schema(
     {

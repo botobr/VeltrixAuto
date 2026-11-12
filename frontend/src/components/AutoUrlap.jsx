@@ -142,7 +142,7 @@ const Felszereltseg = ({ lista, setLista }) => {
     );
 };
 
-const AutoUrlap = ({ adatok, setAdatok, egyediMezok, setEgyediMezok, telephelyek, onUjKep }) => {
+const AutoUrlap = ({ adatok, setAdatok, egyediMezok, setEgyediMezok, telephelyek, onUjKep, penzugy = false }) => {
     const beallit = (mezo, ertek) => setAdatok((elozo) => ({ ...elozo, [mezo]: ertek }));
     const setKepek = (frissito) => setAdatok((elozo) => ({ ...elozo, kepek: typeof frissito === 'function' ? frissito(elozo.kepek) : frissito }));
 
@@ -179,7 +179,7 @@ const AutoUrlap = ({ adatok, setAdatok, egyediMezok, setEgyediMezok, telephelyek
                             {Object.entries(STATUSZOK).map(([ertek, cimke]) => <option key={ertek} value={ertek}>{cimke}</option>)}
                         </select>
                     </label>
-                    {adatok.statusz === 'elkelt' && (
+                    {penzugy && adatok.statusz === 'elkelt' && (
                         <>
                             <label className="mezo">
                                 <span>Tényleges eladási ár <small>(üresen: a vételár)</small></span>

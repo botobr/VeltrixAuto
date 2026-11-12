@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
+import { useAuth } from '../../context/auth';
 import { useSeo } from '../../lib/useSeo';
 import AdminDashboard from './AdminDashboard';
 import AdminErdeklodesek from './AdminErdeklodesek';
@@ -8,17 +9,20 @@ import AdminHirdetesek from './AdminHirdetesek';
 import AdminTelephelyek from './AdminTelephelyek';
 import './Admin.css';
 
+/** [kulcs, felirat, ikon, komponens, szükséges jog] – a fül csak a joggal rendelkezőknek látszik. */
 const LAPOK = [
-    ['attekintes', 'Dashboard', 'osszehasonlit', AdminDashboard],
-    ['hirdetesek', 'Hirdetések', 'auto', AdminHirdetesek],
-    ['erdeklodesek', 'Érdeklődések', 'level', AdminErdeklodesek],
-    ['telephelyek', 'Telephelyek', 'terkep', AdminTelephelyek],
-    ['felhasznalok', 'Felhasználók', 'felhasznalo', AdminFelhasznalok],
+    ['attekintes', 'Dashboard', 'osszehasonlit', AdminDashboard, 'kezelofelulet'],
+    ['hirdetesek', 'Hirdetések', 'auto', AdminHirdetesek, 'kezelofelulet'],
+    ['erdeklodesek', 'Érdeklődések', 'level', AdminErdeklodesek, 'erdeklodesKezeles'],
+    ['telephelyek', 'Telephelyek', 'terkep', AdminTelephelyek, 'telephelyKezeles'],
+    ['felhasznalok', 'Felhasználók', 'felhasznalo', AdminFelhasznalok, 'felhasznaloKezeles'],
 ];
 
 const Admin = () => {
     const [params, setParams] = useSearchParams();
-    const aktiv = LAPOK.find(([kulcs]) => kulcs === params.get('lap')) || LAPOK[0];
+    const { jog, admin } = useAuth();
+    const lapok = LAPOK.filter(([, , , , szuksegesJog]) => jog(szuksegesJog));
+    const aktiv = lapok.find(([kulcs]) => kulcs === params.get('lap')) || lapok[0];
     const [kulcs, , , Tartalom] = aktiv;
 
     useSeo({ cim: 'Admin', noindex: true });
@@ -28,13 +32,13 @@ const Admin = () => {
             <header className="admin-fejlec">
                 <div>
                     <p className="felirat">Kereskedői felület</p>
-                    <h1>Admin</h1>
+                    <h1>{admin ? 'Admin' : 'Értékesítés'}</h1>
                 </div>
-                <Link className="gomb gomb-fo" to="/admin/autok/uj"><Ikon nev="plusz" meret={16} /> Új hirdetés</Link>
+                {jog('hirdetesSzerkesztes') && <Link className="gomb gomb-fo" to="/admin/autok/uj"><Ikon nev="plusz" meret={16} /> Új hirdetés</Link>}
             </header>
 
             <div className="fulek" role="tablist" aria-label="Admin menü">
-                {LAPOK.map(([lapKulcs, cimke, ikon]) => (
+                {lapok.map(([lapKulcs, cimke, ikon]) => (
                     <button
                         key={lapKulcs}
                         type="button"

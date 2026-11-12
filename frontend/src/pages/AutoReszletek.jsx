@@ -84,7 +84,7 @@ const felszereltsegCsoportositasa = (lista) => {
     return csoportok;
 };
 
-const TelefonGomb = ({ auto, admin }) => {
+const TelefonGomb = ({ auto, munkatars }) => {
     const [lathato, setLathato] = useState(false);
     const telefon = auto.elado_telefonszam || auto.telephely?.telefon;
     if (!telefon) return null;
@@ -102,7 +102,7 @@ const TelefonGomb = ({ auto, admin }) => {
             type="button"
             onClick={() => {
                 setLathato(true);
-                if (!admin) apiKeres(`/autok/${auto._id}/esemeny`, { method: 'POST', body: { tipus: 'telefon' } }).catch(() => {});
+                if (!munkatars) apiKeres(`/autok/${auto._id}/esemeny`, { method: 'POST', body: { tipus: 'telefon' } }).catch(() => {});
             }}
         >
             <Ikon nev="telefon" meret={16} /> Telefonszám megjelenítése
@@ -110,7 +110,7 @@ const TelefonGomb = ({ auto, admin }) => {
     );
 };
 
-const Reszletek = ({ auto, hasonlok, admin }) => {
+const Reszletek = ({ auto, hasonlok, munkatars }) => {
     const adatok = useMemo(() => muszakiAdatok(auto), [auto]);
     const felszereltseg = useMemo(() => felszereltsegCsoportositasa(auto.felszereltseg || []), [auto.felszereltseg]);
     const nev = autoNev(auto);
@@ -198,7 +198,7 @@ const Reszletek = ({ auto, hasonlok, admin }) => {
                     {!elkelt && (
                         <div className="reszletek-cta">
                             <a className="gomb gomb-fo" href="#erdeklodes"><Ikon nev="level" meret={16} /> Érdekel az autó</a>
-                            <TelefonGomb auto={auto} admin={admin} />
+                            <TelefonGomb auto={auto} munkatars={munkatars} />
                         </div>
                     )}
 
@@ -208,7 +208,7 @@ const Reszletek = ({ auto, hasonlok, admin }) => {
                     </div>
                     <Megosztas auto={auto} />
 
-                    {admin && (
+                    {munkatars && (
                         <Link className="gomb gomb-uveg gomb-kicsi reszletek-admin" to={`/admin/autok/${auto._id}`}>
                             <Ikon nev="szerkeszt" meret={15} /> Hirdetés szerkesztése
                         </Link>
@@ -297,7 +297,7 @@ const Reszletek = ({ auto, hasonlok, admin }) => {
 const AutoReszletek = () => {
     const { slug } = useParams();
     const navigate = useNavigate();
-    const { admin } = useAuth();
+    const { munkatars } = useAuth();
     const [adat, setAdat] = useState({ slug: null, auto: null, hasonlok: [], hiba: null });
 
     useEffect(() => {
@@ -314,15 +314,15 @@ const AutoReszletek = () => {
         return () => controller.abort();
     }, [slug, navigate]);
 
-    // Megtekintés számlálása munkamenetenként egyszer (adminét nem számoljuk).
+    // Megtekintés számlálása munkamenetenként egyszer (munkatársét nem számoljuk).
     const autoId = adat.auto?._id;
     useEffect(() => {
-        if (!autoId || admin) return;
+        if (!autoId || munkatars) return;
         const lattam = olvas('veltrix-megtekintett', [], 'session');
         if (lattam.includes(autoId)) return;
         ir('veltrix-megtekintett', [...lattam, autoId].slice(-200), 'session');
         apiKeres(`/autok/${autoId}/esemeny`, { method: 'POST', body: { tipus: 'megtekintes' } }).catch(() => {});
-    }, [autoId, admin]);
+    }, [autoId, munkatars]);
 
     const aktualis = adat.slug === slug || adat.auto?.slug === slug;
     if (!aktualis) {
@@ -340,7 +340,7 @@ const AutoReszletek = () => {
             </main>
         );
     }
-    return <Reszletek key={adat.auto._id} auto={adat.auto} hasonlok={adat.hasonlok} admin={admin} />;
+    return <Reszletek key={adat.auto._id} auto={adat.auto} hasonlok={adat.hasonlok} munkatars={munkatars} />;
 };
 
 export default AutoReszletek;

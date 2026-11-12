@@ -29,13 +29,13 @@ const Betoltes = ({ szoveg = 'Betöltés…' }) => (
     </main>
 );
 
-/** Bejelentkezéshez (és opcionálisan admin szerepkörhöz) kötött oldal. */
-const VedettOldal = ({ children, csakAdmin = false }) => {
-    const { user, admin, loading } = useAuth();
+/** Bejelentkezéshez (és opcionálisan egy jogosultsághoz) kötött oldal. */
+const VedettOldal = ({ children, jog: szuksegesJog }) => {
+    const { user, jog, loading } = useAuth();
     const location = useLocation();
     if (loading) return <Betoltes szoveg="Munkamenet ellenőrzése…" />;
     if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
-    if (csakAdmin && !admin) return <NemTalalhato cim="Ehhez az oldalhoz nincs jogosultságod" szoveg="Az oldal csak a kereskedés munkatársai számára érhető el." />;
+    if (szuksegesJog && !jog(szuksegesJog)) return <NemTalalhato cim="Ehhez az oldalhoz nincs jogosultságod" szoveg="Az oldal csak a kereskedés munkatársai számára érhető el." />;
     return children;
 };
 
@@ -71,9 +71,9 @@ function App() {
                                     <Route path="/adatkezeles" element={<Jogi dokumentum="adatkezeles" />} />
                                     <Route path="/cookie" element={<Jogi dokumentum="cookie" />} />
                                     <Route path="/fiok" element={<VedettOldal><Fiok /></VedettOldal>} />
-                                    <Route path="/admin" element={<VedettOldal csakAdmin><Admin /></VedettOldal>} />
-                                    <Route path="/admin/autok/uj" element={<VedettOldal csakAdmin><AutoSzerkeszto /></VedettOldal>} />
-                                    <Route path="/admin/autok/:id" element={<VedettOldal csakAdmin><AutoSzerkeszto /></VedettOldal>} />
+                                    <Route path="/admin" element={<VedettOldal jog="kezelofelulet"><Admin /></VedettOldal>} />
+                                    <Route path="/admin/autok/uj" element={<VedettOldal jog="hirdetesSzerkesztes"><AutoSzerkeszto /></VedettOldal>} />
+                                    <Route path="/admin/autok/:id" element={<VedettOldal jog="hirdetesSzerkesztes"><AutoSzerkeszto /></VedettOldal>} />
                                     <Route path="/feltolt" element={<Navigate to="/admin/autok/uj" replace />} />
                                     <Route path="*" element={<NemTalalhato />} />
                                 </Routes>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
+import { useAuth } from '../../context/auth';
 import { apiKeres } from '../../lib/api';
 import { autoNev, autoUrl, formatDatum, formatSzam, formatTizedes, kepMeret } from '../../lib/auto';
 import { olvas, ir } from '../../lib/tarolo';
@@ -100,10 +101,31 @@ const BevetelKartya = ({ bevetel, idoszakSzoveg, elozoSzoveg }) => (
     </section>
 );
 
-const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
-    const { bevetel, keszlet, erdeklodesek, felhasznalok, forgalom } = adat;
+/** Pénzügyi jog nélkül (értékesítő): csak darabszámok, összeg nélkül. */
+const EladasKartya = ({ eladasok, idoszakSzoveg, elozoSzoveg }) => (
+    <section className="db-kartya uveg db-hero" aria-labelledby="db-eladas-cim">
+        <h2 id="db-eladas-cim" className="db-hero-cimke"><Ikon nev="auto" meret={16} /> Eladott autók · {idoszakSzoveg}</h2>
+        <p className="db-hero-ertek">{formatSzam(eladasok.idoszak)}</p>
+        <Valtozas ertek={eladasok.valtozas} viszonyitas={elozoSzoveg} />
+        <dl className="db-hero-statok">
+            <div>
+                <dt>Előző időszakban</dt>
+                <dd>{eladasok.elozo !== null ? formatSzam(eladasok.elozo) : '–'}</dd>
+            </div>
+            <div>
+                <dt>Átlagos eladási idő</dt>
+                <dd>{eladasok.atlagNap !== null ? `${formatSzam(eladasok.atlagNap)} nap` : '–'}</dd>
+            </div>
+        </dl>
+    </section>
+);
 
-    const haviSor = adat.havi.map((honap) => {
+const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
+    const { bevetel, keszlet, erdeklodesek, felhasznalok, forgalom } = adat;
+    // A backend pénzügyi jog nélkül nem küld bevételi adatot (bevetel === null).
+    const penzugy = bevetel !== null;
+
+    const haviSor = (adat.havi || []).map((honap) => {
         const datum = helyiDatum(honap.kulcs);
         return {
             kulcs: honap.kulcs,
@@ -128,9 +150,29 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
     });
     const napiOsszes = napiSor.reduce((osszeg, nap) => osszeg + nap.ertek, 0);
 
+    const napiDiagram = (
+        <OszlopDiagram
+            cim="Érdeklődések naponta"
+            alcim={`Utolsó 30 nap · összesen ${formatSzam(napiOsszes)}`}
+            sor={napiSor}
+            tengelyIndexek={[1, 8, 15, 22, 29]}
+            szukIndexek={[1, 15, 29]}
+            uresSzoveg="Az utolsó 30 napban nem érkezett érdeklődés."
+            ariaCimke={`Napi érdeklődések az utolsó 30 napban, összesen ${napiOsszes}. A pontos értékek a Táblázat nézetben.`}
+            tablaFejlec={['Nap', 'Érdeklődés']}
+            tablaSor={(nap) => [napFormatum.format(nap.datum), nap.ertek]}
+        />
+    );
+
     return (
         <>
-            <div className="db-fo-sor">
+            {!penzugy && (
+                <div className="db-fo-sor">
+                    <EladasKartya eladasok={adat.eladasok} idoszakSzoveg={idoszakSzoveg} elozoSzoveg={elozoSzoveg} />
+                    {napiDiagram}
+                </div>
+            )}
+            {penzugy && <div className="db-fo-sor">
                 <BevetelKartya bevetel={bevetel} idoszakSzoveg={idoszakSzoveg} elozoSzoveg={elozoSzoveg} />
                 <OszlopDiagram
                     className="db-bevetel-diagram"
@@ -145,7 +187,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
                     tablaFejlec={['Hónap', 'Bevétel', 'Eladott autó']}
                     tablaSor={(honap) => [honap.honap, ft(honap.ertek), formatSzam(honap.db)]}
                 />
-            </div>
+            </div>}
 
             <div className="kpi-sor">
                 <Csempe cimke="Készleten" ertek={formatSzam(keszlet.db)} link="/admin?lap=hirdetesek"
@@ -157,7 +199,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
                     megjegyzes={`${keszlet.regi} autó ${keszlet.regiHatarNap} napnál régebben`} />
                 <Csempe cimke="Érdeklődés" ertek={formatSzam(erdeklodesek.idoszak)} link="/admin?lap=erdeklodesek"
                     megjegyzes={`${erdeklodesek.uj} új, megválaszolatlan`} />
-                <Csempe cimke="Regisztrált vásárló" ertek={formatSzam(felhasznalok.felhasznalo)} link="/admin?lap=felhasznalok"
+                <Csempe cimke="Regisztrált vásárló" ertek={formatSzam(felhasznalok.felhasznalo)} link={jog('felhasznaloKezeles') ? '/admin?lap=felhasznalok' : undefined}
                     megjegyzes={`${felhasznalok.ujak} új · ${idoszakSzoveg}`} />
             </div>
 
@@ -213,12 +255,12 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
             <div className="db-racs db-racs-tablak">
                 <section className="db-kartya uveg top-lista" aria-labelledby="db-markak-cim">
                     <h3 id="db-markak-cim">Márkák</h3>
-                    <p className="db-tabla-megjegyzes">Készlet most · eladás és bevétel: {idoszakSzoveg}</p>
+                    <p className="db-tabla-megjegyzes">Készlet most · {penzugy ? 'eladás és bevétel' : 'eladás'}: {idoszakSzoveg}</p>
                     {adat.markak.length === 0 ? <p className="db-ures">Még nincs adat.</p> : (
                         <div className="db-tabla-gorgeto">
                             <table>
                                 <thead>
-                                    <tr><th scope="col">Márka</th><th scope="col">Készleten</th><th scope="col">Készletérték</th><th scope="col">Eladva</th><th scope="col">Bevétel</th></tr>
+                                    <tr><th scope="col">Márka</th><th scope="col">Készleten</th><th scope="col">Készletérték</th><th scope="col">Eladva</th>{penzugy && <th scope="col">Bevétel</th>}</tr>
                                 </thead>
                                 <tbody>
                                     {adat.markak.map((marka) => (
@@ -227,7 +269,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
                                             <td>{formatSzam(marka.keszletDb)}</td>
                                             <td title={ft(marka.keszletErtek)}>{ftKompakt(marka.keszletErtek)}</td>
                                             <td>{formatSzam(marka.eladottDb)}</td>
-                                            <td title={ft(marka.bevetel)}>{marka.bevetel ? ftKompakt(marka.bevetel) : '–'}</td>
+                                            {penzugy && <td title={ft(marka.bevetel)}>{marka.bevetel ? ftKompakt(marka.bevetel) : '–'}</td>}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -238,12 +280,12 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
 
                 <section className="db-kartya uveg top-lista" aria-labelledby="db-telephelyek-cim">
                     <h3 id="db-telephelyek-cim">Telephelyek</h3>
-                    <p className="db-tabla-megjegyzes">Készlet most · eladás és bevétel: {idoszakSzoveg}</p>
-                    {adat.telephelyek.length === 0 ? <p className="db-ures">Még nincs telephely. <Link to="/admin?lap=telephelyek">Hozzáadás →</Link></p> : (
+                    <p className="db-tabla-megjegyzes">Készlet most · {penzugy ? 'eladás és bevétel' : 'eladás'}: {idoszakSzoveg}</p>
+                    {adat.telephelyek.length === 0 ? <p className="db-ures">Még nincs telephely.{jog('telephelyKezeles') && <> <Link to="/admin?lap=telephelyek">Hozzáadás →</Link></>}</p> : (
                         <div className="db-tabla-gorgeto">
                             <table>
                                 <thead>
-                                    <tr><th scope="col">Telephely</th><th scope="col">Készleten</th><th scope="col">Eladva</th><th scope="col">Bevétel</th></tr>
+                                    <tr><th scope="col">Telephely</th><th scope="col">Készleten</th><th scope="col">Eladva</th>{penzugy && <th scope="col">Bevétel</th>}</tr>
                                 </thead>
                                 <tbody>
                                     {adat.telephelyek.map((telephely) => (
@@ -251,7 +293,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
                                             <th scope="row">{telephely.nev}{telephely.varos && <small> {telephely.varos}</small>}</th>
                                             <td title={ft(telephely.keszletErtek)}>{formatSzam(telephely.keszletDb)}</td>
                                             <td>{formatSzam(telephely.eladottDb)}</td>
-                                            <td title={ft(telephely.bevetel)}>{telephely.bevetel ? ftKompakt(telephely.bevetel) : '–'}</td>
+                                            {penzugy && <td title={ft(telephely.bevetel)}>{telephely.bevetel ? ftKompakt(telephely.bevetel) : '–'}</td>}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -261,17 +303,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
                 </section>
             </div>
 
-            <OszlopDiagram
-                cim="Érdeklődések naponta"
-                alcim={`Utolsó 30 nap · összesen ${formatSzam(napiOsszes)}`}
-                sor={napiSor}
-                tengelyIndexek={[1, 8, 15, 22, 29]}
-                szukIndexek={[1, 15, 29]}
-                uresSzoveg="Az utolsó 30 napban nem érkezett érdeklődés."
-                ariaCimke={`Napi érdeklődések az utolsó 30 napban, összesen ${napiOsszes}. A pontos értékek a Táblázat nézetben.`}
-                tablaFejlec={['Nap', 'Érdeklődés']}
-                tablaSor={(nap) => [napFormatum.format(nap.datum), nap.ertek]}
-            />
+            {penzugy && napiDiagram}
 
             <div className="db-racs db-racs-tablak">
                 <section className="db-kartya uveg top-lista" aria-labelledby="db-eladott-cim">
@@ -279,18 +311,20 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
                     {adat.legutobbEladott.length === 0 ? <p className="db-ures">Még nincs eladott autó.</p> : (
                         <div className="db-tabla-gorgeto">
                             <table>
-                                <thead><tr><th scope="col">Autó</th><th scope="col">Eladva</th><th scope="col">Eladási ár</th></tr></thead>
+                                <thead><tr><th scope="col">Autó</th><th scope="col">Eladva</th>{penzugy && <th scope="col">Eladási ár</th>}</tr></thead>
                                 <tbody>
                                     {adat.legutobbEladott.map((auto) => (
                                         <tr key={auto._id}>
                                             <td><AutoCella auto={auto} /></td>
                                             <td>{formatDatum(auto.eladas_datum) || '–'}</td>
-                                            <td>
-                                                {ft(auto.eladasi_ar)}
-                                                {auto.vetel_ar > 0 && auto.eladasi_ar < auto.vetel_ar && (
-                                                    <small className="db-engedmeny">−{szazalek.format((auto.vetel_ar - auto.eladasi_ar) / auto.vetel_ar)}</small>
-                                                )}
-                                            </td>
+                                            {penzugy && (
+                                                <td>
+                                                    {ft(auto.eladasi_ar)}
+                                                    {auto.vetel_ar > 0 && auto.eladasi_ar < auto.vetel_ar && (
+                                                        <small className="db-engedmeny">−{szazalek.format((auto.vetel_ar - auto.eladasi_ar) / auto.vetel_ar)}</small>
+                                                    )}
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -324,6 +358,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg }) => {
 };
 
 const AdminDashboard = () => {
+    const { jog } = useAuth();
     const [idoszak, setIdoszak] = useState(() => {
         const mentett = olvas(TAROLO_KULCS, '30');
         return IDOSZAKOK.some(([kulcs]) => kulcs === mentett) ? mentett : '30';
@@ -375,7 +410,7 @@ const AdminDashboard = () => {
                 !hiba && <div className="betoltes"><span className="porgo" aria-hidden="true" />Dashboard betöltése…</div>
             ) : (
                 <div className={`db-tartalom ${betolt ? 'db-tolt' : ''}`}>
-                    <Dashboard adat={adat} idoszakSzoveg={idoszakSzoveg} elozoSzoveg={elozoSzoveg} />
+                    <Dashboard adat={adat} idoszakSzoveg={idoszakSzoveg} elozoSzoveg={elozoSzoveg} jog={jog} />
                 </div>
             )}
         </div>
