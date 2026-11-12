@@ -124,22 +124,11 @@
     color: var(--halvany);
 }
 
-.attekintes {
-    display: grid;
-    gap: 18px;
-}
-
-.attekintes-racs {
-    display: grid;
-    gap: 18px;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-}
-
 /* ---------- Napi diagram ---------- */
 
 .diagram {
-    --diagram-szin: #f25a1f;
-    --diagram-felulet: #13131a;
+    --diagram-szin: var(--tuz-2);
+    --diagram-szin-aktiv: var(--tuz-1);
     margin: 0;
     padding: 22px;
 }
@@ -164,7 +153,7 @@
 
 .diagram-terulet {
     height: 220px;
-    margin-left: 28px;
+    margin-left: var(--diagram-tengely, 28px);
     position: relative;
     margin-bottom: 26px;
 }
@@ -218,7 +207,7 @@
 }
 
 .diagram-sav.aktiv .diagram-oszlop {
-    background: #ff7a45;
+    background: var(--diagram-szin-aktiv);
 }
 
 .diagram-tipp {
@@ -741,10 +730,6 @@
 
     .admin-hirdetes-vezerlok {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    }
-
-    .attekintes-racs {
-        grid-template-columns: 1fr;
     }
 }
 

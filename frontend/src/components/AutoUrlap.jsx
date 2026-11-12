@@ -179,6 +179,24 @@ const AutoUrlap = ({ adatok, setAdatok, egyediMezok, setEgyediMezok, telephelyek
                             {Object.entries(STATUSZOK).map(([ertek, cimke]) => <option key={ertek} value={ertek}>{cimke}</option>)}
                         </select>
                     </label>
+                    {adatok.statusz === 'elkelt' && (
+                        <>
+                            <label className="mezo">
+                                <span>Tényleges eladási ár <small>(üresen: a vételár)</small></span>
+                                <div className="bemenet-egyseggel">
+                                    <input className="bemenet" type="number" inputMode="numeric" min={0} step={1}
+                                        placeholder={adatok.vetel_ar || 'pl. 8500000'} value={adatok.eladasi_ar}
+                                        onChange={(e) => beallit('eladasi_ar', e.target.value)} />
+                                    <span>Ft</span>
+                                </div>
+                            </label>
+                            <label className="mezo">
+                                <span>Eladás dátuma <small>(üresen: mai nap)</small></span>
+                                <input className="bemenet" type="date" max={new Date().toISOString().slice(0, 10)} value={adatok.eladas_datum}
+                                    onChange={(e) => beallit('eladas_datum', e.target.value)} />
+                            </label>
+                        </>
+                    )}
                     <label className="mezo">
                         <span>Telephely / megtekintési hely</span>
                         <select className="bemenet" value={adatok.telephely} onChange={(e) => beallit('telephely', e.target.value)}>

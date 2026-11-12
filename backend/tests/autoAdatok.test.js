@@ -82,10 +82,13 @@ test('nyilvános válasz: belső adatok rejtve, régi egyképes rekord képtömb
         _id: '65f1c2a4b7e8d90012345678', marka: 'BMW', modell: 'M3', evjarat: 2001,
         kep: 'https://res.cloudinary.com/x.jpg', kepPublicId: 'veltrix/autok/x', kepek: [],
         alvazszam: 'WBSBL93435JR12345', megtekintesek: 10, lathato: true,
+        statusz: 'elkelt', eladasi_ar: 8500000, eladas_datum: new Date(),
     });
     assert.equal(valasz.kepek.length, 1);
     assert.equal(valasz.kepek[0].publicId, undefined);
     assert.equal(valasz.megtekintesek, undefined);
+    assert.equal(valasz.eladasi_ar, undefined);
+    assert.equal(valasz.eladas_datum, undefined);
     assert.equal(valasz.alvazszam, 'WBSBL93435J••••••');
     assert.equal(valasz.slug, 'bmw-m3-2001-65f1c2a4b7e8d90012345678');
 });

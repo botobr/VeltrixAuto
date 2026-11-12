@@ -104,7 +104,7 @@ export const AUTO_SZEKCIOK = [
 ];
 
 export const AUTO_MEZOK = AUTO_SZEKCIOK.flatMap((szekcio) => szekcio.mezok);
-const HIRDETES_MEZOK = ['statusz', 'lathato', 'kiemelt', 'lejarat', 'telephely'];
+const HIRDETES_MEZOK = ['statusz', 'lathato', 'kiemelt', 'lejarat', 'telephely', 'eladas_datum', 'eladasi_ar'];
 
 const datumMezo = (ertek) => (ertek ? String(ertek).slice(0, 10) : '');
 const boolMezo = (ertek) => (ertek === true ? 'true' : ertek === false ? 'false' : '');
@@ -125,6 +125,8 @@ export const urlapAdatokbol = (auto = {}) => {
     adatok.kiemelt = Boolean(auto.kiemelt);
     adatok.lejarat = datumMezo(auto.lejarat);
     adatok.telephely = auto.telephely?._id || auto.telephely || '';
+    adatok.eladas_datum = datumMezo(auto.eladas_datum);
+    adatok.eladasi_ar = auto.eladasi_ar === null || auto.eladasi_ar === undefined ? '' : String(auto.eladasi_ar);
     return adatok;
 };
 

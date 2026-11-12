@@ -58,6 +58,10 @@ const autokSchema = new mongoose.Schema(
         kiemelt: { type: Boolean, default: false },
         lejarat: { type: Date, default: null },
 
+        // Eladás – csak „elkelt” státusznál van értéke (lásd a pre('validate') hookot).
+        eladas_datum: { type: Date, default: null },
+        eladasi_ar: { type: Number, min: 0, default: null },
+
         // Képek – az első a borítókép. A `kep`/`kepPublicId` a régi, egyképes rekordok miatt maradt meg.
         kepek: { type: [kepSchema], default: [] },
         kep: { type: String },
@@ -82,9 +86,22 @@ autokSchema.pre('validate', function () {
     }
     this.kep = this.kepek[0]?.url;
     this.kepPublicId = this.kepek[0]?.publicId;
+
+    // Eladási adatok: elkelt autónál kötelezően kitöltve, egyébként üresek.
+    if (this.statusz === 'elkelt') {
+        if (!this.eladas_datum) {
+            // Most eladottnál a mai nap; régi, dátum nélküli rekordnál az utolsó módosítás a legjobb becslés.
+            this.eladas_datum = this.isNew || this.isModified('statusz') ? new Date() : (this.updatedAt || new Date());
+        }
+        if (this.eladasi_ar === null || this.eladasi_ar === undefined) this.eladasi_ar = this.vetel_ar;
+    } else {
+        this.eladas_datum = null;
+        this.eladasi_ar = null;
+    }
 });
 
 autokSchema.index({ lathato: 1, statusz: 1, createdAt: -1 });
+autokSchema.index({ statusz: 1, eladas_datum: -1 });
 autokSchema.index({ marka: 1, modell: 1 });
 
 const AutoModel = mongoose.model('auto', autokSchema);

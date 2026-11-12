@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
 import { useSeo } from '../../lib/useSeo';
-import AdminAttekintes from './AdminAttekintes';
+import AdminDashboard from './AdminDashboard';
 import AdminErdeklodesek from './AdminErdeklodesek';
 import AdminFelhasznalok from './AdminFelhasznalok';
 import AdminHirdetesek from './AdminHirdetesek';
@@ -9,7 +9,7 @@ import AdminTelephelyek from './AdminTelephelyek';
 import './Admin.css';
 
 const LAPOK = [
-    ['attekintes', 'Áttekintés', 'osszehasonlit', AdminAttekintes],
+    ['attekintes', 'Dashboard', 'osszehasonlit', AdminDashboard],
     ['hirdetesek', 'Hirdetések', 'auto', AdminHirdetesek],
     ['erdeklodesek', 'Érdeklődések', 'level', AdminErdeklodesek],
     ['telephelyek', 'Telephelyek', 'terkep', AdminTelephelyek],

@@ -44,6 +44,9 @@ const MEZOK = {
     kiemelt: { tipus: 'logikai', alap: false },
 
     statusz: { tipus: 'enum', ertekek: STATUSZOK, alap: 'elerheto' },
+    // Üresen hagyva elkelt autónál a modell tölti ki (mai nap, illetve a vételár).
+    eladas_datum: { tipus: 'datum' },
+    eladasi_ar: { tipus: 'szam', min: 0, max: 1e11, egesz: true },
     felszereltseg: { tipus: 'lista', maxElem: 120, max: 60 },
 
     alvazszam: { tipus: 'szoveg', max: 17, minta: /^[A-HJ-NPR-Z0-9]{17}$/i, mintaHiba: 'Az alvázszám 17 karakter (I, O, Q nélkül).' },
@@ -62,7 +65,7 @@ const CIMKEK = {
     kmora_allas: 'Kilométeróra állása', ajtok_szama: 'Ajtók száma', ulesek_szama: 'Ülések száma',
     tulajdonosok_szama: 'Tulajdonosok száma', garancia_honap: 'Garancia', fogyasztas: 'Fogyasztás',
     co2: 'CO₂-kibocsátás', elso_forgalomba_helyezes: 'Első forgalomba helyezés', muszaki_vizsga: 'Műszaki vizsga',
-    lejarat: 'Hirdetés lejárata', statusz: 'Státusz', felszereltseg: 'Felszereltség', alvazszam: 'Alvázszám',
+    lejarat: 'Hirdetés lejárata', statusz: 'Státusz', eladas_datum: 'Eladás dátuma', eladasi_ar: 'Eladási ár', felszereltseg: 'Felszereltség', alvazszam: 'Alvázszám',
     azonosito: 'Belső azonosító', telephely: 'Telephely', elado_nev: 'Kapcsolattartó neve',
     elado_telefonszam: 'Kapcsolattartó telefonszáma', leiras: 'Leírás',
 };
@@ -195,6 +198,9 @@ const autoAdatokEllenorzese = (nyers = {}) => {
     if (adatok.elso_forgalomba_helyezes && adatok.evjarat
         && adatok.elso_forgalomba_helyezes.getFullYear() < adatok.evjarat - 1) {
         hibak.push('Az első forgalomba helyezés nem lehet jóval korábbi az évjáratnál.');
+    }
+    if (adatok.eladas_datum && adatok.eladas_datum.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+        hibak.push('Az eladás dátuma nem lehet a jövőben.');
     }
     return { adatok, hibak };
 };

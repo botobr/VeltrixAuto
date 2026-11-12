@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
 import { apiKeres } from '../../lib/api';
-import { STATUSZOK, autoNev, autoUrl, formatAr, formatSzam, kepMeret } from '../../lib/auto';
+import { STATUSZOK, autoNev, autoUrl, formatAr, formatDatum, formatSzam, kepMeret } from '../../lib/auto';
 
 const datumMezo = (ertek) => (ertek ? String(ertek).slice(0, 10) : '');
 
@@ -113,7 +113,12 @@ const AdminHirdetesek = () => {
                                         <span className="admin-hirdetes-ar">{formatAr(auto.vetel_ar)}</span>
                                     </div>
                                     <p className="admin-hirdetes-meta">
-                                        {[auto.azonosito, auto.telephely?.nev, `${formatSzam(auto.kmora_allas)} km`].filter(Boolean).join(' · ')}
+                                        {[
+                                            auto.azonosito,
+                                            auto.telephely?.nev,
+                                            `${formatSzam(auto.kmora_allas)} km`,
+                                            auto.statusz === 'elkelt' && auto.eladas_datum ? `Eladva ${formatDatum(auto.eladas_datum)}, ${formatAr(auto.eladasi_ar)}` : null,
+                                        ].filter(Boolean).join(' · ')}
                                         {!auto.lathato && <span className="admin-jel">Rejtett</span>}
                                         {lejart && <span className="admin-jel">Lejárt</span>}
                                     </p>

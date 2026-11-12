@@ -1,0 +1,487 @@
+/* ---------- Admin dashboard ---------- */
+
+/*
+ * Diagramszínek: egysorozatos diagramok a márka aranyával; a státuszsáv három
+ * színe sötét felületre validált kategória-paletta (kék / sárga / zöldeskék).
+ */
+.dashboard {
+    --db-elerheto: #3987e5;
+    --db-foglalt: #c98500;
+    --db-elkelt: #199e70;
+    display: grid;
+    gap: 18px;
+}
+
+.db-tartalom {
+    display: grid;
+    gap: 18px;
+    transition: opacity 150ms ease;
+}
+
+.db-tolt {
+    opacity: 0.55;
+}
+
+.db-eszkoztar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    justify-content: space-between;
+}
+
+.db-idoszak {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.db-idoszak .csip {
+    font-size: 0.82rem;
+    padding: 7px 14px;
+}
+
+.db-idoszak .csip.aktiv {
+    background: rgba(201, 154, 53, 0.18);
+    border-color: var(--vonal-eros);
+}
+
+.db-frissites {
+    align-items: center;
+    color: var(--halvanyabb);
+    display: flex;
+    font-size: 0.8rem;
+    gap: 12px;
+}
+
+.db-frissites .szoveg-gomb:disabled {
+    color: var(--halvanyabb);
+    cursor: default;
+    text-decoration: none;
+}
+
+.db-kartya {
+    border-radius: 20px;
+    margin: 0;
+    min-width: 0;
+    padding: 22px;
+}
+
+.db-kartya h3 {
+    font-family: var(--sans);
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+.db-ures {
+    color: var(--halvanyabb);
+    font-size: 0.88rem;
+    margin: 12px 0 0;
+}
+
+.db-ures a {
+    color: var(--halvany);
+}
+
+/* ---------- Rácsok ---------- */
+
+.db-fo-sor {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+}
+
+.db-racs {
+    display: grid;
+    gap: 18px;
+}
+
+.db-racs-2 {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+}
+
+.db-racs-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.db-racs-tablak {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+}
+
+/* ---------- Bevétel (hero) ---------- */
+
+.db-hero {
+    align-content: start;
+    display: grid;
+    gap: 10px;
+}
+
+.db-hero-cimke {
+    align-items: center;
+    color: var(--halvany);
+    display: flex;
+    font-family: var(--sans);
+    font-size: 0.86rem;
+    font-weight: 700;
+    gap: 8px;
+    letter-spacing: 0;
+    margin: 0;
+}
+
+.db-hero-ertek {
+    font-family: var(--sans);
+    font-size: clamp(2.6rem, 5vw, 3.4rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 4px 0 0;
+}
+
+.db-valtozas {
+    align-items: center;
+    color: var(--halvany);
+    display: inline-flex;
+    font-size: 0.84rem;
+    font-weight: 600;
+    gap: 4px;
+}
+
+.db-valtozas-fel {
+    color: var(--siker);
+}
+
+.db-valtozas-le {
+    color: var(--hiba);
+}
+
+.db-hero-statok {
+    border-top: 1px solid var(--vonal);
+    display: grid;
+    gap: 14px 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 10px 0 0;
+    padding-top: 16px;
+}
+
+.db-hero-statok dt,
+.db-mini-statok dt {
+    color: var(--halvanyabb);
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.db-hero-statok dd {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 2px 0 0;
+}
+
+.db-hero-statok dd small {
+    color: var(--halvanyabb);
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+.db-hero-lab {
+    border-top: 1px solid var(--vonal);
+    color: var(--halvany);
+    font-size: 0.82rem;
+    margin: 6px 0 0;
+    padding-top: 12px;
+}
+
+.db-hero-lab strong {
+    color: var(--szoveg);
+}
+
+.db-sugo {
+    background: rgba(201, 154, 53, 0.08);
+    border: 1px solid var(--vonal);
+    border-radius: 12px;
+    color: var(--halvany);
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0;
+    padding: 10px 12px;
+}
+
+.db-sugo a {
+    color: var(--tuz-1);
+}
+
+/* ---------- Oszlopdiagram kiegészítések ---------- */
+
+.db-bevetel-diagram {
+    --diagram-tengely: 52px;
+}
+
+.db-bevetel-diagram .diagram-terulet {
+    height: 260px;
+}
+
+.diagram-tipp span {
+    color: var(--halvany);
+}
+
+.db-diagram-ures {
+    color: var(--halvanyabb);
+    font-size: 0.86rem;
+    left: 50%;
+    margin: 0;
+    position: absolute;
+    text-align: center;
+    top: 40%;
+    transform: translate(-50%, -50%);
+    width: min(100%, 260px);
+}
+
+/* ---------- Sávlista ---------- */
+
+.db-savlista ul {
+    display: grid;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.db-savlista li {
+    align-items: center;
+    display: grid;
+    font-size: 0.84rem;
+    gap: 10px;
+    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 2.5rem;
+}
+
+.db-sav-nev {
+    color: var(--halvany);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.db-sav-sin {
+    display: flex;
+    height: 12px;
+}
+
+.db-sav {
+    background: var(--tuz-2);
+    border-radius: 0 4px 4px 0;
+    min-width: 3px;
+}
+
+.db-savlista li:hover .db-sav {
+    background: var(--tuz-1);
+}
+
+.db-sav-ertek {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    text-align: right;
+}
+
+/* ---------- Szegmentált státuszsáv ---------- */
+
+.db-szegmens {
+    display: grid;
+    gap: 14px;
+}
+
+.db-szegmens-sav {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+}
+
+.db-szegmens-resz,
+.db-szegmens-ures {
+    flex-basis: 0;
+    min-width: 4px;
+}
+
+.db-szegmens-resz:first-child,
+.db-szegmens-ures {
+    border-bottom-left-radius: 999px;
+    border-top-left-radius: 999px;
+}
+
+.db-szegmens-resz:last-child,
+.db-szegmens-ures {
+    border-bottom-right-radius: 999px;
+    border-top-right-radius: 999px;
+}
+
+.db-szegmens-ures {
+    background: rgba(255, 255, 255, 0.08);
+    flex-grow: 1;
+}
+
+.db-szin-elerheto {
+    background: var(--db-elerheto);
+}
+
+.db-szin-foglalt {
+    background: var(--db-foglalt);
+}
+
+.db-szin-elkelt {
+    background: var(--db-elkelt);
+}
+
+.db-jelmagyarazat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 26px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.db-jelmagyarazat li {
+    align-items: baseline;
+    color: var(--halvany);
+    display: flex;
+    font-size: 0.86rem;
+    gap: 8px;
+}
+
+.db-jelmagyarazat strong {
+    color: var(--szoveg);
+    font-size: 1.25rem;
+}
+
+.db-jelmagyarazat small {
+    color: var(--halvanyabb);
+}
+
+.db-jel {
+    align-self: center;
+    border-radius: 3px;
+    flex: none;
+    height: 10px;
+    width: 10px;
+}
+
+/* ---------- Látogatottság ---------- */
+
+.db-mini-statok {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+}
+
+.db-mini-statok > div {
+    align-items: baseline;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.db-mini-statok dt {
+    align-items: center;
+    display: inline-flex;
+    font-size: 0.84rem;
+    gap: 8px;
+}
+
+.db-mini-statok dd {
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    margin: 0;
+}
+
+.db-mini-statok dd.db-mini-reszlet {
+    color: var(--halvany);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ---------- Táblázatok ---------- */
+
+.db-tabla-megjegyzes {
+    color: var(--halvanyabb);
+    font-size: 0.76rem;
+    margin: 4px 0 8px;
+}
+
+.db-tabla-gorgeto {
+    overflow-x: auto;
+}
+
+.db-kartya.top-lista h3 {
+    margin: 0;
+}
+
+.top-lista tbody th {
+    border-bottom: 1px solid var(--vonal);
+    color: var(--szoveg);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    padding: 10px 8px;
+    text-align: left;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.top-lista tbody th small {
+    color: var(--halvanyabb);
+    font-weight: 600;
+}
+
+.top-lista td {
+    white-space: nowrap;
+}
+
+.db-engedmeny {
+    color: var(--halvanyabb);
+    display: block;
+    font-size: 0.74rem;
+}
+
+/* ---------- Reszponzív ---------- */
+
+@media (max-width: 1100px) {
+    .db-fo-sor,
+    .db-racs-2,
+    .db-racs-tablak {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 860px) {
+    .db-racs-3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .db-kartya {
+        padding: 18px 16px;
+    }
+
+    .db-szuk-rejtett {
+        display: none;
+    }
+
+    .dashboard .kpi-sor {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard .kpi {
+        border-radius: 16px;
+        padding: 14px 16px;
+    }
+
+    .dashboard .kpi-ertek {
+        font-size: 1.45rem;
+    }
+
+    .db-hero-statok {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

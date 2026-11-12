@@ -134,6 +134,8 @@ const autoValasz = (auto, { admin = false } = {}) => {
         delete adat.telefonKattintasok;
         delete adat.lathato;
         delete adat.lejarat;
+        delete adat.eladas_datum;
+        delete adat.eladasi_ar;
         delete adat.__v;
     }
     return adat;

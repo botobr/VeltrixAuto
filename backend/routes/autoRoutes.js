@@ -201,10 +201,13 @@ router.patch('/autok/:id/allapot', adminRequired, async (req, res) => {
     const { adatok, hibak } = allapotEllenorzese(req.body);
     if (hibak.length) return hibasValasz(res, hibak);
 
-    const auto = await AutokModel.findByIdAndUpdate(req.params.id, { $set: adatok }, { returnDocument: 'after', runValidators: true });
+    // Betöltés + mentés (nem findByIdAndUpdate), hogy a modell hookja kitöltse/törölje az eladási adatokat.
+    const auto = await AutokModel.findById(req.params.id);
     if (!auto) {
         return res.status(404).json({ error: 'Autó nem található!' });
     }
+    auto.set(adatok);
+    await auto.save();
     return res.status(200).json({ message: 'Állapot frissítve.', auto: autoValasz(auto, { admin: true }) });
 });
 
