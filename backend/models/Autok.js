@@ -107,3 +107,5 @@ autokSchema.index({ marka: 1, modell: 1 });
 const AutoModel = mongoose.model('auto', autokSchema);
 
 module.exports = AutoModel;
+// A webshop-termékek ugyanezt a képsémát használják.
+module.exports.kepSchema = kepSchema;

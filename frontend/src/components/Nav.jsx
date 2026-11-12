@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth';
+import { useKosar } from '../context/kosar';
 import Ikon from './Ikon';
 import './Nav.css';
 
 const Nav = () => {
     const { user, munkatars, jog, logout } = useAuth();
+    const { darab: kosarDarab } = useKosar();
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const [hiba, setHiba] = useState('');
@@ -61,11 +63,16 @@ const Nav = () => {
                 <div className="nav-menu" id="nav-menu">
                     <div className="nav-linkek">
                         <NavLink to="/autok">Kínálat</NavLink>
+                        <NavLink to="/alkatreszek">Tuning alkatrészek</NavLink>
                         <NavLink to="/szolgaltatasok">Szolgáltatások</NavLink>
                         <NavLink to="/rolunk">Rólunk</NavLink>
                         {munkatars && <NavLink to="/admin">Admin</NavLink>}
                     </div>
                     <div className="nav-fiok">
+                        <Link className="nav-kosar ikon-gomb" to="/kosar" aria-label={`Kosár${kosarDarab ? ` (${kosarDarab} termék)` : ''}`} title="Kosár">
+                            <Ikon nev="kosar" meret={19} />
+                            {kosarDarab > 0 && <span className="nav-jelveny">{kosarDarab > 99 ? '99+' : kosarDarab}</span>}
+                        </Link>
                         {user ? (
                             <>
                                 <Link className="nav-felhasznalo" to="/fiok" title="Fiókom">

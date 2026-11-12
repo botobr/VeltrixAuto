@@ -4,6 +4,7 @@ import './App.css';
 import Lablec, { CookieSav, OsszehasonlitasSav } from './components/Lablec';
 import Nav from './components/Nav';
 import { AuthProvider } from './context/AuthContext';
+import { KosarProvider } from './context/KosarProvider';
 import { OsszehasonlitasProvider } from './context/OsszehasonlitasProvider';
 import { useAuth } from './context/auth';
 import AutoReszletek from './pages/AutoReszletek';
@@ -21,6 +22,12 @@ const Szolgaltatasok = lazy(() => import('./pages/Szolgaltatasok'));
 const Jogi = lazy(() => import('./pages/Jogi'));
 const Admin = lazy(() => import('./pages/admin/Admin'));
 const AutoSzerkeszto = lazy(() => import('./pages/admin/AutoSzerkeszto'));
+const AlkatreszSzerkeszto = lazy(() => import('./pages/admin/AlkatreszSzerkeszto'));
+const Alkatreszek = lazy(() => import('./pages/Alkatreszek'));
+const AlkatreszReszletek = lazy(() => import('./pages/AlkatreszReszletek'));
+const Kosar = lazy(() => import('./pages/Kosar'));
+const Penztar = lazy(() => import('./pages/Penztar'));
+const Rendeles = lazy(() => import('./pages/Rendeles'));
 
 const Betoltes = ({ szoveg = 'Betöltés…' }) => (
     <main className="betoltes" aria-live="polite">
@@ -51,6 +58,7 @@ function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
+                <KosarProvider>
                 <OsszehasonlitasProvider>
                     <GorgetesFelulre />
                     <div className="app-kontener">
@@ -63,6 +71,11 @@ function App() {
                                     <Route path="/autok" element={<Autok />} />
                                     <Route path="/autok/:slug" element={<AutoReszletek />} />
                                     <Route path="/osszehasonlitas" element={<Osszehasonlitas />} />
+                                    <Route path="/alkatreszek" element={<Alkatreszek />} />
+                                    <Route path="/alkatreszek/:slug" element={<AlkatreszReszletek />} />
+                                    <Route path="/kosar" element={<Kosar />} />
+                                    <Route path="/penztar" element={<Penztar />} />
+                                    <Route path="/rendeles/:szam" element={<Rendeles />} />
                                     <Route path="/login" element={<Login />} />
                                     <Route path="/regisztracio" element={<Regisztracio />} />
                                     <Route path="/rolunk" element={<Rolunk />} />
@@ -74,6 +87,8 @@ function App() {
                                     <Route path="/admin" element={<VedettOldal jog="kezelofelulet"><Admin /></VedettOldal>} />
                                     <Route path="/admin/autok/uj" element={<VedettOldal jog="hirdetesSzerkesztes"><AutoSzerkeszto /></VedettOldal>} />
                                     <Route path="/admin/autok/:id" element={<VedettOldal jog="hirdetesSzerkesztes"><AutoSzerkeszto /></VedettOldal>} />
+                                    <Route path="/admin/alkatreszek/uj" element={<VedettOldal jog="alkatreszSzerkesztes"><AlkatreszSzerkeszto /></VedettOldal>} />
+                                    <Route path="/admin/alkatreszek/:id" element={<VedettOldal jog="alkatreszSzerkesztes"><AlkatreszSzerkeszto /></VedettOldal>} />
                                     <Route path="/feltolt" element={<Navigate to="/admin/autok/uj" replace />} />
                                     <Route path="*" element={<NemTalalhato />} />
                                 </Routes>
@@ -86,6 +101,7 @@ function App() {
                         <OsszehasonlitasSav />
                     </div>
                 </OsszehasonlitasProvider>
+                </KosarProvider>
             </AuthProvider>
         </BrowserRouter>
     );

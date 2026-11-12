@@ -4,17 +4,62 @@ import AutoKartya, { AutoKartyaVaz } from '../components/AutoKartya';
 import Ikon from '../components/Ikon';
 import { useAuth } from '../context/auth';
 import { apiKeres } from '../lib/api';
-import { formatDatum } from '../lib/auto';
+import { formatDatum, formatDatumIdo } from '../lib/auto';
+import { ft } from '../lib/webshop';
 import { szuroCimkek } from '../lib/szurok';
 import { useSeo } from '../lib/useSeo';
 import { JelszoMezo } from './Login';
 import './Fiok.css';
+import './Webshop.css';
 
 const LAPOK = [
     ['kedvencek', 'Kedvencek', 'sziv'],
+    ['rendelesek', 'Rendeléseim', 'kosar'],
     ['keresesek', 'Mentett keresések', 'harang'],
     ['profil', 'Profil', 'felhasznalo'],
 ];
+
+const Rendelesek = () => {
+    const [rendelesek, setRendelesek] = useState(null);
+    const [hiba, setHiba] = useState('');
+
+    useEffect(() => {
+        apiKeres('/fiok/rendelesek').then((data) => setRendelesek(data.rendelesek)).catch((error) => setHiba(error.message));
+    }, []);
+
+    if (hiba) return <p className="uzenet uzenet-hiba">{hiba}</p>;
+    if (!rendelesek) return <div className="betoltes"><span className="porgo" aria-hidden="true" /></div>;
+    if (rendelesek.length === 0) {
+        return (
+            <div className="allapot-doboz uveg">
+                <span className="allapot-ikon" aria-hidden="true"><Ikon nev="kosar" meret={22} /></span>
+                <h3>Még nincs webshop rendelésed</h3>
+                <p>A bejelentkezve leadott rendeléseid itt jelennek meg.</p>
+                <Link className="gomb gomb-fo" to="/alkatreszek">Tuning alkatrészek</Link>
+            </div>
+        );
+    }
+    return (
+        <div className="uveg webshop-tabla-tarto">
+            <table className="webshop-tabla">
+                <thead>
+                    <tr><th scope="col">Rendelés</th><th scope="col">Dátum</th><th scope="col">Tételek</th><th scope="col">Összeg</th><th scope="col">Állapot</th></tr>
+                </thead>
+                <tbody>
+                    {rendelesek.map((r) => (
+                        <tr key={r.rendelesSzam}>
+                            <td><Link to={`/rendeles/${encodeURIComponent(r.rendelesSzam)}`}><strong>{r.rendelesSzam}</strong></Link></td>
+                            <td>{formatDatumIdo(r.createdAt)}</td>
+                            <td>{r.tetelek.map((t) => `${t.mennyiseg} × ${t.nev}`).join(', ')}</td>
+                            <td>{ft(r.osszegek.vegosszeg)}</td>
+                            <td><span className={`rendeles-statusz rendeles-statusz-${r.statusz}`}>{r.statuszNev}</span></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
 
 const Kedvencek = () => {
     const { user } = useAuth();
@@ -235,6 +280,7 @@ const Fiok = () => {
 
             <section className="fiok-tartalom" role="tabpanel">
                 {lap === 'kedvencek' && <Kedvencek />}
+                {lap === 'rendelesek' && <Rendelesek />}
                 {lap === 'keresesek' && <Keresesek />}
                 {lap === 'profil' && <Profil />}
             </section>

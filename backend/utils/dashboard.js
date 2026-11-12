@@ -1,8 +1,11 @@
+const AlkatreszModel = require('../models/Alkatresz');
 const AutokModel = require('../models/Autok');
 const ErdeklodesModel = require('../models/Erdeklodes');
 const TelephelyModel = require('../models/Telephely');
+const RendelesModel = require('../models/Rendeles');
 const UserModel = require('../models/User');
 const { autoValasz } = require('./autoSzuro');
+const { ALACSONY_KESZLET } = require('./webshop');
 
 /*
  * Az admin dashboard minden számítása itt történik; a frontend csak megjeleníti
@@ -179,6 +182,58 @@ const keszletLekerdezese = (most) => {
     ]);
 };
 
+/** Webshop: rendelések és bevétel az időszakban (lemondott nélkül), teendők, készletjelzések, toplista. */
+const webshopLekerdezese = async ({ tol, elozoTol }) => {
+    const ervenyes = { statusz: { $ne: 'lemondva' } };
+    const idoszakban = tol ? { ...ervenyes, createdAt: { $gte: tol } } : ervenyes;
+    const osszesito = (szuro) => RendelesModel.aggregate([
+        { $match: szuro },
+        { $group: { _id: null, db: { $sum: 1 }, bevetel: { $sum: '$osszegek.vegosszeg' } } },
+    ]);
+    const [[most], elozo, nyitott, fizetesreVar, termekek, alacsony, elfogyott, top] = await Promise.all([
+        osszesito(idoszakban),
+        tol ? osszesito({ ...ervenyes, createdAt: { $gte: elozoTol, $lt: tol } }) : null,
+        RendelesModel.countDocuments({ statusz: { $in: ['uj', 'feldolgozas'] } }),
+        RendelesModel.countDocuments({ statusz: 'fizetesre_var' }),
+        AlkatreszModel.countDocuments({ lathato: true }),
+        AlkatreszModel.countDocuments({ lathato: true, keszlet: { $gt: 0, $lte: ALACSONY_KESZLET } }),
+        AlkatreszModel.countDocuments({ lathato: true, keszlet: 0 }),
+        RendelesModel.aggregate([
+            { $match: idoszakban },
+            { $unwind: '$tetelek' },
+            {
+                $group: {
+                    _id: '$tetelek.alkatresz',
+                    nev: { $last: '$tetelek.nev' },
+                    cikkszam: { $last: '$tetelek.cikkszam' },
+                    db: { $sum: '$tetelek.mennyiseg' },
+                    bevetel: { $sum: { $multiply: ['$tetelek.egysegar', '$tetelek.mennyiseg'] } },
+                },
+            },
+            { $sort: { db: -1, bevetel: -1 } },
+            { $limit: 5 },
+        ]),
+    ]);
+    const jelen = most || { db: 0, bevetel: 0 };
+    const elozoOsszeg = tol ? (elozo[0] || { db: 0, bevetel: 0 }) : null;
+    return {
+        rendelesek: jelen.db,
+        elozoRendelesek: elozoOsszeg?.db ?? null,
+        rendelesValtozas: valtozas(jelen.db, elozoOsszeg?.db),
+        bevetel: jelen.bevetel,
+        elozoBevetel: elozoOsszeg?.bevetel ?? null,
+        bevetelValtozas: valtozas(jelen.bevetel, elozoOsszeg?.bevetel),
+        atlagKosar: jelen.db ? Math.round(jelen.bevetel / jelen.db) : null,
+        teendo: nyitott,
+        fizetesreVar,
+        termekek,
+        alacsonyKeszlet: alacsony,
+        alacsonyKeszletHatar: ALACSONY_KESZLET,
+        elfogyott,
+        top: top.map((t) => ({ id: String(t._id), nev: t.nev, cikkszam: t.cikkszam, db: t.db, bevetel: t.bevetel })),
+    };
+};
+
 // ---------- Összeállítás ----------
 
 const markakOsszefesulese = (keszlet, eladas) => {
@@ -222,6 +277,10 @@ const penzugyNelkul = (adat) => {
         markak: adat.markak.map(({ bevetel: _b, ...marka }) => marka),
         telephelyek: adat.telephelyek.map(({ bevetel: _b, ...telephely }) => telephely),
         legutobbEladott: adat.legutobbEladott.map(({ eladasi_ar: _a, ...auto }) => auto),
+        webshop: (({ bevetel: _b, elozoBevetel: _e, bevetelValtozas: _v, atlagKosar: _k, top, ...webshop }) => ({
+            ...webshop,
+            top: top.map(({ bevetel: _tb, ...termek }) => termek),
+        }))(adat.webshop),
     };
 };
 
@@ -237,7 +296,7 @@ const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date(), penzu
     const [
         [eladas], [keszlet], statuszok, rejtett, lejart, kiemelt, forgalom, top, telephelyek,
         erdeklodesStatusz, erdeklodesIdoszak, erdeklodesElozo, erdeklodesNapi,
-        felhasznalok, ujFelhasznalok,
+        felhasznalok, ujFelhasznalok, webshop,
     ] = await Promise.all([
         eladasokLekerdezese(idoszak, most),
         keszletLekerdezese(most),
@@ -257,6 +316,7 @@ const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date(), penzu
         ]),
         UserModel.aggregate([{ $group: { _id: '$statusz', db: { $sum: 1 } } }]),
         UserModel.countDocuments({ statusz: 'felhasznalo', ...(tol ? { createdAt: { $gte: tol } } : {}) }),
+        webshopLekerdezese(idoszak),
     ]);
 
     const osszesEladas = eladas.osszes[0] || { bevetel: 0, db: 0 };
@@ -326,6 +386,7 @@ const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date(), penzu
             ertekesito: szerepkorok.ertekesito || 0,
             ujak: ujFelhasznalok,
         },
+        webshop,
     };
     return penzugy ? adat : penzugyNelkul(adat);
 };

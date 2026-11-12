@@ -1,12 +1,13 @@
 const express = require('express');
+const AlkatreszModel = require('../models/Alkatresz');
 const AutokModel = require('../models/Autok');
 const { publikusFeltetelek } = require('../utils/autoSzuro');
 const { oldalUrl } = require('../utils/email');
-const { autoSlug, idSlugbol } = require('../utils/slug');
+const { alkatreszSlug, autoSlug, idSlugbol } = require('../utils/slug');
 
 const router = express.Router();
 
-const STATIKUS_OLDALAK = ['/', '/autok', '/rolunk', '/szolgaltatasok', '/aszf', '/adatkezeles', '/cookie'];
+const STATIKUS_OLDALAK = ['/', '/autok', '/alkatreszek', '/rolunk', '/szolgaltatasok', '/aszf', '/adatkezeles', '/cookie'];
 
 const htmlEscape = (szoveg) => String(szoveg ?? '').replace(/[&<>"']/g, (karakter) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -23,6 +24,9 @@ router.get('/robots.txt', (req, res) => {
         'Disallow: /login',
         'Disallow: /regisztracio',
         'Disallow: /osszehasonlitas',
+        'Disallow: /kosar',
+        'Disallow: /penztar',
+        'Disallow: /rendeles/',
         'Disallow: /megosztas/',
         '',
         `Sitemap: ${oldalUrl()}/sitemap.xml`,
@@ -35,6 +39,7 @@ router.get('/sitemap.xml', async (req, res) => {
         .select('marka modell evjarat updatedAt')
         .sort({ updatedAt: -1 })
         .limit(45000);
+    const alkatreszek = await AlkatreszModel.find({ lathato: true }).select('nev gyarto updatedAt').sort({ updatedAt: -1 }).limit(4000);
 
     const bejegyzes = (utvonal, modositva, prioritas) => [
         '  <url>',
@@ -47,8 +52,9 @@ router.get('/sitemap.xml', async (req, res) => {
     const xml = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-        ...STATIKUS_OLDALAK.map((utvonal) => bejegyzes(utvonal, null, utvonal === '/' || utvonal === '/autok' ? '1.0' : '0.5')),
+        ...STATIKUS_OLDALAK.map((utvonal) => bejegyzes(utvonal, null, ['/', '/autok', '/alkatreszek'].includes(utvonal) ? '1.0' : '0.5')),
         ...autok.map((auto) => bejegyzes(`/autok/${autoSlug(auto)}`, auto.updatedAt, '0.8')),
+        ...alkatreszek.map((a) => bejegyzes(`/alkatreszek/${alkatreszSlug(a)}`, a.updatedAt, '0.7')),
         '</urlset>',
     ].join('\n');
 

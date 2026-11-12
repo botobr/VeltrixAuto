@@ -1,0 +1,106 @@
+/* A webshop-termékkártya az autókártya (AutoKartya.css) alapjaira épül. */
+
+.alkatresz-kep-tarto {
+    aspect-ratio: 4 / 3;
+    background: #f4f1e8;
+}
+
+.alkatresz-kep-tarto .auto-kep {
+    object-fit: contain;
+    padding: 6%;
+}
+
+.alkatresz-kep-tarto::after {
+    background: linear-gradient(180deg, rgba(7, 7, 10, 0.35) 0%, transparent 28%);
+}
+
+.alkatresz-elfogyott .auto-kep {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
+.alkatresz-cimke-akcio {
+    background: var(--hiba) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+}
+
+.alkatresz-nev {
+    font-size: 1.08rem;
+    line-height: 1.3;
+}
+
+.alkatresz-rovid {
+    color: var(--halvany);
+    display: -webkit-box;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    margin: 8px 0 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.alkatresz-kartya-lablec {
+    align-items: end;
+    border-top: 1px solid var(--vonal);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 14px;
+}
+
+.alkatresz-kartya-lablec > div {
+    display: grid;
+    gap: 2px;
+}
+
+.alkatresz-ar {
+    align-items: baseline;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+}
+
+.alkatresz-ar strong {
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.alkatresz-ar s {
+    color: var(--halvanyabb);
+    font-size: 0.82rem;
+}
+
+.alkatresz-keszlet {
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.keszlet-keszleten {
+    color: var(--siker);
+}
+
+.keszlet-utolso {
+    color: var(--tuz-1);
+}
+
+.keszlet-elfogyott {
+    color: var(--hiba);
+}
+
+.kosarba-gomb {
+    flex: none;
+}
+
+/* A kártya egészét lefedő link (.auto-link::after, z-index 2) fölött, hogy a gomb kattintható maradjon. */
+.alkatresz-kartya .kosarba-gomb {
+    position: relative;
+    z-index: 4;
+}
+
+.kosarba-gomb:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

@@ -120,6 +120,55 @@ const EladasKartya = ({ eladasok, idoszakSzoveg, elozoSzoveg }) => (
     </section>
 );
 
+/** Webshop: rendelések, bevétel (csak pénzügyi joggal érkezik), teendők, készletjelzés, toplista. */
+const WebshopBlokk = ({ webshop: w, idoszakSzoveg, elozoSzoveg, jog }) => {
+    const penzugy = w.bevetel !== undefined;
+    const link = (lap) => (jog(lap === 'rendelesek' ? 'rendelesKezeles' : 'alkatreszSzerkesztes') ? `/admin?lap=${lap}` : undefined);
+    return (
+        <section className="db-webshop" aria-labelledby="db-webshop-cim">
+            <h2 id="db-webshop-cim" className="db-szekcio-cim"><Ikon nev="kosar" meret={17} /> Webshop · {idoszakSzoveg}</h2>
+            <div className="kpi-sor">
+                {penzugy && (
+                    <div className="kpi">
+                        <span className="kpi-cimke">Webshop bevétel</span>
+                        <strong className="kpi-ertek" title={ft(w.bevetel)}>{ftKompakt(w.bevetel)}</strong>
+                        <Valtozas ertek={w.bevetelValtozas} viszonyitas={elozoSzoveg} />
+                    </div>
+                )}
+                <div className="kpi">
+                    <span className="kpi-cimke">Rendelések</span>
+                    <strong className="kpi-ertek">{formatSzam(w.rendelesek)}</strong>
+                    <Valtozas ertek={w.rendelesValtozas} viszonyitas={elozoSzoveg} />
+                </div>
+                {penzugy && <Csempe cimke="Átlagos kosárérték" ertek={w.atlagKosar !== null ? ftKompakt(w.atlagKosar) : '–'} megjegyzes="lemondott rendelések nélkül" />}
+                <Csempe cimke="Teendő rendelés" ertek={formatSzam(w.teendo)} link={link('rendelesek')}
+                    megjegyzes={`${w.fizetesreVar} fizetésre vár`} />
+                <Csempe cimke="Fogyó készlet" ertek={formatSzam(w.alacsonyKeszlet)} link={link('alkatreszek')}
+                    megjegyzes={`${w.elfogyott} elfogyott · ${w.termekek} aktív termék`} />
+            </div>
+            {w.top.length > 0 && (
+                <div className="db-kartya uveg top-lista">
+                    <h3>Legkelendőbb termékek</h3>
+                    <div className="db-tabla-gorgeto">
+                        <table>
+                            <thead><tr><th scope="col">Termék</th><th scope="col">Eladva</th>{penzugy && <th scope="col">Bevétel</th>}</tr></thead>
+                            <tbody>
+                                {w.top.map((t) => (
+                                    <tr key={t.id}>
+                                        <th scope="row">{t.nev} <small>{t.cikkszam}</small></th>
+                                        <td>{formatSzam(t.db)} db</td>
+                                        {penzugy && <td title={ft(t.bevetel)}>{ftKompakt(t.bevetel)}</td>}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+};
+
 const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
     const { bevetel, keszlet, erdeklodesek, felhasznalok, forgalom } = adat;
     // A backend pénzügyi jog nélkül nem küld bevételi adatot (bevetel === null).
@@ -210,6 +259,8 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
                     <Link to="/admin?lap=hirdetesek">Kezelés →</Link>
                 </p>
             )}
+
+            {adat.webshop && <WebshopBlokk webshop={adat.webshop} idoszakSzoveg={idoszakSzoveg} elozoSzoveg={elozoSzoveg} jog={jog} />}
 
             <div className="db-racs db-racs-2">
                 <section className="db-kartya uveg" aria-labelledby="db-allapot-cim">
