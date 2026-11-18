@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const { oldalUrl } = require('./email');
+const { SZALLITASI_MODOK } = require('./webshop');
 
 /*
  * Online kártyás fizetés – Stripe Checkout (a Stripe saját fizetőoldala, így
@@ -22,12 +23,28 @@ const kartyaElerheto = () => Boolean(process.env.STRIPE_SECRET_KEY && process.en
 // A forint a Stripe-nál „két tizedes” pénznem: az összeget 100-zal szorozva kell megadni.
 const fillerben = (forint) => Math.round(forint) * 100;
 
+/**
+ * Termékkép a fizetőoldalra (kis bélyegkép a név mellett): csak nyilvános https-kép
+ * mehet, mert a Stripe tölti le. Cloudinary-képből négyzetes, a termékre fókuszáló
+ * (g_auto) kivágást kérünk, hogy a kis méretben is kitöltse a keretet.
+ */
+const stripeKep = (url) => {
+    if (typeof url !== 'string' || !url.startsWith('https://')) return null;
+    return url.includes('res.cloudinary.com') && url.includes('/upload/')
+        ? url.replace('/upload/', '/upload/c_fill,g_auto,w_200,h_200,f_jpg,q_auto/')
+        : url;
+};
+
 /** Fizetési munkamenet indítása; a vevőt a visszakapott URL-re kell irányítani. */
 const fizetesInditasa = async (rendeles, hozzaferesKulcs) => {
     const vissza = `${oldalUrl()}/rendeles/${encodeURIComponent(rendeles.rendelesSzam)}?kulcs=${hozzaferesKulcs}`;
-    const tetel = (nev, egysegar, mennyiseg = 1) => ({
+    const tetel = (nev, egysegar, mennyiseg = 1, kep = null) => ({
         quantity: mennyiseg,
-        price_data: { currency: 'huf', unit_amount: fillerben(egysegar), product_data: { name: nev } },
+        price_data: {
+            currency: 'huf',
+            unit_amount: fillerben(egysegar),
+            product_data: { name: nev, ...(stripeKep(kep) ? { images: [stripeKep(kep)] } : {}) },
+        },
     });
     const munkamenet = await stripe().checkout.sessions.create({
         mode: 'payment',
@@ -35,8 +52,15 @@ const fizetesInditasa = async (rendeles, hozzaferesKulcs) => {
         client_reference_id: String(rendeles._id),
         metadata: { rendelesId: String(rendeles._id), rendelesSzam: rendeles.rendelesSzam },
         line_items: [
-            ...rendeles.tetelek.map((t) => tetel(`${t.nev} (${t.cikkszam})`, t.egysegar, t.mennyiseg)),
-            ...(rendeles.osszegek.szallitas > 0 ? [tetel('Szállítási díj', rendeles.osszegek.szallitas)] : []),
+            ...rendeles.tetelek.map((t) => tetel(`${t.nev} (${t.cikkszam})`, t.egysegar, t.mennyiseg, t.kep)),
+            // A szállítás mindig külön sor (ingyenesnél 0 Ft): így a Stripe a tételeket kompakt listában,
+            // kis képpel a név mellett mutatja – egyetlen sornál nagy, különálló termékképet tenne ki.
+            tetel(
+                rendeles.osszegek.szallitas > 0
+                    ? `Szállítási díj – ${SZALLITASI_MODOK[rendeles.szallitas?.mod]?.nev || 'szállítás'}`
+                    : `${SZALLITASI_MODOK[rendeles.szallitas?.mod]?.nev || 'Szállítás'} – ingyenes`,
+                rendeles.osszegek.szallitas,
+            ),
             ...(rendeles.osszegek.kezelesiDij > 0 ? [tetel('Kezelési díj', rendeles.osszegek.kezelesiDij)] : []),
         ],
         // A lefoglalt készlet 30 perc után felszabadul, ha a fizetés nem történik meg.
