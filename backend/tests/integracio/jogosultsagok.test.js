@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { after, before, beforeEach, test } = require('node:test');
+const UserModel = require('../../models/User');
 const k = require('./kornyezet');
 
 before(k.inditas);
@@ -105,4 +106,30 @@ test('a nyilvános regisztráció nem adhat munkatársi szerepkört', async () =
     assert.equal(valasz.status, 201);
     assert.equal(valasz.adat.user.statusz, 'felhasznalo');
     assert.equal((await kl.get('/admin/dashboard')).status, 403);
+});
+
+test('az új regisztráció e-mail-megerősítésig nem léptethető be', async () => {
+    const kl = k.kliens();
+    const valasz = await kl.post('/auth/register', { nev: 'Hiteles Béla', email: 'hiteles@teszt.hu', jelszo: 'jelszo12345', adatkezeles: true });
+    assert.equal(valasz.status, 201);
+    assert.equal(valasz.adat.user.emailHitelesitve, false);
+
+    const user = await UserModel.findOne({ email: 'hiteles@teszt.hu' }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat');
+    assert.ok(user.emailHitelesitoTokenHash);
+    assert.ok(user.emailHitelesitoLejarat > new Date());
+    assert.equal((await kl.post('/auth/login', { email: 'hiteles@teszt.hu', jelszo: 'jelszo12345' })).status, 403);
+});
+
+test('a jelszó-visszaállítás nem árulja el, létezik-e az e-mail-cím', async () => {
+    const kl = k.kliens();
+    const letezik = await kl.post('/auth/forgot-password', { email: 'nincs@teszt.hu' });
+    const nincs = await kl.post('/auth/forgot-password', { email: 'masik@teszt.hu' });
+    assert.equal(letezik.status, 200);
+    assert.deepEqual(letezik.adat, nincs.adat);
+});
+
+test('érvénytelen vagy lejárt tokennel nem módosítható e-mail vagy jelszó', async () => {
+    const kl = k.kliens();
+    assert.equal((await kl.post('/auth/verify-email', { token: 'a'.repeat(64) })).status, 400);
+    assert.equal((await kl.post('/auth/reset-password', { token: 'b'.repeat(64), jelszo: 'ujjelszo123' })).status, 400);
 });

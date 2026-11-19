@@ -10,6 +10,8 @@ import { useAuth } from './context/auth';
 import AutoReszletek from './pages/AutoReszletek';
 import Autok from './pages/Autok';
 import Home from './pages/Home';
+import EmailHitelesites from './pages/EmailHitelesites';
+import JelszoVisszaallitas from './pages/JelszoVisszaallitas';
 import Login from './pages/Login';
 import NemTalalhato from './pages/NemTalalhato';
 
@@ -78,6 +80,9 @@ function App() {
                                     <Route path="/rendeles/:szam" element={<Rendeles />} />
                                     <Route path="/login" element={<Login />} />
                                     <Route path="/regisztracio" element={<Regisztracio />} />
+                                    <Route path="/email-hitelesites" element={<EmailHitelesites />} />
+                                    <Route path="/jelszo-elfelejtve" element={<JelszoVisszaallitas />} />
+                                    <Route path="/jelszo-visszaallitas" element={<JelszoVisszaallitas />} />
                                     <Route path="/rolunk" element={<Rolunk />} />
                                     <Route path="/szolgaltatasok" element={<Szolgaltatasok />} />
                                     <Route path="/aszf" element={<Jogi dokumentum="aszf" />} />

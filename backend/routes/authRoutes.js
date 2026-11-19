@@ -1,14 +1,53 @@
+const crypto = require('node:crypto');
 const express = require('express');
 const UserModel = require('../models/User');
 const publicUser = require('../utils/userResponse');
 const { authRequired } = require('../middlewares/authMiddleware');
 const korlatozo = require('../utils/rateLimit');
+const { emailKuldes, oldalUrl } = require('../utils/email');
 
 const router = express.Router();
 const loginProbal = new Map();
 
 const EMAIL_MINTA = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const regisztracioLimit = korlatozo({ ablakMs: 60 * 60 * 1000, max: 5, uzenet: 'Túl sok regisztráció erről a címről. Próbáld újra később.' });
+const emailLimit = korlatozo({ ablakMs: 60 * 60 * 1000, max: 5, uzenet: 'Túl sok kérés. Próbáld újra később.' });
+const TOKEN_LEJARAT_MS = 60 * 60 * 1000;
+
+const tokenLetrehozasa = () => {
+    const token = crypto.randomBytes(32).toString('hex');
+    return { token, hash: crypto.createHash('sha256').update(token).digest('hex') };
+};
+
+const tokenHash = (token) => (typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token)
+    ? crypto.createHash('sha256').update(token).digest('hex')
+    : null);
+
+const hitelesitoEmailKuldese = (user, token) => emailKuldes({
+    cimzett: user.email,
+    targy: 'Erősítsd meg a Veltrix-fiókod e-mail-címét',
+    szoveg: [
+        `Kedves ${user.nev}!`,
+        '',
+        'A fiókod aktiválásához erősítsd meg az e-mail-címedet az alábbi linken:',
+        `${oldalUrl()}/email-hitelesites?token=${encodeURIComponent(token)}`,
+        '',
+        'A link 60 percig érvényes.',
+    ].join('\n'),
+});
+
+const jelszoVisszaallitoEmailKuldese = (user, token) => emailKuldes({
+    cimzett: user.email,
+    targy: 'Veltrix-jelszó visszaállítása',
+    szoveg: [
+        `Kedves ${user.nev}!`,
+        '',
+        'A jelszavad visszaállításához nyisd meg ezt a linket:',
+        `${oldalUrl()}/jelszo-visszaallitas?token=${encodeURIComponent(token)}`,
+        '',
+        'A link 60 percig érvényes. Ha nem te kérted, nincs további teendőd.',
+    ].join('\n'),
+});
 
 const loginLimit = (req, res, next) => {
     const ip = req.ip;
@@ -55,6 +94,10 @@ router.post('/login', loginLimit, async (req, res) => {
         return res.status(401).json({ error: 'Hibás email vagy jelszó!' });
     }
 
+    if (!user.emailHitelesitve) {
+        return res.status(403).json({ error: 'Előbb erősítsd meg az e-mail-címedet.' });
+    }
+
     loginProbal.delete(req.ip);
     await bejelentkeztetes(req, user);
     return res.status(200).json({
@@ -87,9 +130,73 @@ router.post('/register', regisztracioLimit, async (req, res) => {
     }
 
     // Nyilvános regisztrációval mindig normál felhasználó jön létre.
-    const user = await UserModel.create({ nev: nev.trim(), email: normalizedEmail, jelszo, statusz: 'felhasznalo' });
-    await bejelentkeztetes(req, user);
-    return res.status(201).json({ message: 'Sikeres regisztráció!', user: publicUser(user) });
+    const { token, hash } = tokenLetrehozasa();
+    const user = await UserModel.create({
+        nev: nev.trim(), email: normalizedEmail, jelszo, statusz: 'felhasznalo',
+        emailHitelesitve: false,
+        emailHitelesitoTokenHash: hash,
+        emailHitelesitoLejarat: new Date(Date.now() + TOKEN_LEJARAT_MS),
+    });
+    hitelesitoEmailKuldese(user, token);
+    return res.status(201).json({ message: 'Regisztráció sikeres. Ellenőrizd az e-mail-fiókodat!', user: publicUser(user) });
+});
+
+router.post('/verify-email', emailLimit, async (req, res) => {
+    const hash = tokenHash(req.body?.token);
+    const user = hash
+        ? await UserModel.findOne({ emailHitelesitoTokenHash: hash, emailHitelesitoLejarat: { $gt: new Date() } }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat')
+        : null;
+    if (!user) return res.status(400).json({ error: 'A megerősítő link érvénytelen vagy lejárt.' });
+
+    user.emailHitelesitve = true;
+    user.emailHitelesitoTokenHash = null;
+    user.emailHitelesitoLejarat = null;
+    await user.save();
+    return res.status(200).json({ message: 'E-mail-cím megerősítve. Most már bejelentkezhetsz.', user: publicUser(user) });
+});
+
+router.post('/resend-verification', emailLimit, async (req, res) => {
+    const normalizedEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const user = EMAIL_MINTA.test(normalizedEmail) ? await UserModel.findOne({ email: normalizedEmail }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat') : null;
+    if (user && !user.emailHitelesitve) {
+        const { token, hash } = tokenLetrehozasa();
+        user.emailHitelesitoTokenHash = hash;
+        user.emailHitelesitoLejarat = new Date(Date.now() + TOKEN_LEJARAT_MS);
+        await user.save();
+        hitelesitoEmailKuldese(user, token);
+    }
+    return res.status(200).json({ message: 'Ha ehhez a címhez nemrég regisztráltak, új megerősítő linket küldtünk.' });
+});
+
+router.post('/forgot-password', emailLimit, async (req, res) => {
+    const normalizedEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const user = EMAIL_MINTA.test(normalizedEmail) ? await UserModel.findOne({ email: normalizedEmail }).select('+jelszoVisszaallitoTokenHash +jelszoVisszaallitoLejarat') : null;
+    if (user) {
+        const { token, hash } = tokenLetrehozasa();
+        user.jelszoVisszaallitoTokenHash = hash;
+        user.jelszoVisszaallitoLejarat = new Date(Date.now() + TOKEN_LEJARAT_MS);
+        await user.save();
+        jelszoVisszaallitoEmailKuldese(user, token);
+    }
+    return res.status(200).json({ message: 'Ha létezik ilyen fiók, elküldtük a jelszó-visszaállító linket.' });
+});
+
+router.post('/reset-password', emailLimit, async (req, res) => {
+    const jelszo = req.body?.jelszo;
+    const hash = tokenHash(req.body?.token);
+    if (typeof jelszo !== 'string' || jelszo.length < 8 || jelszo.length > 200) {
+        return res.status(400).json({ error: 'Az új jelszó legalább 8 karakter legyen.' });
+    }
+    const user = hash
+        ? await UserModel.findOne({ jelszoVisszaallitoTokenHash: hash, jelszoVisszaallitoLejarat: { $gt: new Date() } }).select('+jelszoVisszaallitoTokenHash +jelszoVisszaallitoLejarat')
+        : null;
+    if (!user) return res.status(400).json({ error: 'A jelszó-visszaállító link érvénytelen vagy lejárt.' });
+
+    user.jelszo = jelszo;
+    user.jelszoVisszaallitoTokenHash = null;
+    user.jelszoVisszaallitoLejarat = null;
+    await user.save();
+    return res.status(200).json({ message: 'A jelszavad frissült. Most már bejelentkezhetsz.' });
 });
 
 router.get('/me', authRequired, async (req, res) => {
@@ -129,8 +236,17 @@ router.put('/me', authRequired, async (req, res) => {
     }
 
     user.nev = nev.trim();
-    user.email = normalizedEmail;
     if (jelszoValtozik) user.jelszo = ujJelszo;
+    if (emailValtozik) {
+        const { token, hash } = tokenLetrehozasa();
+        user.email = normalizedEmail;
+        user.emailHitelesitve = false;
+        user.emailHitelesitoTokenHash = hash;
+        user.emailHitelesitoLejarat = new Date(Date.now() + TOKEN_LEJARAT_MS);
+        await user.save();
+        hitelesitoEmailKuldese(user, token);
+        return res.status(200).json({ message: 'Profil frissítve. Az új e-mail-címet erősítsd meg a postaládádban.', user: publicUser(user) });
+    }
     await user.save();
     return res.status(200).json({ message: 'Profil frissítve.', user: publicUser(user) });
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import Ikon from '../components/Ikon';
 import { useAuth } from '../context/auth';
 import { useSeo } from '../lib/useSeo';
@@ -14,11 +14,11 @@ const ELONYOK = [
 
 const Regisztracio = () => {
     const { user, regisztracio } = useAuth();
-    const navigate = useNavigate();
     const location = useLocation();
     const [adatok, setAdatok] = useState({ nev: '', email: '', jelszo: '', adatkezeles: false, weboldal: '' });
     const [hiba, setHiba] = useState('');
     const [folyamatban, setFolyamatban] = useState(false);
+    const [sikeres, setSikeres] = useState(false);
 
     useSeo({ cim: 'Regisztráció', noindex: true });
 
@@ -35,7 +35,7 @@ const Regisztracio = () => {
         setFolyamatban(true);
         try {
             await regisztracio({ ...adatok, email: adatok.email.trim() });
-            navigate(location.state?.from || '/fiok', { replace: true });
+            setSikeres(true);
         } catch (error) {
             setHiba(error.message);
             setFolyamatban(false);
@@ -51,7 +51,13 @@ const Regisztracio = () => {
                 <ul className="login-elonyok">
                     {ELONYOK.map(([ikon, szoveg]) => <li key={szoveg}><Ikon nev={ikon} meret={16} /> {szoveg}</li>)}
                 </ul>
-                <form className="login-urlap" onSubmit={kuldes}>
+                {sikeres ? (
+                    <>
+                        <p className="login-leiras">Elküldtük a megerősítő linket a(z) <strong>{adatok.email}</strong> címre. A fiókod aktiválásához kattints a linkre.</p>
+                        <Link className="gomb gomb-fo login-gomb" to="/login">Tovább a bejelentkezéshez</Link>
+                        <p className="login-vissza">Nem kaptad meg? <Link to={`/email-hitelesites?ujrakuldes=${encodeURIComponent(adatok.email)}`}>Új link kérése</Link></p>
+                    </>
+                ) : <form className="login-urlap" onSubmit={kuldes}>
                     <div className="mezo">
                         <span><label htmlFor="reg-nev">Név</label></span>
                         <input className="bemenet" id="reg-nev" autoComplete="name" required minLength={2} maxLength={100}
@@ -80,10 +86,10 @@ const Regisztracio = () => {
                     <button className="gomb gomb-fo login-gomb" type="submit" disabled={folyamatban}>
                         {folyamatban ? 'Regisztráció…' : 'Fiók létrehozása'}
                     </button>
-                </form>
-                <p className="login-valtas">
+                </form>}
+                {!sikeres && <p className="login-valtas">
                     Van már fiókod? <Link to="/login" state={location.state}>Jelentkezz be</Link>
-                </p>
+                </p>}
             </section>
         </main>
     );
