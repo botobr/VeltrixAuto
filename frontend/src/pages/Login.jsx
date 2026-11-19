@@ -51,6 +51,8 @@ const Login = () => {
             const felhasznalo = await login(email.trim(), jelszo);
             navigate(cel(felhasznalo), { replace: true });
         } catch (error) {
+            console.log(error.message);
+            
             setHiba(error.message);
             setFolyamatban(false);
         }
