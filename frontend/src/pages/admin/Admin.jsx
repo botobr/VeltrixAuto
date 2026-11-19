@@ -2,10 +2,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
 import { useAuth } from '../../context/auth';
 import { useSeo } from '../../lib/useSeo';
+import AdminAlkatreszek from './AdminAlkatreszek';
 import AdminDashboard from './AdminDashboard';
 import AdminErdeklodesek from './AdminErdeklodesek';
 import AdminFelhasznalok from './AdminFelhasznalok';
 import AdminHirdetesek from './AdminHirdetesek';
+import AdminRendelesek from './AdminRendelesek';
 import AdminTelephelyek from './AdminTelephelyek';
 import './Admin.css';
 
@@ -13,6 +15,8 @@ import './Admin.css';
 const LAPOK = [
     ['attekintes', 'Dashboard', 'osszehasonlit', AdminDashboard, 'kezelofelulet'],
     ['hirdetesek', 'Hirdetések', 'auto', AdminHirdetesek, 'kezelofelulet'],
+    ['rendelesek', 'Rendelések', 'kosar', AdminRendelesek, 'rendelesKezeles'],
+    ['alkatreszek', 'Alkatrészek', 'csomag', AdminAlkatreszek, 'alkatreszSzerkesztes'],
     ['erdeklodesek', 'Érdeklődések', 'level', AdminErdeklodesek, 'erdeklodesKezeles'],
     ['telephelyek', 'Telephelyek', 'terkep', AdminTelephelyek, 'telephelyKezeles'],
     ['felhasznalok', 'Felhasználók', 'felhasznalo', AdminFelhasznalok, 'felhasznaloKezeles'],

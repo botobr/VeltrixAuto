@@ -23,12 +23,15 @@ const authRequired = async (req, res, next) => {
     return next();
 };
 
-/** Middleware: csak az adott joggal rendelkező szerepkör engedi tovább (lásd utils/jogosultsagok.js). */
-const jogSzukseges = (jog) => {
-    if (!JOGOK[jog]) throw new Error(`Ismeretlen jogosultság: ${jog}`);
+/**
+ * Middleware: csak a jog(ok)kal rendelkező szerepkör engedi tovább (lásd utils/jogosultsagok.js).
+ * Több jog esetén bármelyik elég.
+ */
+const jogSzukseges = (...jogok) => {
+    for (const jog of jogok) if (!JOGOK[jog]) throw new Error(`Ismeretlen jogosultság: ${jog}`);
     return async (req, res, next) => {
         const user = req.session?.userId ? await aktualisFelhasznalo(req) : null;
-        if (!vanJoga(user?.statusz, jog)) {
+        if (!jogok.some((jog) => vanJoga(user?.statusz, jog))) {
             return res.status(403).json({ error: 'Nincs jogosultságod ehhez a művelethez.' });
         }
         return next();

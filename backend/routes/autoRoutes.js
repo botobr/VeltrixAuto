@@ -8,6 +8,7 @@ const { uploadImage, deleteImagesQuietly } = require('../utils/cloudinary');
 const { autoAdatokEllenorzese, allapotEllenorzese } = require('../utils/autoMezok');
 const { autoValasz, publikusFeltetelek, rendezesEpitese, szuroEpitese } = require('../utils/autoSzuro');
 const { idSlugbol } = require('../utils/slug');
+const { hasznaltKepek, masholHasznalt } = require('../utils/kepek');
 const { ujAutoErtesites } = require('../utils/ertesitesek');
 const korlatozo = require('../utils/rateLimit');
 
@@ -34,15 +35,8 @@ const penzugyiMezokKiszurese = (req, adatok) => {
 
 const hibasValasz = (res, hibak) => res.status(400).json({ error: hibak[0], hibak });
 
-/** Csak olyan képet engedünk menteni, amely nincs egy másik autóhoz rendelve. */
-const idegenKepek = async (kepek, sajatId) => {
-    const publicIds = kepek.map((kep) => kep.publicId);
-    const masik = await AutokModel.findOne({
-        _id: { $ne: sajatId },
-        $or: [{ 'kepek.publicId': { $in: publicIds } }, { kepPublicId: { $in: publicIds } }],
-    }).select('_id');
-    return Boolean(masik);
-};
+/** Csak olyan képet engedünk menteni, amely nincs egy másik autóhoz vagy termékhez rendelve. */
+const idegenKepek = (kepek, sajatId) => masholHasznalt(kepek, sajatId);
 
 const telephelyLetezik = async (id) => !id || Boolean(await TelephelyModel.exists({ _id: id }));
 
@@ -143,7 +137,8 @@ router.post('/autok/:id/esemeny', esemenyLimit, async (req, res) => {
 
 // ---------- Képek (admin) ----------
 
-router.post('/kepek', jogSzukseges('hirdetesSzerkesztes'), kepLimit, async (req, res) => {
+// Képfeltöltés: autóhoz és webshop-termékhez is.
+router.post('/kepek', jogSzukseges('hirdetesSzerkesztes', 'alkatreszSzerkesztes'), kepLimit, async (req, res) => {
     const kep = req.body?.kep;
     if (typeof kep !== 'string' || !kep.startsWith('data:image/')) {
         return res.status(400).json({ error: 'Érvényes képet kell küldeni.' });
@@ -152,15 +147,12 @@ router.post('/kepek', jogSzukseges('hirdetesSzerkesztes'), kepLimit, async (req,
     return res.status(201).json({ url: feltoltott.secure_url, publicId: feltoltott.public_id });
 });
 
-/** Mentés nélkül elvetett, frissen feltöltött képek takarítása. Hirdetéshez tartozó képet nem töröl. */
-router.delete('/kepek', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
+/** Mentés nélkül elvetett, frissen feltöltött képek takarítása. Autóhoz vagy termékhez tartozó képet nem töröl. */
+router.delete('/kepek', jogSzukseges('hirdetesSzerkesztes', 'alkatreszSzerkesztes'), async (req, res) => {
     const publicIds = Array.isArray(req.body?.publicIds)
         ? req.body.publicIds.filter((id) => typeof id === 'string' && id.startsWith('veltrix/autok/')).slice(0, 50)
         : [];
-    const hasznalt = await AutokModel.find({
-        $or: [{ 'kepek.publicId': { $in: publicIds } }, { kepPublicId: { $in: publicIds } }],
-    }).select('kepek.publicId kepPublicId');
-    const foglalt = new Set(hasznalt.flatMap((auto) => [auto.kepPublicId, ...auto.kepek.map((k) => k.publicId)]));
+    const foglalt = await hasznaltKepek(publicIds);
     await deleteImagesQuietly(publicIds.filter((id) => !foglalt.has(id)));
     return res.status(204).end();
 });

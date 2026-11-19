@@ -72,8 +72,8 @@ const CIMKEK = {
 
 const ures = (ertek) => ertek === undefined || ertek === null || (typeof ertek === 'string' && !ertek.trim());
 
-const mezoErteke = (nev, leiro, nyers, hibak) => {
-    const cimke = CIMKEK[nev] || nev;
+const mezoErteke = (nev, leiro, nyers, hibak, cimkek = CIMKEK) => {
+    const cimke = cimkek[nev] || nev;
 
     if (leiro.tipus === 'logikai') {
         if (ures(nyers)) return leiro.alap ?? null;
@@ -227,4 +227,7 @@ module.exports = {
     MAX_KEP,
     autoAdatokEllenorzese,
     allapotEllenorzese,
+    // A webshop-termékek validációja is ezeket használja.
+    mezoErteke,
+    kepekErvenyesitese,
 };

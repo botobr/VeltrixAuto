@@ -752,3 +752,208 @@
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* ---------- Webshop: alkatrészek és rendelések ---------- */
+
+.alkatresz-tabla td {
+    vertical-align: middle;
+}
+
+.alkatresz-tabla .top-auto span {
+    display: grid;
+    gap: 2px;
+}
+
+.alkatresz-tabla .top-auto img,
+.alkatresz-tabla .top-kep-hiany {
+    background: #f4f1e8;
+    object-fit: contain;
+}
+
+.alkatresz-tabla .kapcsolo-sor {
+    gap: 0;
+}
+
+.sor-rejtett td {
+    opacity: 0.55;
+}
+
+.halvany-ar {
+    color: var(--halvanyabb);
+    font-size: 0.8rem;
+}
+
+.admin-tabla td .keszlet-mezo {
+    min-height: 36px;
+    padding: 0 8px;
+    text-align: right;
+    width: 80px;
+}
+
+.keszlet-nulla {
+    border-color: rgba(255, 107, 129, 0.6) !important;
+}
+
+.admin-tabla .admin-jel {
+    display: inline-block;
+    margin-left: 6px;
+}
+
+.kompatibilitas-szerkeszto {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+}
+
+.kompatibilitas-sor,
+.parameter-sor {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+}
+
+.kompatibilitas-sor {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 0.7fr) minmax(0, 0.7fr) auto;
+}
+
+.parameter-sor {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+}
+
+.kompatibilitas-sor .bemenet,
+.parameter-sor .bemenet {
+    min-height: 40px;
+}
+
+.kompatibilitas-sor .ikon-gomb,
+.parameter-sor .ikon-gomb {
+    background: var(--panel);
+    border-color: var(--vonal);
+}
+
+.szerkeszto-elonezet-kartya .auto-kartya {
+    animation: none;
+}
+
+.rendeles-lista {
+    display: grid;
+    gap: 12px;
+}
+
+.rendeles-kartya {
+    border-left: 3px solid var(--vonal-eros);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.rendeles-kartya-uj {
+    border-left-color: var(--tuz-2);
+}
+
+.rendeles-kartya-fizetesre_var {
+    border-left-color: #facc15;
+}
+
+.rendeles-kartya-lemondva,
+.rendeles-kartya-teljesitve {
+    opacity: 0.8;
+}
+
+.rendeles-kartya-fej {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    font: inherit;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr) auto auto;
+    padding: 16px 18px;
+    text-align: left;
+    width: 100%;
+}
+
+.rendeles-kartya-fej > span {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.rendeles-kartya-fej small {
+    color: var(--halvanyabb);
+    font-size: 0.76rem;
+}
+
+.rendeles-kartya-osszeg {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.rendeles-kartya-tartalom {
+    border-top: 1px solid var(--vonal);
+    display: grid;
+    gap: 18px;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    padding: 18px;
+}
+
+.rendeles-reszletek {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.rendeles-adatok {
+    font-size: 0.86rem;
+}
+
+.rendeles-adatok a {
+    color: var(--halvany);
+}
+
+.rendeles-esemenyek {
+    color: var(--halvany);
+    display: grid;
+    font-size: 0.8rem;
+    gap: 4px;
+    margin: 0;
+    padding-left: 18px;
+}
+
+.rendeles-esemenyek time {
+    color: var(--halvanyabb);
+}
+
+.rendeles-muveletek {
+    align-content: start;
+    display: grid;
+    gap: 12px;
+}
+
+.rendeles-muveletek .bemenet {
+    min-height: 40px;
+}
+
+.rendeles-megjegyzes textarea.bemenet {
+    font-size: 0.86rem;
+}
+
+@media (max-width: 860px) {
+    .rendeles-kartya-fej {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
+    .rendeles-kartya-vevo,
+    .rendeles-kartya-osszeg {
+        grid-column: 1;
+    }
+
+    .rendeles-kartya-tartalom {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .kompatibilitas-sor {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    }
+}

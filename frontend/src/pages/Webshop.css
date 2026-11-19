@@ -1,0 +1,752 @@
+/* ---------- Webshop: kínálat, termékoldal, kosár, pénztár, rendelés ---------- */
+
+.alkatreszek-alcim {
+    color: var(--halvany);
+    margin: 14px 0 0;
+    max-width: 52ch;
+}
+
+.alkatresz-szurok {
+    align-content: start;
+    border-radius: 22px;
+    display: grid;
+    gap: 18px;
+    padding: 20px;
+    position: sticky;
+    top: 92px;
+}
+
+.alkatresz-szurok fieldset {
+    border: 0;
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+}
+
+.alkatresz-szurok legend,
+.auto-valaszto h2 {
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin: 0 0 10px;
+    padding: 0;
+    text-transform: uppercase;
+}
+
+.alkatresz-szurok .csip small {
+    color: var(--halvanyabb);
+}
+
+.auto-valaszto {
+    background: rgba(201, 154, 53, 0.08);
+    border: 1px solid var(--vonal-eros);
+    border-radius: 16px;
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+}
+
+.auto-valaszto h2 {
+    align-items: center;
+    color: var(--tuz-1);
+    display: flex;
+    gap: 8px;
+    letter-spacing: 0;
+    margin: 0;
+    text-transform: none;
+}
+
+.auto-valaszto .bemenet {
+    min-height: 40px;
+}
+
+.auto-valaszto-gombok {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.ar-szuro {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+}
+
+.ar-szuro .bemenet {
+    min-height: 40px;
+    padding: 0 10px;
+}
+
+.alkatresz-auto-cimke {
+    align-items: center;
+    color: var(--tuz-1);
+    display: inline-flex;
+    gap: 4px;
+}
+
+/* ---------- Termékoldal ---------- */
+
+.alkatresz-reszletek .galeria-fo {
+    background: #f4f1e8;
+}
+
+.alkatresz-reszletek .galeria-fo img {
+    object-fit: contain;
+}
+
+.alkatresz-reszletek-ar {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.alkatresz-reszletek-ar .alkatresz-ar strong {
+    font-family: var(--display);
+    font-size: 2.2rem;
+}
+
+.alkatresz-megtakaritas {
+    background: rgba(255, 107, 129, 0.12);
+    border-radius: 999px;
+    color: #ffb3bf;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 10px;
+}
+
+.alkatresz-reszletek .alkatresz-keszlet {
+    align-items: center;
+    display: flex;
+    font-size: 0.9rem;
+    gap: 6px;
+    margin: 0;
+}
+
+.alkatresz-panel-leiras {
+    color: var(--halvany);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.alkatresz-vasarlas {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.alkatresz-vasarlas .kosarba-gomb {
+    flex: 1 1 180px;
+    justify-content: center;
+}
+
+.alkatresz-kosarban {
+    color: var(--halvany);
+    font-size: 0.86rem;
+    margin: 0;
+}
+
+.mennyiseg {
+    align-items: center;
+    border: 1px solid var(--vonal);
+    border-radius: 999px;
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+}
+
+.mennyiseg .ikon-gomb {
+    border: 0;
+    height: 36px;
+    width: 36px;
+}
+
+.mennyiseg .bemenet,
+.mennyiseg-ertek {
+    background: transparent;
+    border: 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    min-height: 36px;
+    padding: 0;
+    text-align: center;
+    width: 3ch;
+}
+
+.mennyiseg .bemenet::-webkit-inner-spin-button {
+    appearance: none;
+}
+
+.kompatibilitas-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.kompatibilitas-lista a {
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--vonal);
+    border-radius: 999px;
+    color: var(--szoveg);
+    display: inline-flex;
+    font-size: 0.88rem;
+    gap: 6px;
+    padding: 7px 14px;
+    text-decoration: none;
+}
+
+.kompatibilitas-lista a:hover {
+    border-color: var(--vonal-eros);
+}
+
+.alkatresz-univerzalis {
+    align-items: center;
+    color: var(--siker);
+    display: flex;
+    gap: 8px;
+    margin: 0;
+}
+
+/* ---------- Kosár, pénztár, rendelés ---------- */
+
+.webshop-fejlec {
+    padding: clamp(28px, 5vw, 56px) 0 24px;
+}
+
+.webshop-fejlec h1 {
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    margin: 16px 0 0;
+}
+
+.webshop-elrendezes {
+    align-items: start;
+    display: grid;
+    gap: 22px;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    transition: opacity 150ms ease;
+}
+
+.webshop-tolt {
+    opacity: 0.6;
+}
+
+.webshop-oldalsav {
+    border-radius: 22px;
+    display: grid;
+    gap: 14px;
+    /* A hosszú gombfelirat ne tolja szét az oldalsávot. */
+    grid-template-columns: minmax(0, 1fr);
+    padding: 22px;
+    position: sticky;
+    top: 92px;
+}
+
+.webshop-oldalsav h2,
+.penztar-blokk h2 {
+    font-family: var(--sans);
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.webshop-oldalsav > .gomb {
+    justify-content: center;
+    line-height: 1.3;
+    text-align: center;
+    white-space: normal;
+}
+
+.webshop-oldalsav .szoveg-gomb {
+    justify-self: center;
+}
+
+.osszesito {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.osszesito > div {
+    display: flex;
+    justify-content: space-between;
+}
+
+.osszesito dt {
+    color: var(--halvany);
+}
+
+.osszesito dd {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    margin: 0;
+}
+
+.osszesito-vegosszeg {
+    border-top: 1px solid var(--vonal);
+    font-size: 1.15rem;
+    margin-top: 4px;
+    padding-top: 12px;
+}
+
+.osszesito-vegosszeg dt {
+    color: var(--szoveg);
+    font-weight: 700;
+}
+
+.ingyenes-szallitas {
+    background: rgba(143, 207, 117, 0.1);
+    border-radius: 12px;
+    color: var(--siker);
+    font-size: 0.86rem;
+    margin: 0;
+    padding: 10px 12px;
+}
+
+.kosar-tetelek {
+    border-radius: 22px;
+    display: grid;
+    padding: 8px 20px;
+}
+
+.kosar-tetel {
+    align-items: center;
+    border-bottom: 1px solid var(--vonal);
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+    padding: 16px 0;
+}
+
+.kosar-tetel:last-child {
+    border-bottom: 0;
+}
+
+.kosar-kep {
+    align-items: center;
+    aspect-ratio: 1;
+    background: #f4f1e8;
+    border-radius: 14px;
+    color: #999;
+    display: flex;
+    font-size: 0.7rem;
+    justify-content: center;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+.kosar-kep img {
+    height: 100%;
+    object-fit: contain;
+    padding: 8%;
+    width: 100%;
+}
+
+.kosar-tetel-fo {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.kosar-tetel-fo .auto-marka {
+    margin: 0;
+}
+
+.kosar-tetel-nev {
+    color: var(--szoveg);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.kosar-egysegar {
+    color: var(--halvany);
+    font-size: 0.84rem;
+    margin: 0;
+}
+
+.kosar-egysegar s {
+    color: var(--halvanyabb);
+}
+
+.kosar-hiba {
+    align-items: center;
+    color: var(--hiba);
+    display: flex;
+    font-size: 0.82rem;
+    font-weight: 700;
+    gap: 4px;
+    margin: 0;
+}
+
+.kosar-tetel-hiba .kosar-kep {
+    outline: 2px solid var(--hiba);
+}
+
+.kosar-tetel-vezerlok {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    justify-items: end;
+}
+
+.kosar-sorosszeg {
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.kosar-torles {
+    color: var(--halvanyabb);
+    font-size: 0.78rem;
+}
+
+.penztar-lepesek {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
+
+.penztar-blokk {
+    border-radius: 22px;
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    min-width: 0;
+    padding: 22px;
+}
+
+.penztar-blokk legend {
+    align-items: center;
+    display: flex;
+    float: left;
+    font-size: 1.05rem;
+    font-weight: 800;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 0;
+    width: 100%;
+}
+
+.penztar-blokk legend + * {
+    clear: both;
+}
+
+.penztar-blokk legend span {
+    align-items: center;
+    background: var(--gradiens);
+    border-radius: 50%;
+    color: #1a1406;
+    display: inline-flex;
+    font-size: 0.8rem;
+    height: 26px;
+    justify-content: center;
+    width: 26px;
+}
+
+.penztar-racs {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+}
+
+.penztar-racs .mezo-szeles,
+.penztar-blokk > .mezo-szeles {
+    grid-column: 1 / -1;
+}
+
+.penztar-sugo {
+    color: var(--halvanyabb);
+    font-size: 0.82rem;
+    margin: 0;
+}
+
+.penztar-sugo a {
+    color: var(--halvany);
+}
+
+.valasztasok {
+    display: grid;
+    gap: 10px;
+}
+
+.valasztas {
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--vonal);
+    border-radius: 14px;
+    cursor: pointer;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 14px 16px;
+    transition: border-color 150ms ease, background 150ms ease;
+}
+
+.valasztas:hover {
+    border-color: var(--vonal-eros);
+}
+
+.valasztas.aktiv {
+    background: rgba(201, 154, 53, 0.1);
+    border-color: var(--tuz-2);
+}
+
+.valasztas input {
+    accent-color: var(--tuz-2);
+    height: 18px;
+    margin: 0;
+    width: 18px;
+}
+
+.valasztas-szoveg {
+    display: grid;
+    gap: 2px;
+}
+
+.valasztas-szoveg small {
+    color: var(--halvanyabb);
+    font-size: 0.78rem;
+}
+
+.valasztas-jobb {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.penztar-tetelek {
+    display: grid;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--vonal);
+}
+
+.penztar-tetelek li {
+    display: flex;
+    font-size: 0.86rem;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.penztar-tetelek span {
+    color: var(--halvany);
+}
+
+.rendeles-alcim {
+    color: var(--halvany);
+    margin: 12px 0 0;
+}
+
+.rendeles-lepesek {
+    counter-reset: lepes;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    list-style: none;
+    margin: 0 0 22px;
+    padding: 0;
+}
+
+.rendeles-lepesek li {
+    align-items: center;
+    border-top: 3px solid var(--vonal);
+    color: var(--halvanyabb);
+    display: flex;
+    font-size: 0.86rem;
+    font-weight: 700;
+    gap: 8px;
+    padding-top: 12px;
+}
+
+.rendeles-lepesek li span {
+    align-items: center;
+    border: 1px solid var(--vonal-eros);
+    border-radius: 50%;
+    display: inline-flex;
+    font-size: 0.74rem;
+    height: 24px;
+    justify-content: center;
+    width: 24px;
+}
+
+.rendeles-lepesek li.kesz {
+    border-color: var(--siker);
+    color: var(--halvany);
+}
+
+.rendeles-lepesek li.kesz span {
+    background: var(--siker);
+    border-color: var(--siker);
+    color: #0b1a13;
+}
+
+.rendeles-lepesek li.aktualis {
+    border-color: var(--tuz-2);
+    color: var(--szoveg);
+}
+
+.rendeles-lepesek li.aktualis span {
+    background: var(--gradiens);
+    border-color: transparent;
+    color: #1a1406;
+}
+
+.rendeles-tetelek {
+    display: grid;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.rendeles-tetelek li {
+    align-items: center;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+}
+
+.rendeles-tetelek img,
+.rendeles-tetelek .top-kep-hiany {
+    aspect-ratio: 1;
+    background: #f4f1e8;
+    border-radius: 10px;
+    object-fit: contain;
+    width: 48px;
+}
+
+.rendeles-tetelek li > span {
+    display: grid;
+    gap: 2px;
+}
+
+.rendeles-tetelek a {
+    color: var(--szoveg);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.rendeles-tetelek small {
+    color: var(--halvanyabb);
+}
+
+.rendeles-fizetes .porgo {
+    display: inline-block;
+    height: 16px;
+    margin-right: 6px;
+    vertical-align: middle;
+    width: 16px;
+}
+
+/* ---------- Autó adatlap: illő alkatrészek ---------- */
+
+.illo-alkatreszek-fej {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    justify-content: space-between;
+}
+
+/* ---------- Reszponzív ---------- */
+
+@media (max-width: 960px) {
+    .webshop-elrendezes {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .webshop-oldalsav,
+    .alkatresz-szurok {
+        position: static;
+    }
+}
+
+@media (max-width: 860px) {
+    .alkatreszek .autok-elrendezes {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 560px) {
+    .kosar-tetel {
+        grid-template-columns: 72px minmax(0, 1fr);
+    }
+
+    .kosar-tetel-vezerlok {
+        grid-column: 1 / -1;
+        grid-template-columns: auto 1fr auto;
+        justify-items: start;
+    }
+
+    .kosar-sorosszeg {
+        justify-self: end;
+    }
+
+    .rendeles-lepesek {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ---------- Rendelés-táblázat és státuszjelölő (fiók és admin) ---------- */
+
+.webshop-tabla-tarto {
+    border-radius: 22px;
+    overflow-x: auto;
+    padding: 8px 16px;
+}
+
+.webshop-tabla {
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    width: 100%;
+}
+
+.webshop-tabla th,
+.webshop-tabla td {
+    border-bottom: 1px solid var(--vonal);
+    padding: 12px 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.webshop-tabla th {
+    color: var(--halvanyabb);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.webshop-tabla a {
+    color: var(--szoveg);
+}
+
+.rendeles-statusz {
+    border: 1px solid var(--vonal-eros);
+    border-radius: 999px;
+    display: inline-block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    white-space: nowrap;
+}
+
+.rendeles-statusz-fizetesre_var { border-color: rgba(250, 204, 21, 0.5); color: #fde68a; }
+.rendeles-statusz-uj { background: rgba(201, 154, 53, 0.18); border-color: var(--tuz-2); color: var(--tuz-1); }
+.rendeles-statusz-feldolgozas,
+.rendeles-statusz-feladva,
+.rendeles-statusz-atveheto { border-color: rgba(57, 135, 229, 0.6); color: #a9cdf7; }
+.rendeles-statusz-teljesitve { border-color: rgba(143, 207, 117, 0.5); color: var(--siker); }
+.rendeles-statusz-lemondva { color: var(--halvanyabb); text-decoration: line-through; }
+
+.penztar-tetelek strong,
+.osszesito dd {
+    white-space: nowrap;
+}

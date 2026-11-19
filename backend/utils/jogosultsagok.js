@@ -14,9 +14,14 @@ const JOGOK = {
     hirdetesTorles: ['admin'],
     erdeklodesKezeles: ['admin', 'ertekesito'],
     erdeklodesTorles: ['admin'],
+    /** Tuning alkatrészek (webshop termékek) létrehozása, szerkesztése, készlet. */
+    alkatreszSzerkesztes: ['admin', 'ertekesito'],
+    alkatreszTorles: ['admin'],
+    /** Webshop rendelések megtekintése, státusz, fizetés rögzítése. */
+    rendelesKezeles: ['admin', 'ertekesito'],
     telephelyKezeles: ['admin'],
     felhasznaloKezeles: ['admin'],
-    /** Pénzügyi adatok: bevétel, eladási ár (később beszerzési ár, haszon). */
+    /** Pénzügyi adatok: bevétel (autó és webshop), eladási ár (később beszerzési ár, haszon). */
     penzugy: ['admin'],
 };
 

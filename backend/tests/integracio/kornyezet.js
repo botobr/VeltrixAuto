@@ -27,7 +27,17 @@ cloudinary.uploadImage = async () => ({
     public_id: 'veltrix/autok/feltoltott',
 });
 
+// Online fizetés: a Stripe API-t nem hívjuk; a munkamenet-indítást a tesztek felülírhatják.
+const fizetes = require('../../utils/fizetes');
+
+let munkamenetSorszam = 0;
+fizetes.fizetesInditasa = async () => {
+    munkamenetSorszam += 1;
+    return { url: `https://checkout.stripe.test/c/${munkamenetSorszam}`, munkamenetId: `cs_test_${munkamenetSorszam}` };
+};
+
 const createApp = require('../../app');
+const AlkatreszModel = require('../../models/Alkatresz');
 const UserModel = require('../../models/User');
 const AutokModel = require('../../models/Autok');
 
@@ -121,6 +131,32 @@ const autoMentese = async (felulir = {}) => {
     return auto;
 };
 
+let cikkszamSorszam = 0;
+/** Érvényes webshop-termék űrlapadat. */
+const alkatreszUrlap = (felulir = {}) => {
+    cikkszamSorszam += 1;
+    return {
+        nev: 'V3 állítható futómű', cikkszam: `KW-${cikkszamSorszam}`, gyarto: 'KW', kategoria: 'futomu',
+        ar: 400000, keszlet: 5, kepek: [kep()],
+        kompatibilitas: [{ marka: 'BMW', modell: '3-as sorozat', evjaratTol: 2012, evjaratIg: 2019 }],
+        ...felulir,
+    };
+};
+const alkatreszMentese = (felulir = {}) => AlkatreszModel.create(alkatreszUrlap(felulir));
+
+/** Érvényes rendelés-törzs (utánvét, futár). */
+const rendelesTorzs = (tetelek, felulir = {}) => ({
+    tetelek,
+    vevo: { nev: 'Nagy Péter', email: 'peter@teszt.hu', telefon: '+36 30 111 2222' },
+    szallitasiMod: 'futar',
+    fizetesiMod: 'utanvet',
+    szallitasiCim: { iranyitoszam: '1111', varos: 'Budapest', cim: 'Fő utca 1.' },
+    szamlazasiCim: { nev: 'Nagy Péter', iranyitoszam: '1111', varos: 'Budapest', cim: 'Fő utca 1.' },
+    aszf: true,
+    ...felulir,
+});
+
 module.exports = {
     inditas, leallitas, uritas, kliens, bejelentkezve, autoUrlap, autoMentese, kep, toroltKepek,
+    alkatreszUrlap, alkatreszMentese, rendelesTorzs, fizetes, url: () => alapUrl,
 };

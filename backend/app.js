@@ -11,6 +11,10 @@ const fiokRoutes = require('./routes/fiokRoutes');
 const telephelyRoutes = require('./routes/telephelyRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const seoRoutes = require('./routes/seoRoutes');
+const alkatreszRoutes = require('./routes/alkatreszRoutes');
+const rendelesRoutes = require('./routes/rendelesRoutes');
+
+const { fizetesWebhook } = rendelesRoutes;
 
 /** Egységes JSON-hibaválasz; az Express 5 az async útvonalak hibáit ide továbbítja. */
 const hibakezelo = (error, req, res, next) => {
@@ -41,6 +45,8 @@ const createApp = ({ sessionStore } = {}) => {
         app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
     }
 
+    // A fizetési szolgáltató aláírását a NYERS törzsön kell ellenőrizni, ezért a JSON-feldolgozás előtt.
+    app.post('/api/fizetes/webhook', express.raw({ type: 'application/json', limit: '1mb' }), fizetesWebhook);
     app.use(express.json({ limit: '6mb' }));
     app.use(express.urlencoded({ extended: true }));
     app.use(cors({
@@ -70,6 +76,8 @@ const createApp = ({ sessionStore } = {}) => {
     app.use('/api', erdeklodesRoutes);
     app.use('/api', fiokRoutes);
     app.use('/api', telephelyRoutes);
+    app.use('/api', alkatreszRoutes);
+    app.use('/api', rendelesRoutes);
     app.use('/api', adminRoutes);
     app.use('/api', (req, res) => res.status(404).json({ error: 'Nem létező végpont.' }));
     app.use('/', seoRoutes);

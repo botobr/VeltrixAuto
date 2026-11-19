@@ -15,9 +15,15 @@ const autoSlug = (auto) => {
     return eleje ? `${eleje}-${auto._id}` : String(auto._id);
 };
 
+/** pl. „kw-v3-allithato-futomu-65f1c2…” */
+const alkatreszSlug = (alkatresz) => {
+    const eleje = slugify(`${alkatresz.gyarto || ''} ${alkatresz.nev || ''}`);
+    return eleje ? `${eleje}-${alkatresz._id}` : String(alkatresz._id);
+};
+
 const idSlugbol = (slug) => {
     const talalat = /([a-f0-9]{24})$/i.exec(String(slug || ''));
     return talalat ? talalat[1] : null;
 };
 
-module.exports = { slugify, autoSlug, idSlugbol };
+module.exports = { slugify, autoSlug, alkatreszSlug, idSlugbol };

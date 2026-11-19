@@ -295,3 +295,16 @@
         padding-right: 2px;
     }
 }
+
+/* Kosár ikon a darabszámmal */
+.nav-kosar {
+    color: var(--szoveg);
+    flex: none;
+    position: relative;
+}
+
+.nav-kosar .nav-jelveny {
+    background: var(--gradiens);
+    color: #1a1406;
+    font-weight: 800;
+}

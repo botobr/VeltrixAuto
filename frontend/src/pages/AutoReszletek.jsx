@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import AlkatreszKartya from '../components/AlkatreszKartya';
 import AutoKartya from '../components/AutoKartya';
 import { KedvencGomb, OsszehasonlitasGomb } from '../components/AutoMuveletek';
 import ErdeklodesUrlap from '../components/ErdeklodesUrlap';
@@ -107,6 +108,27 @@ const TelefonGomb = ({ auto, munkatars }) => {
         >
             <Ikon nev="telefon" meret={16} /> Telefonszám megjelenítése
         </button>
+    );
+};
+
+/** Az autóhoz illő tuning alkatrészek (a webshopból); ha nincs egy sem, a szekció nem jelenik meg. */
+const IlloAlkatreszek = ({ auto }) => {
+    const [alkatreszek, setAlkatreszek] = useState([]);
+    useEffect(() => {
+        apiKeres(`/alkatreszek/autohoz/${auto._id}`).then((data) => setAlkatreszek(data.alkatreszek)).catch(() => setAlkatreszek([]));
+    }, [auto._id]);
+    if (alkatreszek.length === 0) return null;
+    const link = `/alkatreszek?autoMarka=${encodeURIComponent(auto.marka)}&autoModell=${encodeURIComponent(auto.modell)}&autoEvjarat=${auto.evjarat}`;
+    return (
+        <section className="reszletek-blokk nyomtatasban-rejtett" aria-labelledby="tuning-cim">
+            <div className="illo-alkatreszek-fej">
+                <h2 id="tuning-cim">Tuning alkatrészek ehhez az autóhoz</h2>
+                <Link className="szoveg-gomb" to={link}>Összes illő alkatrész →</Link>
+            </div>
+            <div className="autok-racs">
+                {alkatreszek.map((a, i) => <AlkatreszKartya key={a._id} alkatresz={a} kesleltetes={i} />)}
+            </div>
+        </section>
     );
 };
 
@@ -275,6 +297,8 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
                         </div>
                     )}
                 </section>
+
+                <IlloAlkatreszek auto={auto} />
 
                 {hasonlok.length > 0 && (
                     <section className="reszletek-blokk nyomtatasban-rejtett" aria-labelledby="hasonlo-cim">
