@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cypress – a futtatáskor keletkező fájlok
+cypress/screenshots
+cypress/videos
+cypress/downloads

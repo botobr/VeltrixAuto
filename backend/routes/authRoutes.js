@@ -167,3 +167,5 @@ router.post('/logout', authRequired, (req, res) => {
 });
 
 module.exports = router;
+/** A sikertelen bejelentkezések számlálójának törlése – csak tesztkörnyezetből hívjuk. */
+module.exports.loginProbalkozasokTorlese = () => loginProbal.clear();

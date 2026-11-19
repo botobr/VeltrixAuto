@@ -31,8 +31,10 @@ const Nav = () => {
     const handleLogout = async () => {
         setHiba('');
         try {
-            await logout();
+            // Előbb a főoldalra lépünk: ha védett oldalról (pl. Fiók) jelentkezik ki, az különben
+            // a kijelentkezés pillanatában a belépő oldalra irányítana.
             navigate('/');
+            await logout();
         } catch (error) {
             setHiba(error.message);
         }
@@ -93,7 +95,7 @@ const Nav = () => {
                             </>
                         ) : (
                             <>
-                                <Link className="gomb gomb-uveg gomb-kicsi" to="/login" state={{ from: pathname }}>Belépés</Link>
+                                <Link className="gomb gomb-uveg gomb-kicsi" id="login-button" to="/login" state={{ from: pathname }}>Belépés</Link>
                                 <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/regisztracio">Regisztráció</Link>
                             </>
                         )}

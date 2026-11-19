@@ -2,8 +2,12 @@
  * Egyszerű, memóriában tárolt kéréskorlátozó IP-cím alapján.
  * Egy szerverpéldányhoz elegendő; több példánynál közös tároló (pl. Redis) kellene.
  */
+// Az összes korlátozó számlálója – az E2E-tesztszerver tesztenként nullázza (korlatokTorlese).
+const osszesKorlat = new Set();
+
 const korlatozo = ({ ablakMs, max, uzenet = 'Túl sok kérés. Próbáld újra később.' }) => {
     const keresek = new Map();
+    osszesKorlat.add(keresek);
 
     const takaritas = setInterval(() => {
         const most = Date.now();
@@ -31,4 +35,10 @@ const korlatozo = ({ ablakMs, max, uzenet = 'Túl sok kérés. Próbáld újra k
     };
 };
 
+/** Minden számláló törlése – csak tesztkörnyezetből hívjuk. */
+const korlatokTorlese = () => {
+    for (const keresek of osszesKorlat) keresek.clear();
+};
+
 module.exports = korlatozo;
+module.exports.korlatokTorlese = korlatokTorlese;
