@@ -32,6 +32,21 @@ Cypress.Commands.add('mockVeltrixApi', () => {
 				return
 			}
 
+			if (req.method === 'GET' && utvonal === '/fiok/kedvencek') {
+				req.reply({ autok: [] })
+				return
+			}
+
+			if (req.method === 'GET' && utvonal === '/fiok/rendelesek') {
+				req.reply({ rendelesek: [] })
+				return
+			}
+
+			if (req.method === 'GET' && utvonal === '/fiok/keresesek') {
+				req.reply({ keresesek: [] })
+				return
+			}
+
 			if (req.method === 'GET' && utvonal === '/autok/szurok') {
 				req.reply({
 					markak: [

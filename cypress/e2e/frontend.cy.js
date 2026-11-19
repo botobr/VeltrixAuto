@@ -4,9 +4,9 @@ describe('Veltrix frontend – kritikus felhasználói folyamatok', () => {
 
     cy.get('main').should('be.visible')
     cy.get('h1').should('contain.text', 'következő utad.')
-    cy.contains('h2', 'Most került a kínálatba').should('be.visible')
+    cy.contains('h2', 'A hét legjobb ajánlatai').should('be.visible')
     cy.contains('article.auto-kartya', 'Corolla').should('be.visible')
-    cy.contains('article.auto-kartya', 'BMW').should('be.visible')
+    cy.contains('article.auto-kartya', 'BMW').should('not.exist')
     cy.get('.home-statok').should('contain.text', '2')
 
     cy.get('.gyorskereso select').eq(0).select('Toyota')
@@ -24,13 +24,13 @@ describe('Veltrix frontend – kritikus felhasználói folyamatok', () => {
     cy.contains('article.auto-kartya', 'Corolla').should('be.visible')
     cy.contains('article.auto-kartya', 'BMW').should('be.visible')
 
-    cy.findByLabelText('Márka').select('Toyota')
+    cy.get('select[aria-label="Márka"]').select('Toyota')
     cy.location('search').should('include', 'marka=Toyota')
-    cy.contains('button', 'Szűrő törlése: Toyota').should('be.visible')
+    cy.get('button[aria-label="Szűrő törlése: Toyota"]').should('be.visible')
     cy.contains('article.auto-kartya', 'Corolla').should('be.visible')
     cy.contains('article.auto-kartya', 'BMW').should('not.exist')
 
-    cy.findByLabelText('Rendezés').select('arCsokkeno')
+    cy.get('#auto-rendezes').select('arCsokkeno')
     cy.location('search').should('include', 'rendezes=arCsokkeno')
   })
 
@@ -39,7 +39,7 @@ describe('Veltrix frontend – kritikus felhasználói folyamatok', () => {
     cy.get('#auto-kereses').type('BMW')
 
     cy.location('search', { timeout: 6000 }).should('include', 'q=BMW')
-    cy.contains('button', 'Szűrő törlése: „BMW”').should('be.visible')
+    cy.get('button[aria-label="Szűrő törlése: „BMW”"]').should('be.visible')
     cy.contains('article.auto-kartya', 'BMW').should('be.visible')
     cy.contains('article.auto-kartya', 'Corolla').should('not.exist')
   })
@@ -97,7 +97,9 @@ describe('Veltrix frontend – kritikus felhasználói folyamatok', () => {
     cy.location('pathname').should('eq', '/osszehasonlitas')
     cy.contains('h1', 'Melyik legyen').should('be.visible')
     cy.get('.osszehasonlitas-tabla').should('contain.text', 'Corolla')
-    cy.get('.osszehasonlitas-tabla').should('contain.text', '7 890 000 Ft')
+    cy.get('.osszehasonlitas-tabla').invoke('text').then((text) => {
+      expect(text.replace(/[\s\u00a0\u202f]/g, '')).to.contain('7890000Ft')
+    })
   })
 
   it('megjegyzi a süti-tájékoztató elfogadását újratöltés után is', () => {
@@ -115,5 +117,65 @@ describe('Veltrix frontend – kritikus felhasználói folyamatok', () => {
     cy.get('h1').should('contain.text', 'Ez az oldal nem található')
     cy.contains('a', 'Kínálat böngészése').should('have.attr', 'href', '/autok')
     cy.contains('a', 'Főoldal').should('have.attr', 'href', '/')
+  })
+
+  it('üres találatnál felajánlja a szűrők törlését', () => {
+    cy.visit('/autok?marka=Ismeretlen')
+
+    cy.contains('h3', 'Nincs a szűrőknek megfelelő autó').should('be.visible')
+    cy.contains('button', 'Szűrők törlése').click()
+    cy.location('search').should('eq', '')
+    cy.contains('article.auto-kartya', 'Corolla').should('be.visible')
+    cy.contains('article.auto-kartya', 'BMW').should('be.visible')
+  })
+
+  it('hiba esetén újrapróbálható a kínálat betöltése', () => {
+    cy.intercept({ method: 'GET', pathname: '/api/autok', times: 1 }, {
+      statusCode: 503,
+      body: { error: 'A teszt ideiglenes szerverhibát szimulál.' },
+    })
+    cy.visit('/autok')
+
+    cy.get('[role="alert"]').should('contain.text', 'Most nem érjük el a kínálatot')
+    cy.contains('button', 'Újrapróbálom').click()
+    cy.contains('article.auto-kartya', 'Corolla').should('be.visible')
+    cy.contains('article.auto-kartya', 'BMW').should('be.visible')
+  })
+
+  it('mobil nézetben is elérhető a navigáció és az autók kínálata', () => {
+    cy.viewport(390, 844)
+    cy.visit('/')
+
+    cy.get('.nav-menu-gomb').should('have.attr', 'aria-expanded', 'false').click()
+    cy.get('.nav-menu-gomb').should('have.attr', 'aria-expanded', 'true')
+    cy.get('.nav-menu').contains('a', 'Kínálat').click()
+    cy.location('pathname').should('eq', '/autok')
+    cy.get('main h1').should('contain.text', 'kínálat.')
+  })
+
+  it('a főoldal megfelel a WCAG 2.1 A/AA alapvető akadálymentességi ellenőrzéseinek', () => {
+    cy.visit('/')
+    cy.checkA11y({
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+    })
+  })
+
+  it('bejelentkezési űrlap billentyűzettel kitölthető és a sikeres belépés továbblép', () => {
+    cy.visit('/login')
+    cy.get('#email').type('teszt@veltrix.hu')
+    cy.get('#jelszo').type('helyes-jelszo{enter}')
+
+    cy.location('pathname').should('eq', '/fiok')
+    cy.contains('h1', 'Szia, Felhasználó!').should('be.visible')
+    cy.contains('h3', 'Még nincs kedvenc autód').should('be.visible')
+  })
+
+  it('védett admin útvonalról belépésre irányít', () => {
+    cy.visit('/admin')
+
+    cy.location('pathname').should('eq', '/login')
+    cy.get('#email').should('be.visible')
+    cy.contains('A kedvenceid és mentett kereséseid').should('not.exist')
+    cy.get('form.login-urlap').should('be.visible')
   })
 })
