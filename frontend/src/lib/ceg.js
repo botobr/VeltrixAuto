@@ -19,5 +19,5 @@ export const CEG = {
     // Facebook Messenger asztali megosztáshoz (opcionális): https://developers.facebook.com/apps
     facebookAppId: import.meta.env.VITE_FACEBOOK_APP_ID || '',
     // A jogi dokumentumok hatálybalépése.
-    jogiDatum: '2026. november 5.',
+    jogiDatum: '2026. november 20.',
 };

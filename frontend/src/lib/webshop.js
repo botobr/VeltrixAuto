@@ -69,3 +69,15 @@ export const alkatreszUrlapbol = (a) => ({
     kompatibilitas: (a.kompatibilitas || []).map((sor) => ({ ...sor, evjaratTol: sor.evjaratTol ?? '', evjaratIg: sor.evjaratIg ?? '' })),
     parameterek: a.parameterek || [],
 });
+
+/*
+ * Díjak az ÁSZF-hez és a tájékoztató szövegekhez. A tényleges számítást a backend végzi
+ * (backend/utils/webshop.js: SZALLITASI_MODOK, FIZETESI_MODOK) – ha ott változik, itt is írd át.
+ */
+export const DIJAK = {
+    futar: 2490,
+    ingyenesSzallitasHatar: 100000,
+    utanvet: 590,
+    // Ennyi napon belül várjuk az előre utalt összeget, utána a rendelés lemondható.
+    utalasiHatarido: 8,
+};

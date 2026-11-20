@@ -253,3 +253,28 @@
         grid-template-columns: 1fr;
     }
 }
+
+.jogi-szoveg h3 {
+    font-size: 1.15rem;
+    margin: 24px 0 10px;
+}
+
+.jogi-szoveg ol {
+    padding-left: 22px;
+}
+
+/* Elállási nyilatkozat-minta */
+.jogi-minta {
+    background: var(--panel);
+    border: 1px dashed var(--vonal-eros);
+    border-radius: 14px;
+    padding: 16px 20px;
+}
+
+.jogi-minta p {
+    margin: 0 0 8px;
+}
+
+.jogi-minta p:last-child {
+    margin-bottom: 0;
+}
