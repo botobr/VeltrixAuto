@@ -84,6 +84,7 @@ const Login = () => {
                         <JelszoMezo id="jelszo" autoComplete="current-password" value={jelszo} placeholder="Add meg a jelszavad"
                             onChange={(event) => setJelszo(event.target.value)} />
                     </div>
+                    <Link className="login-vissza" to="/jelszo-elfelejtve">Elfelejtetted a jelszavad?</Link>
                     {hiba && <p className="uzenet uzenet-hiba" role="alert">{hiba}</p>}
                     <button className="gomb gomb-fo login-gomb" type="submit" disabled={folyamatban}>
                         {folyamatban ? 'Bejelentkezés…' : 'Belépés'}

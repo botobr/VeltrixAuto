@@ -32,8 +32,7 @@ export const AuthProvider = ({ children }) => {
 
     const regisztracio = useCallback(async (adatok) => {
         const data = await apiKeres('/auth/register', { method: 'POST', body: adatok }, 'A regisztráció nem sikerült.');
-        setUser(data.user);
-        return data.user;
+        return data;
     }, []);
 
     const profilMentese = useCallback(async (adatok) => {

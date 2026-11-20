@@ -33,6 +33,12 @@ const userSchema = new mongoose.Schema(
             required: true,
             minlength: 6,
         },
+        // A régi, már létező fiókok visszamenőleg hitelesítettnek számítanak.
+        emailHitelesitve: { type: Boolean, default: true },
+        emailHitelesitoTokenHash: { type: String, default: null, select: false },
+        emailHitelesitoLejarat: { type: Date, default: null, select: false },
+        jelszoVisszaallitoTokenHash: { type: String, default: null, select: false },
+        jelszoVisszaallitoLejarat: { type: Date, default: null, select: false },
         statusz: {
             type: String,
             required: true,
