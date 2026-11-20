@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const session = require('express-session');
 const { MongoStore } = require('connect-mongo');
 
@@ -44,6 +45,20 @@ const createApp = ({ sessionStore } = {}) => {
     if (process.env.TRUST_PROXY) {
         app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
     }
+
+    // Biztonsági fejlécek minden válaszra. Az API csak JSON-t ad, ezért a CSP a lehető legszigorúbb:
+    // semmit nem tölthet be, és keretbe (iframe) sem ágyazható. A megosztási HTML-oldal (seoRoutes)
+    // saját, nonce-alapú CSP-t kap.
+    app.use(helmet({
+        contentSecurityPolicy: {
+            useDefaults: false,
+            directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"], baseUri: ["'none'"], formAction: ["'none'"] },
+        },
+        // A frontend másik porton / aldomainen fut: ugyanazon a webhelyen belül olvashassa a válaszokat.
+        crossOriginResourcePolicy: { policy: 'same-site' },
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+        frameguard: { action: 'deny' },
+    }));
 
     // A fizetési szolgáltató aláírását a NYERS törzsön kell ellenőrizni, ezért a JSON-feldolgozás előtt.
     app.post('/api/fizetes/webhook', express.raw({ type: 'application/json', limit: '1mb' }), fizetesWebhook);

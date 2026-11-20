@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const express = require('express');
 const AlkatreszModel = require('../models/Alkatresz');
 const AutokModel = require('../models/Autok');
@@ -84,6 +85,9 @@ router.get('/megosztas/autok/:slug', async (req, res) => {
     ].filter(Boolean).join(' · ');
     const kep = auto.kepek[0]?.url || auto.kep || '';
 
+    // Ez az egyetlen HTML-oldal a backendben: az átirányító szkript kérésenként egyedi nonce-szal futhat.
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.set('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; img-src https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`);
     res.set('Cache-Control', 'public, max-age=600').type('html').send(`<!doctype html>
 <html lang="hu">
 <head>
@@ -105,7 +109,7 @@ ${kep ? `<meta property="og:image" content="${htmlEscape(kep)}">` : ''}
 </head>
 <body>
 <p><a href="${htmlEscape(cel)}">${htmlEscape(cim)}</a></p>
-<script>location.replace(${JSON.stringify(cel).replace(/</g, '\\u003c')});</script>
+<script nonce="${nonce}">location.replace(${JSON.stringify(cel).replace(/</g, '\\u003c')});</script>
 </body>
 </html>`);
 });

@@ -1,0 +1,10 @@
+# Biztonsági fejlécek az éles tárhelyhez (Netlify és Cloudflare Pages ezt a fájlt olvassa).
+# Más tárhelyen (nginx, Apache, Vercel stb.) ugyanezeket a fejléceket a szerver beállításában kell megadni.
+# A teljes Content-Security-Policy az index.html-be épül a buildkor (lásd vite.config.js);
+# itt csak a keretbe ágyazás tiltása kell, mert azt a böngésző <meta>-ból nem fogadja el.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

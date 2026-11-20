@@ -15,6 +15,14 @@ const login = () => fetch(`${url}/api/auth/login`, {
 });
 
 test('GET health: pass', async () => assert.equal((await fetch(`${url}/api/health`)).status, 200));
+test('biztonsági fejlécek az API-n: pass', async () => {
+    const valasz = await fetch(`${url}/api/health`);
+    assert.equal(valasz.headers.get('x-frame-options'), 'DENY');
+    assert.match(valasz.headers.get('content-security-policy'), /default-src 'none'/);
+    assert.match(valasz.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+    assert.equal(valasz.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(valasz.headers.get('x-powered-by'), null);
+});
 test('POST login hiányzó adatokkal: pass', async () => assert.equal((await login()).status, 400));
 test('GET dashboard bejelentkezés nélkül: pass', async () =>
     assert.equal((await fetch(`${url}/api/admin/dashboard`)).status, 403));

@@ -93,7 +93,7 @@ const adatfeltoltes = async () => {
     kepSorszam = 0;
     for (const f of FELHASZNALOK) await UserModel.create({ ...f, jelszo: JELSZO });
     const telephely = await TelephelyModel.create({
-        nev: 'Veltrix Budaörs', iranyitoszam: '2040', varos: 'Budaörs', cim: 'Szabadság út 1.', megye: 'Pest', telefon: '+36 1 234 5678',
+        nev: 'Veltrix Budaörs', iranyitoszam: '2040', varos: 'Budaörs', cim: 'Szabadság út 1.', megye: 'Pest', telefon: '+36 1 234 5678', szelesseg: 47.4613, hosszusag: 18.9583,
     });
 
     const autok = {
