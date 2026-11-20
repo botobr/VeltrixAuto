@@ -9,7 +9,7 @@ export const apiKeres = async (utvonal, { body, ...opciok } = {}, hibaUzenet = '
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const error = new Error(data.error || hibaUzenet);
+        const error = new Error(data.hiba || hibaUzenet);
         error.status = response.status;
         throw error;
     }

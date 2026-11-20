@@ -65,11 +65,11 @@ userSchema.pre('save', async function () {
     this.jelszo = await bcrypt.hash(this.jelszo, 12);
 });
 
-userSchema.methods.comparePassword = function (jelszo) {
+userSchema.methods.jelszoEgyezik = function (jelszo) {
     return bcrypt.compare(jelszo, this.jelszo);
 };
 
-const UserModel = mongoose.model('user', userSchema);
+const FelhasznaloModel = mongoose.model('user', userSchema);
 
-module.exports = UserModel;
+module.exports = FelhasznaloModel;
 module.exports.SZEREPKOROK = SZEREPKOROK;

@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { after, before, beforeEach, test } = require('node:test');
-const UserModel = require('../../models/User');
+const FelhasznaloModel = require('../../models/Felhasznalo');
 const k = require('./kornyezet');
 
 before(k.inditas);
@@ -19,10 +19,10 @@ const MATRIX = [
     ['get', '/admin/erdeklodesek', undefined, ['ertekesito', 'admin']],
     ['patch', `/admin/erdeklodesek/${NEM_LETEZO}`, { statusz: 'lezart' }, ['ertekesito', 'admin']],
     ['delete', `/admin/erdeklodesek/${NEM_LETEZO}`, undefined, ['admin']],
-    ['post', '/new-auto', {}, ['ertekesito', 'admin']],
-    ['put', `/update-auto/${NEM_LETEZO}`, {}, ['ertekesito', 'admin']],
+    ['post', '/autok', {}, ['ertekesito', 'admin']],
+    ['put', `/autok/${NEM_LETEZO}`, {}, ['ertekesito', 'admin']],
     ['patch', `/autok/${NEM_LETEZO}/allapot`, { statusz: 'foglalt' }, ['ertekesito', 'admin']],
-    ['delete', `/delete-auto/${NEM_LETEZO}`, undefined, ['admin']],
+    ['delete', `/autok/${NEM_LETEZO}`, undefined, ['admin']],
     ['post', '/kepek', {}, ['ertekesito', 'admin']],
     ['get', '/admin/alkatreszek', undefined, ['ertekesito', 'admin']],
     ['post', '/admin/alkatreszek', {}, ['ertekesito', 'admin']],
@@ -35,9 +35,9 @@ const MATRIX = [
     ['put', `/telephelyek/${NEM_LETEZO}`, {}, ['admin']],
     ['delete', `/telephelyek/${NEM_LETEZO}`, undefined, ['admin']],
     ['get', '/felhasznalok', undefined, ['admin']],
-    ['post', '/new-user', {}, ['admin']],
-    ['put', `/update-user/${NEM_LETEZO}`, {}, ['admin']],
-    ['delete', `/delete-user/${NEM_LETEZO}`, undefined, ['admin']],
+    ['post', '/felhasznalok', {}, ['admin']],
+    ['put', `/felhasznalok/${NEM_LETEZO}`, {}, ['admin']],
+    ['delete', `/felhasznalok/${NEM_LETEZO}`, undefined, ['admin']],
 ];
 
 test('jogosultsági mátrix: vendég, vásárló, értékesítő, admin', async () => {
@@ -59,33 +59,33 @@ test('jogosultsági mátrix: vendég, vásárló, értékesítő, admin', async 
     assert.deepEqual(hibak, []);
 });
 
-test('/auth/me: a jogok listája a szerepkörhöz igazodik', async () => {
+test('/auth/profil: a jogok listája a szerepkörhöz igazodik', async () => {
     const ertekesito = await k.bejelentkezve('ertekesito');
     const admin = await k.bejelentkezve('admin');
     const vasarlo = await k.bejelentkezve('felhasznalo');
 
-    const { adat: e } = await ertekesito.get('/auth/me');
-    assert.ok(e.user.jogok.includes('kezelofelulet'));
-    assert.ok(e.user.jogok.includes('hirdetesSzerkesztes'));
-    assert.ok(!e.user.jogok.includes('hirdetesTorles'));
-    assert.ok(!e.user.jogok.includes('penzugy'));
-    assert.equal(e.user.jelszo, undefined);
+    const { adat: e } = await ertekesito.get('/auth/profil');
+    assert.ok(e.felhasznalo.jogok.includes('kezelofelulet'));
+    assert.ok(e.felhasznalo.jogok.includes('hirdetesSzerkesztes'));
+    assert.ok(!e.felhasznalo.jogok.includes('hirdetesTorles'));
+    assert.ok(!e.felhasznalo.jogok.includes('penzugy'));
+    assert.equal(e.felhasznalo.jelszo, undefined);
 
-    assert.ok((await admin.get('/auth/me')).adat.user.jogok.includes('penzugy'));
-    assert.deepEqual((await vasarlo.get('/auth/me')).adat.user.jogok, []);
+    assert.ok((await admin.get('/auth/profil')).adat.felhasznalo.jogok.includes('penzugy'));
+    assert.deepEqual((await vasarlo.get('/auth/profil')).adat.felhasznalo.jogok, []);
 });
 
 test('admin értékesítőt hoz létre; ismeretlen szerepkör elutasítva', async () => {
     const admin = await k.bejelentkezve('admin');
-    const letrehozas = await admin.post('/new-user', { nev: 'Új Értékesítő', email: 'uj@teszt.hu', jelszo: 'jelszo12345', statusz: 'ertekesito' });
+    const letrehozas = await admin.post('/felhasznalok', { nev: 'Új Értékesítő', email: 'uj@teszt.hu', jelszo: 'jelszo12345', statusz: 'ertekesito' });
     assert.equal(letrehozas.status, 201);
-    assert.equal(letrehozas.adat.user.statusz, 'ertekesito');
+    assert.equal(letrehozas.adat.felhasznalo.statusz, 'ertekesito');
 
-    const rossz = await admin.post('/new-user', { nev: 'X', email: 'x@teszt.hu', jelszo: 'jelszo12345', statusz: 'fonok' });
+    const rossz = await admin.post('/felhasznalok', { nev: 'X', email: 'x@teszt.hu', jelszo: 'jelszo12345', statusz: 'fonok' });
     assert.equal(rossz.status, 400);
 
     const belepes = k.kliens();
-    assert.equal((await belepes.post('/auth/login', { email: 'uj@teszt.hu', jelszo: 'jelszo12345' })).status, 200);
+    assert.equal((await belepes.post('/auth/bejelentkezes', { email: 'uj@teszt.hu', jelszo: 'jelszo12345' })).status, 200);
     assert.equal((await belepes.get('/admin/dashboard')).status, 200);
 });
 
@@ -95,41 +95,41 @@ test('lefokozás azonnal érvényes, a munkamenet nem őrzi meg a régi jogot', 
     assert.equal((await ertekesito.get('/admin/autok')).status, 200);
 
     const { user } = ertekesito;
-    const modositas = await admin.put(`/update-user/${user._id}`, { nev: user.nev, email: user.email, statusz: 'felhasznalo' });
+    const modositas = await admin.put(`/felhasznalok/${user._id}`, { nev: user.nev, email: user.email, statusz: 'felhasznalo' });
     assert.equal(modositas.status, 200);
     assert.equal((await ertekesito.get('/admin/autok')).status, 403);
 });
 
 test('a nyilvános regisztráció nem adhat munkatársi szerepkört', async () => {
     const kl = k.kliens();
-    const valasz = await kl.post('/auth/register', { nev: 'Ügyes Béla', email: 'bela@teszt.hu', jelszo: 'jelszo12345', adatkezeles: true, statusz: 'admin' });
+    const valasz = await kl.post('/auth/regisztracio', { nev: 'Ügyes Béla', email: 'bela@teszt.hu', jelszo: 'jelszo12345', adatkezeles: true, statusz: 'admin' });
     assert.equal(valasz.status, 201);
-    assert.equal(valasz.adat.user.statusz, 'felhasznalo');
+    assert.equal(valasz.adat.felhasznalo.statusz, 'felhasznalo');
     assert.equal((await kl.get('/admin/dashboard')).status, 403);
 });
 
 test('az új regisztráció e-mail-megerősítésig nem léptethető be', async () => {
     const kl = k.kliens();
-    const valasz = await kl.post('/auth/register', { nev: 'Hiteles Béla', email: 'hiteles@teszt.hu', jelszo: 'jelszo12345', adatkezeles: true });
+    const valasz = await kl.post('/auth/regisztracio', { nev: 'Hiteles Béla', email: 'hiteles@teszt.hu', jelszo: 'jelszo12345', adatkezeles: true });
     assert.equal(valasz.status, 201);
-    assert.equal(valasz.adat.user.emailHitelesitve, false);
+    assert.equal(valasz.adat.felhasznalo.emailHitelesitve, false);
 
-    const user = await UserModel.findOne({ email: 'hiteles@teszt.hu' }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat');
+    const user = await FelhasznaloModel.findOne({ email: 'hiteles@teszt.hu' }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat');
     assert.ok(user.emailHitelesitoTokenHash);
     assert.ok(user.emailHitelesitoLejarat > new Date());
-    assert.equal((await kl.post('/auth/login', { email: 'hiteles@teszt.hu', jelszo: 'jelszo12345' })).status, 403);
+    assert.equal((await kl.post('/auth/bejelentkezes', { email: 'hiteles@teszt.hu', jelszo: 'jelszo12345' })).status, 403);
 });
 
 test('a jelszó-visszaállítás nem árulja el, létezik-e az e-mail-cím', async () => {
     const kl = k.kliens();
-    const letezik = await kl.post('/auth/forgot-password', { email: 'nincs@teszt.hu' });
-    const nincs = await kl.post('/auth/forgot-password', { email: 'masik@teszt.hu' });
+    const letezik = await kl.post('/auth/elfelejtett-jelszo', { email: 'nincs@teszt.hu' });
+    const nincs = await kl.post('/auth/elfelejtett-jelszo', { email: 'masik@teszt.hu' });
     assert.equal(letezik.status, 200);
     assert.deepEqual(letezik.adat, nincs.adat);
 });
 
 test('érvénytelen vagy lejárt tokennel nem módosítható e-mail vagy jelszó', async () => {
     const kl = k.kliens();
-    assert.equal((await kl.post('/auth/verify-email', { token: 'a'.repeat(64) })).status, 400);
-    assert.equal((await kl.post('/auth/reset-password', { token: 'b'.repeat(64), jelszo: 'ujjelszo123' })).status, 400);
+    assert.equal((await kl.post('/auth/email-megerosites', { token: 'a'.repeat(64) })).status, 400);
+    assert.equal((await kl.post('/auth/jelszo-visszaallitas', { token: 'b'.repeat(64), jelszo: 'ujjelszo123' })).status, 400);
 });

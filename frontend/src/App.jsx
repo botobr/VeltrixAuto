@@ -3,16 +3,16 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import './App.css';
 import Lablec, { CookieSav, OsszehasonlitasSav } from './components/Lablec';
 import Nav from './components/Nav';
-import { AuthProvider } from './context/AuthContext';
+import { FelhasznaloProvider } from './context/FelhasznaloProvider';
 import { KosarProvider } from './context/KosarProvider';
 import { OsszehasonlitasProvider } from './context/OsszehasonlitasProvider';
-import { useAuth } from './context/auth';
+import { useFelhasznalo } from './context/felhasznalo';
 import AutoReszletek from './pages/AutoReszletek';
 import Autok from './pages/Autok';
 import Home from './pages/Home';
 import EmailHitelesites from './pages/EmailHitelesites';
 import JelszoVisszaallitas from './pages/JelszoVisszaallitas';
-import Login from './pages/Login';
+import Belepes from './pages/Belepes';
 import NemTalalhato from './pages/NemTalalhato';
 
 // A ritkábban használt oldalak külön csomagban töltődnek be.
@@ -40,10 +40,10 @@ const Betoltes = ({ szoveg = 'Betöltés…' }) => (
 
 /** Bejelentkezéshez (és opcionálisan egy jogosultsághoz) kötött oldal. */
 const VedettOldal = ({ children, jog: szuksegesJog }) => {
-    const { user, jog, loading } = useAuth();
+    const { felhasznalo, jog, betoltes } = useFelhasznalo();
     const location = useLocation();
-    if (loading) return <Betoltes szoveg="Munkamenet ellenőrzése…" />;
-    if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+    if (betoltes) return <Betoltes szoveg="Munkamenet ellenőrzése…" />;
+    if (!felhasznalo) return <Navigate to="/belepes" replace state={{ from: location.pathname + location.search }} />;
     if (szuksegesJog && !jog(szuksegesJog)) return <NemTalalhato cim="Ehhez az oldalhoz nincs jogosultságod" szoveg="Az oldal csak a kereskedés munkatársai számára érhető el." />;
     return children;
 };
@@ -59,7 +59,7 @@ const GorgetesFelulre = () => {
 function App() {
     return (
         <BrowserRouter>
-            <AuthProvider>
+            <FelhasznaloProvider>
                 <KosarProvider>
                 <OsszehasonlitasProvider>
                     <GorgetesFelulre />
@@ -78,7 +78,7 @@ function App() {
                                     <Route path="/kosar" element={<Kosar />} />
                                     <Route path="/penztar" element={<Penztar />} />
                                     <Route path="/rendeles/:szam" element={<Rendeles />} />
-                                    <Route path="/login" element={<Login />} />
+                                    <Route path="/belepes" element={<Belepes />} />
                                     <Route path="/regisztracio" element={<Regisztracio />} />
                                     <Route path="/email-hitelesites" element={<EmailHitelesites />} />
                                     <Route path="/jelszo-elfelejtve" element={<JelszoVisszaallitas />} />
@@ -107,7 +107,7 @@ function App() {
                     </div>
                 </OsszehasonlitasProvider>
                 </KosarProvider>
-            </AuthProvider>
+            </FelhasznaloProvider>
         </BrowserRouter>
     );
 }

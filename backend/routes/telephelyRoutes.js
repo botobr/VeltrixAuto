@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const AutokModel = require('../models/Autok');
+const AutoModel = require('../models/Auto');
 const TelephelyModel = require('../models/Telephely');
 const { jogSzukseges } = require('../middlewares/authMiddleware');
 
@@ -50,29 +50,29 @@ router.get('/telephelyek', async (req, res) => {
 
 router.post('/telephelyek', jogSzukseges('telephelyKezeles'), async (req, res) => {
     const { adatok, hibak } = telephelyEllenorzese(req.body);
-    if (hibak.length) return res.status(400).json({ error: hibak[0], hibak });
+    if (hibak.length) return res.status(400).json({ hiba: hibak[0], hibak });
     const telephely = await TelephelyModel.create(adatok);
-    return res.status(201).json({ message: 'Telephely létrehozva.', telephely });
+    return res.status(201).json({ uzenet: 'Telephely létrehozva.', telephely });
 });
 
 router.put('/telephelyek/:id', jogSzukseges('telephelyKezeles'), async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'Telephely nem található!' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ hiba: 'Telephely nem található!' });
     const { adatok, hibak } = telephelyEllenorzese(req.body);
-    if (hibak.length) return res.status(400).json({ error: hibak[0], hibak });
+    if (hibak.length) return res.status(400).json({ hiba: hibak[0], hibak });
     const telephely = await TelephelyModel.findByIdAndUpdate(req.params.id, { $set: adatok }, { returnDocument: 'after', runValidators: true });
-    if (!telephely) return res.status(404).json({ error: 'Telephely nem található!' });
-    return res.status(200).json({ message: 'Telephely frissítve.', telephely });
+    if (!telephely) return res.status(404).json({ hiba: 'Telephely nem található!' });
+    return res.status(200).json({ uzenet: 'Telephely frissítve.', telephely });
 });
 
 router.delete('/telephelyek/:id', jogSzukseges('telephelyKezeles'), async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'Telephely nem található!' });
-    const hasznalatban = await AutokModel.countDocuments({ telephely: req.params.id });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ hiba: 'Telephely nem található!' });
+    const hasznalatban = await AutoModel.countDocuments({ telephely: req.params.id });
     if (hasznalatban > 0) {
-        return res.status(409).json({ error: `A telephelyhez ${hasznalatban} hirdetés tartozik – előbb rendeld őket másik telephelyhez.` });
+        return res.status(409).json({ hiba: `A telephelyhez ${hasznalatban} hirdetés tartozik – előbb rendeld őket másik telephelyhez.` });
     }
     const torolt = await TelephelyModel.findByIdAndDelete(req.params.id);
-    if (!torolt) return res.status(404).json({ error: 'Telephely nem található!' });
-    return res.status(200).json({ message: 'Telephely törölve.' });
+    if (!torolt) return res.status(404).json({ hiba: 'Telephely nem található!' });
+    return res.status(200).json({ uzenet: 'Telephely törölve.' });
 });
 
 module.exports = router;

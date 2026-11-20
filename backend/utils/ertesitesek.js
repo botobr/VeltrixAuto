@@ -1,5 +1,5 @@
-const AutokModel = require('../models/Autok');
-const UserModel = require('../models/User');
+const AutoModel = require('../models/Auto');
+const FelhasznaloModel = require('../models/Felhasznalo');
 const { emailKuldes, oldalUrl } = require('./email');
 const { autoSlug } = require('./slug');
 const { szuroEpitese } = require('./autoSzuro');
@@ -12,7 +12,7 @@ const arFormatum = new Intl.NumberFormat('hu-HU');
  */
 const ujAutoErtesites = async (auto) => {
     try {
-        const felhasznalok = await UserModel.find({ 'mentettKeresesek.ertesites': true })
+        const felhasznalok = await FelhasznaloModel.find({ 'mentettKeresesek.ertesites': true })
             .select('nev email mentettKeresesek');
 
         for (const felhasznalo of felhasznalok) {
@@ -20,7 +20,7 @@ const ujAutoErtesites = async (auto) => {
             for (const kereses of felhasznalo.mentettKeresesek) {
                 if (!kereses.ertesites) continue;
                 const szuro = await szuroEpitese(Object.fromEntries(kereses.parameterek || []));
-                const illeszkedik = await AutokModel.exists({ $and: [{ _id: auto._id }, szuro] });
+                const illeszkedik = await AutoModel.exists({ $and: [{ _id: auto._id }, szuro] });
                 if (illeszkedik) talalatok.push(kereses.nev);
             }
             if (talalatok.length === 0) continue;

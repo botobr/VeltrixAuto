@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { apiKeres } from '../../lib/api';
 import { STATUSZOK, autoNev, autoUrl, formatAr, formatDatum, formatSzam, kepMeret } from '../../lib/auto';
 
 const datumMezo = (ertek) => (ertek ? String(ertek).slice(0, 10) : '');
 
 const AdminHirdetesek = () => {
-    const { jog } = useAuth();
+    const { jog } = useFelhasznalo();
     const [szuro, setSzuro] = useState({ q: '', statusz: '', lathatosag: '', rendezes: 'ujElol' });
     const [q, setQ] = useState('');
     const [eredmeny, setEredmeny] = useState({ kulcs: null, autok: [] });
@@ -51,7 +51,7 @@ const AdminHirdetesek = () => {
         if (!window.confirm(`Biztosan véglegesen törlöd: ${autoNev(auto)}? A képek is törlődnek. (Elrejtéshez használd a „Látható” kapcsolót.)`)) return;
         setFolyamatban(auto._id);
         try {
-            await apiKeres(`/delete-auto/${auto._id}`, { method: 'DELETE' }, 'A törlés nem sikerült.');
+            await apiKeres(`/autok/${auto._id}`, { method: 'DELETE' }, 'A törlés nem sikerült.');
             setEredmeny((elozo) => ({ ...elozo, autok: elozo.autok.filter((elem) => elem._id !== auto._id) }));
         } catch (error) {
             setHiba(error.message);

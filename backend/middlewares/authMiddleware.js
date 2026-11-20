@@ -1,4 +1,4 @@
-const UserModel = require('../models/User');
+const FelhasznaloModel = require('../models/Felhasznalo');
 const { JOGOK, vanJoga } = require('../utils/jogosultsagok');
 
 /**
@@ -8,16 +8,16 @@ const { JOGOK, vanJoga } = require('../utils/jogosultsagok');
  */
 const aktualisFelhasznalo = async (req) => {
     if (!req.session?.userId) return null;
-    const user = await UserModel.findById(req.session.userId).select('statusz');
+    const user = await FelhasznaloModel.findById(req.session.userId).select('statusz');
     if (!user) return null;
     req.session.statusz = user.statusz;
     return user;
 };
 
-const authRequired = async (req, res, next) => {
+const bejelentkezesSzukseges = async (req, res, next) => {
     const user = await aktualisFelhasznalo(req);
     if (!user) {
-        return res.status(401).json({ error: 'Bejelentkezés szükséges!' });
+        return res.status(401).json({ hiba: 'Bejelentkezés szükséges!' });
     }
 
     return next();
@@ -32,7 +32,7 @@ const jogSzukseges = (...jogok) => {
     return async (req, res, next) => {
         const user = req.session?.userId ? await aktualisFelhasznalo(req) : null;
         if (!jogok.some((jog) => vanJoga(user?.statusz, jog))) {
-            return res.status(403).json({ error: 'Nincs jogosultságod ehhez a művelethez.' });
+            return res.status(403).json({ hiba: 'Nincs jogosultságod ehhez a művelethez.' });
         }
         return next();
     };
@@ -44,4 +44,4 @@ const jogSzukseges = (...jogok) => {
  */
 const munkamenetJoga = (req, jog) => vanJoga(req.session?.statusz, jog);
 
-module.exports = { authRequired, jogSzukseges, munkamenetJoga };
+module.exports = { bejelentkezesSzukseges, jogSzukseges, munkamenetJoga };

@@ -19,7 +19,7 @@ describe('Mobil nézet', () => {
         cy.get('.nav-menu-gomb').should('have.attr', 'aria-expanded', 'false');
     });
 
-    for (const utvonal of ['/', '/autok', '/alkatreszek', '/kosar', '/login']) {
+    for (const utvonal of ['/', '/autok', '/alkatreszek', '/kosar', '/belepes']) {
         it(`nincs vízszintes görgetés: ${utvonal}`, () => {
             cy.visit(utvonal);
             cy.get('main').should('be.visible');

@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiKeres } from '../lib/api';
-import { AuthContext } from './auth';
+import { FelhasznaloContext } from './felhasznalo';
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+export const FelhasznaloProvider = ({ children }) => {
+    const [felhasznalo, setFelhasznalo] = useState(null);
+    const [betoltes, setBetoltes] = useState(true);
 
     useEffect(() => {
         let active = true;
-        apiKeres('/auth/me')
+        apiKeres('/auth/profil')
             .then((data) => {
-                if (active) setUser(data.user);
+                if (active) setFelhasznalo(data.felhasznalo);
             })
             .catch(() => {
-                if (active) setUser(null);
+                if (active) setFelhasznalo(null);
             })
             .finally(() => {
-                if (active) setLoading(false);
+                if (active) setBetoltes(false);
             });
 
         return () => {
@@ -24,70 +24,70 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
-    const login = useCallback(async (email, jelszo) => {
-        const data = await apiKeres('/auth/login', { method: 'POST', body: { email, jelszo } }, 'Nem sikerült bejelentkezni.');
-        setUser(data.user);
-        return data.user;
+    const bejelentkezes = useCallback(async (email, jelszo) => {
+        const data = await apiKeres('/auth/bejelentkezes', { method: 'POST', body: { email, jelszo } }, 'Nem sikerült bejelentkezni.');
+        setFelhasznalo(data.felhasznalo);
+        return data.felhasznalo;
     }, []);
 
     const regisztracio = useCallback(async (adatok) => {
-        const data = await apiKeres('/auth/register', { method: 'POST', body: adatok }, 'A regisztráció nem sikerült.');
+        const data = await apiKeres('/auth/regisztracio', { method: 'POST', body: adatok }, 'A regisztráció nem sikerült.');
         return data;
     }, []);
 
     const profilMentese = useCallback(async (adatok) => {
-        const data = await apiKeres('/auth/me', { method: 'PUT', body: adatok }, 'A profil mentése nem sikerült.');
-        setUser(data.user);
+        const data = await apiKeres('/auth/profil', { method: 'PUT', body: adatok }, 'A profil mentése nem sikerült.');
+        setFelhasznalo(data.felhasznalo);
         return data;
     }, []);
 
     const fiokTorlese = useCallback(async (jelszo) => {
-        await apiKeres('/auth/me', { method: 'DELETE', body: { jelszo } }, 'A fiók törlése nem sikerült.');
-        setUser(null);
+        await apiKeres('/auth/profil', { method: 'DELETE', body: { jelszo } }, 'A fiók törlése nem sikerült.');
+        setFelhasznalo(null);
     }, []);
 
-    const logout = useCallback(async () => {
+    const kijelentkezes = useCallback(async () => {
         try {
-            await apiKeres('/auth/logout', { method: 'POST' }, 'Nem sikerült kijelentkezni.');
+            await apiKeres('/auth/kijelentkezes', { method: 'POST' }, 'Nem sikerült kijelentkezni.');
         } catch (error) {
             // Ha a munkamenet már lejárt, a felhasználó ténylegesen ki van jelentkezve.
             if (error.status !== 401) throw error;
         }
-        setUser(null);
+        setFelhasznalo(null);
     }, []);
 
     /** Kedvenc be/ki – optimista frissítéssel, hiba esetén visszaállítva. */
     const kedvencValtas = useCallback(async (autoId) => {
-        if (!user) return false;
-        const kedvenc = user.kedvencek?.includes(autoId);
-        const elozo = user.kedvencek || [];
-        setUser((u) => ({ ...u, kedvencek: kedvenc ? elozo.filter((id) => id !== autoId) : [...elozo, autoId] }));
+        if (!felhasznalo) return false;
+        const kedvenc = felhasznalo.kedvencek?.includes(autoId);
+        const elozo = felhasznalo.kedvencek || [];
+        setFelhasznalo((u) => ({ ...u, kedvencek: kedvenc ? elozo.filter((id) => id !== autoId) : [...elozo, autoId] }));
         try {
             const data = await apiKeres(`/fiok/kedvencek/${autoId}`, { method: kedvenc ? 'DELETE' : 'POST' }, 'A kedvencek mentése nem sikerült.');
-            setUser((u) => (u ? { ...u, kedvencek: data.kedvencek } : u));
+            setFelhasznalo((u) => (u ? { ...u, kedvencek: data.kedvencek } : u));
         } catch (error) {
-            setUser((u) => (u ? { ...u, kedvencek: elozo } : u));
-            if (error.status === 401) setUser(null);
+            setFelhasznalo((u) => (u ? { ...u, kedvencek: elozo } : u));
+            if (error.status === 401) setFelhasznalo(null);
             throw error;
         }
         return true;
-    }, [user]);
+    }, [felhasznalo]);
 
     /** A backendtől kapott jogok alapján (utils/jogosultsagok.js) – csak megjelenítéshez, az ellenőrzés a szerveren van. */
-    const jog = useCallback((nev) => Boolean(user?.jogok?.includes(nev)), [user]);
+    const jog = useCallback((nev) => Boolean(felhasznalo?.jogok?.includes(nev)), [felhasznalo]);
 
     const value = useMemo(() => ({
-        user,
-        loading,
-        admin: user?.statusz === 'admin',
+        felhasznalo,
+        betoltes,
+        admin: felhasznalo?.statusz === 'admin',
         munkatars: jog('kezelofelulet'),
         jog,
-        login,
-        logout,
+        bejelentkezes,
+        kijelentkezes,
         regisztracio,
         profilMentese,
         fiokTorlese,
         kedvencValtas,
-    }), [user, loading, jog, login, logout, regisztracio, profilMentese, fiokTorlese, kedvencValtas]);
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    }), [felhasznalo, betoltes, jog, bejelentkezes, kijelentkezes, regisztracio, profilMentese, fiokTorlese, kedvencValtas]);
+    return <FelhasznaloContext.Provider value={value}>{children}</FelhasznaloContext.Provider>;
 };

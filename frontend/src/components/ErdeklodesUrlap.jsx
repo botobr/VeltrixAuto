@@ -1,17 +1,17 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { apiKeres } from '../lib/api';
 import Ikon from './Ikon';
 
 const ErdeklodesUrlap = ({ auto }) => {
     const id = useId();
-    const { user } = useAuth();
+    const { felhasznalo } = useFelhasznalo();
     // A kitöltés kezdete: a túl gyorsan (robot által) beküldött űrlapot a szerver eldobja.
     const [kezdes] = useState(() => Date.now());
     const [adatok, setAdatok] = useState({
-        nev: user?.nev || '',
-        email: user?.email || '',
+        nev: felhasznalo?.nev || '',
+        email: felhasznalo?.email || '',
         telefon: '',
         uzenet: `Érdeklődnék a(z) ${auto.marka} ${auto.modell} (${auto.evjarat}) iránt. Kérem, vegyék fel velem a kapcsolatot.`,
         adatkezeles: false,
@@ -31,7 +31,7 @@ const ErdeklodesUrlap = ({ auto }) => {
         setAllapot({ tipus: null, szoveg: '' });
         try {
             const data = await apiKeres('/erdeklodesek', { method: 'POST', body: { ...adatok, auto: auto._id, kezdes } }, 'Az üzenet elküldése nem sikerült.');
-            setAllapot({ tipus: 'siker', szoveg: data.message });
+            setAllapot({ tipus: 'siker', szoveg: data.uzenet });
         } catch (error) {
             setAllapot({ tipus: 'hiba', szoveg: error.message });
         } finally {

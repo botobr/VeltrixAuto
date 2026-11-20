@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { useSeo } from '../lib/useSeo';
-import './Login.css';
+import './Belepes.css';
 
 export const JelszoMezo = ({ id, value, onChange, autoComplete, placeholder, minLength }) => {
     const [lathato, setLathato] = useState(false);
     return (
-        <div className="login-jelszo">
+        <div className="belepes-jelszo">
             <input
                 className="bemenet"
                 id={id}
@@ -19,15 +19,15 @@ export const JelszoMezo = ({ id, value, onChange, autoComplete, placeholder, min
                 minLength={minLength}
                 required
             />
-            <button type="button" className="login-mutat" onClick={() => setLathato((elozo) => !elozo)} aria-pressed={lathato}>
+            <button type="button" className="belepes-mutat" onClick={() => setLathato((elozo) => !elozo)} aria-pressed={lathato}>
                 {lathato ? 'Elrejt' : 'Mutat'}
             </button>
         </div>
     );
 };
 
-const Login = () => {
-    const { user, munkatars, login } = useAuth();
+const Belepes = () => {
+    const { felhasznalo, munkatars, bejelentkezes } = useFelhasznalo();
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState('');
@@ -37,9 +37,9 @@ const Login = () => {
 
     useSeo({ cim: 'Bejelentkezés', noindex: true });
 
-    const cel = (felhasznalo) => location.state?.from || (felhasznalo?.jogok?.includes('kezelofelulet') ? '/admin' : '/fiok');
+    const cel = (belepett) => location.state?.from || (belepett?.jogok?.includes('kezelofelulet') ? '/admin' : '/fiok');
 
-    if (user && !folyamatban) {
+    if (felhasznalo && !folyamatban) {
         return <Navigate to={location.state?.from || (munkatars ? '/admin' : '/fiok')} replace />;
     }
 
@@ -48,8 +48,8 @@ const Login = () => {
         setHiba('');
         setFolyamatban(true);
         try {
-            const felhasznalo = await login(email.trim(), jelszo);
-            navigate(cel(felhasznalo), { replace: true });
+            const belepett = await bejelentkezes(email.trim(), jelszo);
+            navigate(cel(belepett), { replace: true });
         } catch (error) {
             console.log(error.message);
             
@@ -59,13 +59,13 @@ const Login = () => {
     };
 
     return (
-        <main className="login-oldal">
-            <section className="login-kartya uveg beuszas">
-                <div className="login-disz" aria-hidden="true">V</div>
+        <main className="belepes-oldal">
+            <section className="belepes-kartya uveg beuszas">
+                <div className="belepes-disz" aria-hidden="true">V</div>
                 <p className="felirat">Üdv újra itt</p>
                 <h1>Bejelentkezés</h1>
-                <p className="login-leiras">{location.state?.uzenet || 'Lépj be a fiókodba a kedvenceid és mentett kereséseid eléréséhez.'}</p>
-                <form className="login-urlap" onSubmit={handleSubmit}>
+                <p className="belepes-leiras">{location.state?.uzenet || 'Lépj be a fiókodba a kedvenceid és mentett kereséseid eléréséhez.'}</p>
+                <form className="belepes-urlap" onSubmit={handleSubmit}>
                     <div className="mezo">
                         <span><label htmlFor="email">E-mail-cím</label></span>
                         <input
@@ -84,13 +84,13 @@ const Login = () => {
                         <JelszoMezo id="jelszo" autoComplete="current-password" value={jelszo} placeholder="Add meg a jelszavad"
                             onChange={(event) => setJelszo(event.target.value)} />
                     </div>
-                    <Link className="login-vissza" to="/jelszo-elfelejtve">Elfelejtetted a jelszavad?</Link>
+                    <Link className="belepes-vissza" to="/jelszo-elfelejtve">Elfelejtetted a jelszavad?</Link>
                     {hiba && <p className="uzenet uzenet-hiba" role="alert">{hiba}</p>}
-                    <button className="gomb gomb-fo login-gomb" type="submit" disabled={folyamatban}>
+                    <button className="gomb gomb-fo belepes-gomb" type="submit" disabled={folyamatban}>
                         {folyamatban ? 'Bejelentkezés…' : 'Belépés'}
                     </button>
                 </form>
-                <p className="login-valtas">
+                <p className="belepes-valtas">
                     Még nincs fiókod? <Link to="/regisztracio" state={location.state}>Regisztrálj ingyen</Link>
                 </p>
             </section>
@@ -98,4 +98,4 @@ const Login = () => {
     );
 };
 
-export default Login;
+export default Belepes;

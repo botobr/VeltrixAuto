@@ -8,8 +8,8 @@ describe('Bejelentkezés', () => {
 
     it('a menü „Belépés” gombjával bejelentkezik a vásárló, és visszakerül oda, ahonnan jött', () => {
         cy.visit('/');
-        cy.get('#login-button').click();
-        cy.location('pathname').should('eq', '/login');
+        cy.get('#belepes-gomb').click();
+        cy.location('pathname').should('eq', '/belepes');
 
         cy.get('#email').type('vasarlo@teszt.hu');
         cy.get('#jelszo').type('Teszt1234');
@@ -17,24 +17,24 @@ describe('Bejelentkezés', () => {
 
         cy.location('pathname').should('eq', '/');
         cy.get('.nav-felhasznalo').should('contain', 'Vásárló Vilma');
-        cy.get('#login-button').should('not.exist');
+        cy.get('#belepes-gomb').should('not.exist');
 
         cy.get('.nav-felhasznalo').click();
         cy.contains('h1', 'Vilma').should('be.visible');
     });
 
     it('hibás jelszónál hibaüzenet, és nem jelentkezik be', () => {
-        cy.visit('/login');
+        cy.visit('/belepes');
         cy.get('#email').type('vasarlo@teszt.hu');
         cy.get('#jelszo').type('rossz-jelszo');
         cy.contains('button[type=submit]', 'Belépés').click();
 
         cy.get('[role=alert]').should('contain', 'Hibás email vagy jelszó');
-        cy.location('pathname').should('eq', '/login');
+        cy.location('pathname').should('eq', '/belepes');
     });
 
     it('az admin bejelentkezés után az admin felületre kerül', () => {
-        cy.visit('/login');
+        cy.visit('/belepes');
         cy.get('#email').type('admin@teszt.hu');
         cy.get('#jelszo').type('Teszt1234{enter}');
         cy.location('pathname').should('eq', '/admin');
@@ -46,12 +46,12 @@ describe('Bejelentkezés', () => {
         cy.visit('/fiok');
         cy.contains('button', 'Kilépés').click();
         cy.location('pathname').should('eq', '/');
-        cy.get('#login-button').should('be.visible');
+        cy.get('#belepes-gomb').should('be.visible');
     });
 
     it('védett oldal bejelentkezés nélkül a belépéshez irányít, utána vissza', () => {
         cy.visit('/fiok?lap=rendelesek');
-        cy.location('pathname').should('eq', '/login');
+        cy.location('pathname').should('eq', '/belepes');
         cy.get('#email').type('vasarlo@teszt.hu');
         cy.get('#jelszo').type('Teszt1234{enter}');
         cy.location('pathname').should('eq', '/fiok');
@@ -74,7 +74,7 @@ describe('Regisztráció', () => {
         cy.contains('Elküldtük a megerősítő linket').should('be.visible').and('contain', 'elek@pelda.hu');
 
         // Megerősítés előtt a belépés tiltott.
-        cy.visit('/login');
+        cy.visit('/belepes');
         cy.get('#email').type('elek@pelda.hu');
         cy.get('#jelszo').type('Jelszo1234{enter}');
         cy.get('[role=alert]').should('contain', 'erősítsd meg az e-mail-címedet');
@@ -88,7 +88,7 @@ describe('Regisztráció', () => {
         });
         cy.contains('E-mail-cím megerősítve').should('be.visible');
 
-        cy.visit('/login');
+        cy.visit('/belepes');
         cy.get('#email').type('elek@pelda.hu');
         cy.get('#jelszo').type('Jelszo1234{enter}');
         cy.location('pathname').should('eq', '/fiok');

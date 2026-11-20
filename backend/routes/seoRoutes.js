@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const express = require('express');
 const AlkatreszModel = require('../models/Alkatresz');
-const AutokModel = require('../models/Autok');
+const AutoModel = require('../models/Auto');
 const { publikusFeltetelek } = require('../utils/autoSzuro');
 const { oldalUrl } = require('../utils/email');
 const { alkatreszSlug, autoSlug, idSlugbol } = require('../utils/slug');
@@ -22,7 +22,7 @@ router.get('/robots.txt', (req, res) => {
         'Allow: /',
         'Disallow: /admin',
         'Disallow: /fiok',
-        'Disallow: /login',
+        'Disallow: /belepes',
         'Disallow: /regisztracio',
         'Disallow: /osszehasonlitas',
         'Disallow: /kosar',
@@ -36,7 +36,7 @@ router.get('/robots.txt', (req, res) => {
 });
 
 router.get('/sitemap.xml', async (req, res) => {
-    const autok = await AutokModel.find({ $and: [...publikusFeltetelek(), { statusz: { $ne: 'elkelt' } }] })
+    const autok = await AutoModel.find({ $and: [...publikusFeltetelek(), { statusz: { $ne: 'elkelt' } }] })
         .select('marka modell evjarat updatedAt')
         .sort({ updatedAt: -1 })
         .limit(45000);
@@ -69,7 +69,7 @@ router.get('/sitemap.xml', async (req, res) => {
  */
 router.get('/megosztas/autok/:slug', async (req, res) => {
     const id = idSlugbol(req.params.slug);
-    const auto = id ? await AutokModel.findOne({ $and: [{ _id: id }, ...publikusFeltetelek()] }) : null;
+    const auto = id ? await AutoModel.findOne({ $and: [{ _id: id }, ...publikusFeltetelek()] }) : null;
     if (!auto) {
         return res.redirect(302, `${oldalUrl()}/autok`);
     }

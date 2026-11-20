@@ -1,8 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const AutokModel = require('../models/Autok');
+const AutoModel = require('../models/Auto');
 const ErdeklodesModel = require('../models/Erdeklodes');
-const UserModel = require('../models/User');
+const FelhasznaloModel = require('../models/Felhasznalo');
 const { jogSzukseges } = require('../middlewares/authMiddleware');
 const { publikusFeltetelek } = require('../utils/autoSzuro');
 const { emailKuldes, oldalUrl } = require('../utils/email');
@@ -39,7 +39,7 @@ const spamGyanus = (body) => {
 const ertesitesiCimek = async (auto) => {
     if (auto.telephely?.email) return [auto.telephely.email];
     if (process.env.ERTESITESI_EMAIL) return process.env.ERTESITESI_EMAIL.split(',').map((cim) => cim.trim());
-    const adminok = await UserModel.find({ statusz: 'admin' }).select('email');
+    const adminok = await FelhasznaloModel.find({ statusz: 'admin' }).select('email');
     return adminok.map((admin) => admin.email);
 };
 
@@ -47,7 +47,7 @@ router.post('/erdeklodesek', erdeklodesLimit, async (req, res) => {
     const body = req.body || {};
     if (spamGyanus(body)) {
         // A botnak nem áruljuk el, hogy kiszűrtük.
-        return res.status(201).json({ message: 'Köszönjük, üzenetedet megkaptuk!' });
+        return res.status(201).json({ uzenet: 'Köszönjük, üzenetedet megkaptuk!' });
     }
 
     const adatok = {
@@ -62,15 +62,15 @@ router.post('/erdeklodesek', erdeklodesLimit, async (req, res) => {
     if (adatok.telefon && (!TELEFON_MINTA.test(adatok.telefon) || adatok.telefon.length > 40)) hibak.push('Érvénytelen telefonszám.');
     if (adatok.uzenet.length < 10 || adatok.uzenet.length > 3000) hibak.push('Az üzenet 10 és 3000 karakter között legyen.');
     if (body.adatkezeles !== true) hibak.push('Az adatkezelési tájékoztató elfogadása szükséges.');
-    if (hibak.length) return res.status(400).json({ error: hibak[0], hibak });
+    if (hibak.length) return res.status(400).json({ hiba: hibak[0], hibak });
 
     if (!mongoose.Types.ObjectId.isValid(body.auto)) {
-        return res.status(404).json({ error: 'Autó nem található!' });
+        return res.status(404).json({ hiba: 'Autó nem található!' });
     }
-    const auto = await AutokModel.findOne({ $and: [{ _id: body.auto }, ...publikusFeltetelek()] })
+    const auto = await AutoModel.findOne({ $and: [{ _id: body.auto }, ...publikusFeltetelek()] })
         .populate('telephely', 'nev email');
     if (!auto) {
-        return res.status(404).json({ error: 'Autó nem található!' });
+        return res.status(404).json({ hiba: 'Autó nem található!' });
     }
 
     const autoNev = `${auto.marka} ${auto.modell} (${auto.evjarat})`;
@@ -99,7 +99,7 @@ router.post('/erdeklodesek', erdeklodesLimit, async (req, res) => {
         ].join('\n'),
     });
 
-    return res.status(201).json({ message: 'Köszönjük, üzenetedet megkaptuk! Hamarosan felvesszük veled a kapcsolatot.', id: erdeklodes._id });
+    return res.status(201).json({ uzenet: 'Köszönjük, üzenetedet megkaptuk! Hamarosan felvesszük veled a kapcsolatot.', id: erdeklodes._id });
 });
 
 // ---------- Admin ----------
@@ -141,35 +141,35 @@ router.get('/admin/erdeklodesek', jogSzukseges('erdeklodesKezeles'), async (req,
 
 router.patch('/admin/erdeklodesek/:id', jogSzukseges('erdeklodesKezeles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(404).json({ error: 'Érdeklődés nem található!' });
+        return res.status(404).json({ hiba: 'Érdeklődés nem található!' });
     }
     const modositas = {};
     if (req.body?.statusz !== undefined) {
-        if (!ERDEKLODES_STATUSZOK.includes(req.body.statusz)) return res.status(400).json({ error: 'Érvénytelen státusz.' });
+        if (!ERDEKLODES_STATUSZOK.includes(req.body.statusz)) return res.status(400).json({ hiba: 'Érvénytelen státusz.' });
         modositas.statusz = req.body.statusz;
     }
     if (req.body?.megjegyzes !== undefined) {
         if (typeof req.body.megjegyzes !== 'string' || req.body.megjegyzes.length > 2000) {
-            return res.status(400).json({ error: 'A megjegyzés legfeljebb 2000 karakter lehet.' });
+            return res.status(400).json({ hiba: 'A megjegyzés legfeljebb 2000 karakter lehet.' });
         }
         modositas.megjegyzes = req.body.megjegyzes.trim();
     }
     const erdeklodes = await ErdeklodesModel.findByIdAndUpdate(req.params.id, { $set: modositas }, { returnDocument: 'after' });
     if (!erdeklodes) {
-        return res.status(404).json({ error: 'Érdeklődés nem található!' });
+        return res.status(404).json({ hiba: 'Érdeklődés nem található!' });
     }
     return res.status(200).json({ erdeklodes });
 });
 
 router.delete('/admin/erdeklodesek/:id', jogSzukseges('erdeklodesTorles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(404).json({ error: 'Érdeklődés nem található!' });
+        return res.status(404).json({ hiba: 'Érdeklődés nem található!' });
     }
     const torolt = await ErdeklodesModel.findByIdAndDelete(req.params.id);
     if (!torolt) {
-        return res.status(404).json({ error: 'Érdeklődés nem található!' });
+        return res.status(404).json({ hiba: 'Érdeklődés nem található!' });
     }
-    return res.status(200).json({ message: 'Érdeklődés törölve.' });
+    return res.status(200).json({ uzenet: 'Érdeklődés törölve.' });
 });
 
 module.exports = router;

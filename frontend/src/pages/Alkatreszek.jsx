@@ -135,7 +135,12 @@ const Alkatreszek = () => {
     const [tobbBetoltes, setTobbBetoltes] = useState(false);
     const [frissites, setFrissites] = useState(0);
 
-    const autoCim = szurok.autoMarka ? `${szurok.autoMarka}${szurok.autoModell ? ` ${szurok.autoModell}` : ''}${szurok.autoEvjarat ? ` (${szurok.autoEvjarat})` : ''}` : '';
+    let autoCim = '';
+    if (szurok.autoMarka) {
+        autoCim = szurok.autoMarka;
+        if (szurok.autoModell) autoCim += ` ${szurok.autoModell}`;
+        if (szurok.autoEvjarat) autoCim += ` (${szurok.autoEvjarat})`;
+    }
     useSeo({
         cim: autoCim ? `Tuning alkatrészek – ${autoCim}` : 'Tuning alkatrészek webshop',
         leiras: 'Állítható futóművek, sport és nyitott levegőszűrők, kipufogók, fékek és más tuning alkatrészek – szűrés az autód típusára.',

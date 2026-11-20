@@ -128,9 +128,15 @@ const AdminRendelesek = () => {
         if (data) setAdat((elozo) => ({ ...elozo, rendelesek: [...elozo.rendelesek, ...data.rendelesek], lapozas: data.lapozas }));
     };
 
-    const szam = (s) => (s === 'nyitott'
-        ? NYITOTT.reduce((o, k) => o + (adat.statuszSzamok[k] || 0), 0)
-        : s === '' ? Object.values(adat.statuszSzamok).reduce((o, d) => o + d, 0) : adat.statuszSzamok[s] || 0);
+    // Hány rendelés tartozik az adott szűrő-csiphez ('' = mind, 'nyitott' = még nem lezárt).
+    const szam = (s) => {
+        if (s !== '' && s !== 'nyitott') return adat.statuszSzamok[s] || 0;
+        let db = 0;
+        for (const [kulcs, darab] of Object.entries(adat.statuszSzamok)) {
+            if (s === '' || NYITOTT.includes(kulcs)) db += darab;
+        }
+        return db;
+    };
 
     return (
         <div className="admin-lista">

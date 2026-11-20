@@ -29,7 +29,7 @@ const korlatozo = ({ ablakMs, max, uzenet = 'Túl sok kérés. Próbáld újra k
         if (adat.db > max) {
             const masodperc = Math.ceil((adat.kezdete + ablakMs - most) / 1000);
             res.set('Retry-After', String(masodperc));
-            return res.status(429).json({ error: uzenet });
+            return res.status(429).json({ hiba: uzenet });
         }
         return next();
     };

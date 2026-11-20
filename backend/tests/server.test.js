@@ -1,16 +1,16 @@
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
 const session = require('express-session');
-const createApp = require('../app');
+const appLetrehozasa = require('../app');
 let server;
 let url;
 before(async () => {
-    server = createApp({ sessionStore: new session.MemoryStore() }).listen(0);
+    server = appLetrehozasa({ munkamenetTarolo: new session.MemoryStore() }).listen(0);
     await new Promise((r) => server.once('listening', r));
     url = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => new Promise((r) => server.close(r)));
-const login = () => fetch(`${url}/api/auth/login`, {
+const login = () => fetch(`${url}/api/auth/bejelentkezes`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
 });
 

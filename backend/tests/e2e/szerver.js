@@ -33,8 +33,8 @@ const Stripe = require('stripe');
 
 const cloudinary = require('../../utils/cloudinary');
 
-cloudinary.deleteImagesQuietly = async () => {};
-cloudinary.uploadImage = async () => ({ secure_url: 'https://res.cloudinary.com/e2e/image/upload/v1/veltrix/autok/feltoltott.jpg', public_id: 'veltrix/autok/feltoltott' });
+cloudinary.kepekTorlese = async () => {};
+cloudinary.kepFeltoltese = async () => ({ secure_url: 'https://res.cloudinary.com/e2e/image/upload/v1/veltrix/autok/feltoltott.jpg', public_id: 'veltrix/autok/feltoltott' });
 
 const levelek = [];
 const email = require('../../utils/email');
@@ -59,14 +59,14 @@ fizetes.fizetesInditasa = async (rendeles, kulcs) => {
 
 console.info = () => {};
 
-const createApp = require('../../app');
+const appLetrehozasa = require('../../app');
 const { korlatokTorlese } = require('../../utils/rateLimit');
-const { loginProbalkozasokTorlese } = require('../../routes/authRoutes');
+const { belepesiProbalkozasokTorlese } = require('../../routes/authRoutes');
 const AlkatreszModel = require('../../models/Alkatresz');
-const AutokModel = require('../../models/Autok');
+const AutoModel = require('../../models/Auto');
 const RendelesModel = require('../../models/Rendeles');
 const TelephelyModel = require('../../models/Telephely');
-const UserModel = require('../../models/User');
+const FelhasznaloModel = require('../../models/Felhasznalo');
 
 // ---------- Mintaadatok ----------
 
@@ -91,16 +91,16 @@ const auto = (adatok) => ({
 
 const adatfeltoltes = async () => {
     kepSorszam = 0;
-    for (const f of FELHASZNALOK) await UserModel.create({ ...f, jelszo: JELSZO });
+    for (const f of FELHASZNALOK) await FelhasznaloModel.create({ ...f, jelszo: JELSZO });
     const telephely = await TelephelyModel.create({
         nev: 'Veltrix Budaörs', iranyitoszam: '2040', varos: 'Budaörs', cim: 'Szabadság út 1.', megye: 'Pest', telefon: '+36 1 234 5678', szelesseg: 47.4613, hosszusag: 18.9583,
     });
 
     const autok = {
-        bmw: await AutokModel.create(auto({ marka: 'BMW', modell: 'E46 318CI', evjarat: 2001, vetel_ar: 2490000, kiemelt: true, telephely: telephely._id, kepek: kepek('BMW', '#2f6fd6') })),
-        golf: await AutokModel.create(auto({ marka: 'Volkswagen', modell: 'Golf', evjarat: 2016, vetel_ar: 6490000, kivitel: 'Ferdehátú', kmora_allas: 98000, telephely: telephely._id, kepek: kepek('Golf', '#d8d8d8') })),
-        astra: await AutokModel.create(auto({ marka: 'Opel', modell: 'Astra H OPC', evjarat: 2010, vetel_ar: 3990000, statusz: 'foglalt', kepek: kepek('Opel', '#e0b030') })),
-        audi: await AutokModel.create(auto({ marka: 'Audi', modell: 'S3', evjarat: 2001, vetel_ar: 2990000, statusz: 'elkelt', eladasi_ar: 2850000, kepek: kepek('Audi', '#aa2222') })),
+        bmw: await AutoModel.create(auto({ marka: 'BMW', modell: 'E46 318CI', evjarat: 2001, vetel_ar: 2490000, kiemelt: true, telephely: telephely._id, kepek: kepek('BMW', '#2f6fd6') })),
+        golf: await AutoModel.create(auto({ marka: 'Volkswagen', modell: 'Golf', evjarat: 2016, vetel_ar: 6490000, kivitel: 'Ferdehátú', kmora_allas: 98000, telephely: telephely._id, kepek: kepek('Golf', '#d8d8d8') })),
+        astra: await AutoModel.create(auto({ marka: 'Opel', modell: 'Astra H OPC', evjarat: 2010, vetel_ar: 3990000, statusz: 'foglalt', kepek: kepek('Opel', '#e0b030') })),
+        audi: await AutoModel.create(auto({ marka: 'Audi', modell: 'S3', evjarat: 2001, vetel_ar: 2990000, statusz: 'elkelt', eladasi_ar: 2850000, kepek: kepek('Audi', '#aa2222') })),
     };
 
     const e46 = [{ marka: 'BMW', modell: 'E46', evjaratTol: 1998, evjaratIg: 2006 }];
@@ -139,12 +139,12 @@ const adatfeltoltes = async () => {
     await mongoose.connect(mongod.getUri());
     await Promise.all(mongoose.modelNames().map((nev) => mongoose.model(nev).syncIndexes()));
 
-    const app = createApp({ sessionStore: new session.MemoryStore() });
+    const app = appLetrehozasa({ munkamenetTarolo: new session.MemoryStore() });
 
     app.post('/__e2e/visszaallitas', async (req, res) => {
         await Promise.all(Object.values(mongoose.connection.collections).map((gy) => gy.deleteMany({})));
         korlatokTorlese();
-        loginProbalkozasokTorlese();
+        belepesiProbalkozasokTorlese();
         levelek.length = 0;
         munkamenetSorszam = 0;
         res.json(await adatfeltoltes());

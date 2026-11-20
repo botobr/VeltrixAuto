@@ -3,14 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import AutoKartya from '../../components/AutoKartya';
 import AutoUrlap from '../../components/AutoUrlap';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { API_URL, apiKeres } from '../../lib/api';
 import { autoNev, egyediMezokAdatokbol, kuldhetoAdatok, szamMezokElonezethez, uresUrlap, urlapAdatokbol } from '../../lib/auto';
 import { useSeo } from '../../lib/useSeo';
 import './Admin.css';
 
 const Szerkeszto = ({ auto, telephelyek }) => {
-    const { jog } = useAuth();
+    const { jog } = useFelhasznalo();
     const navigate = useNavigate();
     const uj = !auto;
     const [adatok, setAdatok] = useState(() => {
@@ -45,12 +45,12 @@ const Szerkeszto = ({ auto, telephelyek }) => {
         }
         setMentes(true);
         try {
-            const data = await apiKeres(uj ? '/new-auto' : `/update-auto/${auto._id}`, {
+            const data = await apiKeres(uj ? '/autok' : `/autok/${auto._id}`, {
                 method: uj ? 'POST' : 'PUT',
                 body: kuldhetoAdatok(adatok),
             }, 'A mentés nem sikerült.');
             mentve.current = true;
-            const mentett = data.auto || data.updatedAuto;
+            const mentett = data.auto;
             navigate(`/autok/${mentett.slug}`, { replace: uj });
         } catch (error) {
             setHibak(error.message ? [error.message] : ['A mentés nem sikerült.']);

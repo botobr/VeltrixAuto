@@ -6,7 +6,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadImage = (imageData) => new Promise((resolve, reject) => {
+const kepFeltoltese = (imageData) => new Promise((resolve, reject) => {
     if (typeof imageData !== 'string' || !/^data:image\/(jpeg|png|webp|avif);base64,/.test(imageData)) {
         reject(new Error('Érvénytelen képformátum (JPG, PNG, WebP vagy AVIF lehet).'));
         return;
@@ -29,7 +29,7 @@ const uploadImage = (imageData) => new Promise((resolve, reject) => {
     ).end(Buffer.from(imageData.split(',').pop(), 'base64'));
 });
 
-const deleteImage = (publicId) => new Promise((resolve, reject) => {
+const kepTorlese = (publicId) => new Promise((resolve, reject) => {
     if (!publicId) {
         resolve();
         return;
@@ -45,14 +45,14 @@ const deleteImage = (publicId) => new Promise((resolve, reject) => {
 });
 
 /** Több képet töröl; a hibát naplózza, de nem dobja tovább. */
-const deleteImagesQuietly = async (publicIds = []) => {
+const kepekTorlese = async (publicIds = []) => {
     await Promise.all([...new Set(publicIds.filter(Boolean))].map(async (publicId) => {
         try {
-            await deleteImage(publicId);
+            await kepTorlese(publicId);
         } catch (error) {
             console.error(`Kép törlése sikertelen (${publicId}): ${error.message}`);
         }
     }));
 };
 
-module.exports = { uploadImage, deleteImage, deleteImagesQuietly };
+module.exports = { kepFeltoltese, kepTorlese, kepekTorlese };

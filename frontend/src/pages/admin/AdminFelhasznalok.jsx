@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { apiKeres } from '../../lib/api';
 import { formatDatum } from '../../lib/auto';
 
@@ -15,8 +15,8 @@ const UjFelhasznalo = ({ onLetrehozva, onMegse }) => {
         event.preventDefault();
         setHiba('');
         try {
-            const data = await apiKeres('/new-user', { method: 'POST', body: adatok }, 'A létrehozás nem sikerült.');
-            onLetrehozva(data.user);
+            const data = await apiKeres('/felhasznalok', { method: 'POST', body: adatok }, 'A létrehozás nem sikerült.');
+            onLetrehozva(data.felhasznalo);
         } catch (error) {
             setHiba(error.message);
         }
@@ -45,7 +45,7 @@ const UjFelhasznalo = ({ onLetrehozva, onMegse }) => {
 };
 
 const AdminFelhasznalok = () => {
-    const { user } = useAuth();
+    const { felhasznalo } = useFelhasznalo();
     const [felhasznalok, setFelhasznalok] = useState(null);
     const [uj, setUj] = useState(false);
     const [szuro, setSzuro] = useState('');
@@ -58,11 +58,11 @@ const AdminFelhasznalok = () => {
     const szerepkorValtas = async (felhasznalo, statusz) => {
         setHiba('');
         try {
-            const data = await apiKeres(`/update-user/${felhasznalo._id}`, {
+            const data = await apiKeres(`/felhasznalok/${felhasznalo._id}`, {
                 method: 'PUT',
                 body: { nev: felhasznalo.nev, email: felhasznalo.email, statusz },
             }, 'A módosítás nem sikerült.');
-            setFelhasznalok((elozo) => elozo.map((f) => (f._id === felhasznalo._id ? data.user : f)));
+            setFelhasznalok((elozo) => elozo.map((f) => (f._id === felhasznalo._id ? data.felhasznalo : f)));
         } catch (error) {
             setHiba(error.message);
         }
@@ -71,7 +71,7 @@ const AdminFelhasznalok = () => {
     const torles = async (felhasznalo) => {
         if (!window.confirm(`Törlöd ${felhasznalo.nev} (${felhasznalo.email}) fiókját?`)) return;
         try {
-            await apiKeres(`/delete-user/${felhasznalo._id}`, { method: 'DELETE' }, 'A törlés nem sikerült.');
+            await apiKeres(`/felhasznalok/${felhasznalo._id}`, { method: 'DELETE' }, 'A törlés nem sikerült.');
             setFelhasznalok((elozo) => elozo.filter((f) => f._id !== felhasznalo._id));
         } catch (error) {
             setHiba(error.message);
@@ -107,7 +107,7 @@ const AdminFelhasznalok = () => {
                     </thead>
                     <tbody>
                         {lathato.map((f) => {
-                            const sajat = f._id === user._id;
+                            const sajat = f._id === felhasznalo._id;
                             return (
                                 <tr key={f._id}>
                                     <td><strong>{f.nev}</strong>{sajat && <small className="halvany"> (te)</small>}</td>

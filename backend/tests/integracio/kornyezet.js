@@ -18,11 +18,11 @@ process.env.NODE_ENV = 'test';
 const cloudinary = require('../../utils/cloudinary');
 
 const toroltKepek = [];
-cloudinary.deleteImagesQuietly = async (publicIds = []) => {
+cloudinary.kepekTorlese = async (publicIds = []) => {
     // Mint az eredeti: üres és ismétlődő azonosítók nélkül.
     toroltKepek.push(...new Set(publicIds.filter(Boolean)));
 };
-cloudinary.uploadImage = async () => ({
+cloudinary.kepFeltoltese = async () => ({
     secure_url: 'https://res.cloudinary.com/teszt/image/upload/v1/veltrix/autok/feltoltott.jpg',
     public_id: 'veltrix/autok/feltoltott',
 });
@@ -36,10 +36,10 @@ fizetes.fizetesInditasa = async () => {
     return { url: `https://checkout.stripe.test/c/${munkamenetSorszam}`, munkamenetId: `cs_test_${munkamenetSorszam}` };
 };
 
-const createApp = require('../../app');
+const appLetrehozasa = require('../../app');
 const AlkatreszModel = require('../../models/Alkatresz');
-const UserModel = require('../../models/User');
-const AutokModel = require('../../models/Autok');
+const FelhasznaloModel = require('../../models/Felhasznalo');
+const AutoModel = require('../../models/Auto');
 
 // A szerver az e-maileket SMTP nélkül a konzolra írná – a tesztkimenetben ez csak zaj.
 console.info = () => {};
@@ -52,7 +52,7 @@ const inditas = async () => {
     mongod = await MongoMemoryServer.create();
     await mongoose.connect(mongod.getUri());
     await Promise.all(mongoose.modelNames().map((nev) => mongoose.model(nev).syncIndexes()));
-    server = createApp({ sessionStore: new session.MemoryStore() }).listen(0);
+    server = appLetrehozasa({ munkamenetTarolo: new session.MemoryStore() }).listen(0);
     await new Promise((resolve) => server.once('listening', resolve));
     alapUrl = `http://127.0.0.1:${server.address().port}`;
 };
@@ -102,9 +102,9 @@ let sorszam = 0;
 /** Felhasználót hoz létre a megadott szerepkörrel, és bejelentkezett klienst ad vissza. */
 const bejelentkezve = async (statusz) => {
     sorszam += 1;
-    const user = await UserModel.create({ nev: `Teszt ${statusz}`, email: `${statusz}${sorszam}@teszt.hu`, jelszo: JELSZO, statusz });
+    const user = await FelhasznaloModel.create({ nev: `Teszt ${statusz}`, email: `${statusz}${sorszam}@teszt.hu`, jelszo: JELSZO, statusz });
     const k = kliens();
-    const valasz = await k.post('/auth/login', { email: user.email, jelszo: JELSZO });
+    const valasz = await k.post('/auth/bejelentkezes', { email: user.email, jelszo: JELSZO });
     if (valasz.status !== 200) throw new Error(`Bejelentkezés sikertelen (${statusz}): ${valasz.status}`);
     return Object.assign(k, { user });
 };
@@ -126,8 +126,8 @@ const autoUrlap = (felulir = {}) => ({
 /** Autó közvetlenül az adatbázisba (a dashboard-tesztekhez, tetszőleges dátumokkal). */
 const autoMentese = async (felulir = {}) => {
     const { createdAt, ...tobbi } = felulir;
-    const auto = await AutokModel.create({ ...autoUrlap(), ...tobbi });
-    if (createdAt) await AutokModel.collection.updateOne({ _id: auto._id }, { $set: { createdAt } });
+    const auto = await AutoModel.create({ ...autoUrlap(), ...tobbi });
+    if (createdAt) await AutoModel.collection.updateOne({ _id: auto._id }, { $set: { createdAt } });
     return auto;
 };
 

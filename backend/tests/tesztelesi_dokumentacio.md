@@ -39,8 +39,8 @@ A tesztcsomag 2 sikeres és 2 szándékosan sikertelen tesztesetet tartalmaz. A 
 | Teszt ID | Teszt megnevezése | Kérés | Elvárt eredmény | Teszt típusa |
 | --- | --- | --- | --- | --- |
 | T01 | Health végpont ellenőrzése | `GET /api/health` | HTTP `200` | Sikeres |
-| T02 | Bejelentkezés hiányzó adatokkal | `POST /api/auth/login`, üres JSON törzs | HTTP `400` | Sikeres |
-| T03 | Bejelentkezés hibás elvárással | `POST /api/auth/login`, üres JSON törzs | A teszt `200`-at vár, a tényleges eredmény `400` | Sikertelen |
+| T02 | Bejelentkezés hiányzó adatokkal | `POST /api/auth/bejelentkezes`, üres JSON törzs | HTTP `400` | Sikeres |
+| T03 | Bejelentkezés hibás elvárással | `POST /api/auth/bejelentkezes`, üres JSON törzs | A teszt `200`-at vár, a tényleges eredmény `400` | Sikertelen |
 | T04 | Felhasználók lekérése jogosultság nélkül | `GET /api/felhasznalok` | A teszt `200`-at vár, a tényleges eredmény `403` | Sikertelen |
 
 ## 5. Tesztelési megvalósítás

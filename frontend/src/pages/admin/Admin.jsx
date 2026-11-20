@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { useSeo } from '../../lib/useSeo';
 import AdminAlkatreszek from './AdminAlkatreszek';
 import AdminDashboard from './AdminDashboard';
@@ -24,7 +24,7 @@ const LAPOK = [
 
 const Admin = () => {
     const [params, setParams] = useSearchParams();
-    const { jog, admin } = useAuth();
+    const { jog, admin } = useFelhasznalo();
     const lapok = LAPOK.filter(([, , , , szuksegesJog]) => jog(szuksegesJog));
     const aktiv = lapok.find(([kulcs]) => kulcs === params.get('lap')) || lapok[0];
     const [kulcs, , , Tartalom] = aktiv;

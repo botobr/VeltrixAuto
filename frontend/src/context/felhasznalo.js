@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
 
-export const AuthContext = createContext(null);
+export const FelhasznaloContext = createContext(null);
 
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error('A useAuth az AuthProvideren belül használható.');
+export const useFelhasznalo = () => {
+    const context = useContext(FelhasznaloContext);
+    if (!context) throw new Error('A useFelhasznalo az AuthProvideren belül használható.');
     return context;
 };

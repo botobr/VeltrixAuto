@@ -1,6 +1,6 @@
 const { szerepkorJogai } = require('./jogosultsagok');
 
-const publicUser = (user) => {
+const felhasznaloValasz = (user) => {
     const userData = user.toObject ? user.toObject() : { ...user };
     delete userData.jelszo;
     delete userData.mentettKeresesek;
@@ -14,4 +14,4 @@ const publicUser = (user) => {
     return userData;
 };
 
-module.exports = publicUser;
+module.exports = felhasznaloValasz;

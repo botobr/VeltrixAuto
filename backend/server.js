@@ -2,11 +2,11 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = require('./app')();
-const dbConnection = require('./utils/dbConnect.js');
+const adatbazisKapcsolodas = require('./utils/adatbazis');
 
 const PORT = process.env.PORT || 3600;
 
-dbConnection()
+adatbazisKapcsolodas()
     .then(() => {
         console.log('Sikeres adatbázis csatlakozás!');
 

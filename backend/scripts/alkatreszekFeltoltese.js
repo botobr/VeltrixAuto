@@ -18,9 +18,9 @@ dotenv.config({ quiet: true });
 const mongoose = require('mongoose');
 const { v2: cloudinary } = require('cloudinary');
 require('../utils/cloudinary');
-const dbConnection = require('../utils/dbConnect');
+const adatbazisKapcsolodas = require('../utils/adatbazis');
 const AlkatreszModel = require('../models/Alkatresz');
-const { deleteImagesQuietly } = require('../utils/cloudinary');
+const { kepekTorlese } = require('../utils/cloudinary');
 const { slugify } = require('../utils/slug');
 const { alkatreszEllenorzese } = require('../utils/webshop');
 const { katalogus } = require('./mintaAlkatreszek/katalogus');
@@ -77,7 +77,7 @@ const torlesFuttatasa = async (termekek) => {
     await AlkatreszModel.deleteMany({ _id: { $in: meglevok.map((t) => t._id) } });
     // Csak a minta-képeket töröljük (amit az adminban cseréltek, azt nem).
     const kepek = meglevok.flatMap((t) => t.kepek.map((k) => k.publicId)).filter((id) => id.startsWith(`${MAPPA}/minta-alkatresz-`));
-    await deleteImagesQuietly(kepek);
+    await kepekTorlese(kepek);
     console.log(`Törölve: ${meglevok.length} termék, ${kepek.length} kép.`);
 };
 
@@ -136,7 +136,7 @@ const futtatas = async () => {
     if (!process.env.MONGO_DB) throw new Error('A MONGO_DB nincs beállítva a .env fájlban.');
     if (!torles && !szaraz && !process.env.CLOUDINARY_API_CLOUD_NAME) throw new Error('A Cloudinary nincs beállítva a .env fájlban.');
     const termekek = katalogus();
-    await dbConnection();
+    await adatbazisKapcsolodas();
     if (torles) await torlesFuttatasa(termekek);
     else await feltoltes(termekek);
 };

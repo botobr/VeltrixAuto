@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { apiKeres } from '../../lib/api';
 import { formatDatumIdo, kepMeret } from '../../lib/auto';
 
@@ -26,7 +26,7 @@ const Megjegyzes = ({ erdeklodes, onMentes }) => {
 };
 
 const AdminErdeklodesek = () => {
-    const { jog } = useAuth();
+    const { jog } = useFelhasznalo();
     const [params, setParams] = useSearchParams();
     const statusz = params.get('statusz') || '';
     const autoSzuro = params.get('auto') || '';

@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AutoKartya, { AutoKartyaVaz } from '../components/AutoKartya';
 import Ikon from '../components/Ikon';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { apiKeres } from '../lib/api';
 import { formatDatum, formatDatumIdo } from '../lib/auto';
 import { ft } from '../lib/webshop';
 import { szuroCimkek } from '../lib/szurok';
 import { useSeo } from '../lib/useSeo';
-import { JelszoMezo } from './Login';
+import { JelszoMezo } from './Belepes';
 import './Fiok.css';
 import './Webshop.css';
 
@@ -62,10 +62,10 @@ const Rendelesek = () => {
 };
 
 const Kedvencek = () => {
-    const { user } = useAuth();
+    const { felhasznalo } = useFelhasznalo();
     const [autok, setAutok] = useState(null);
     const [hiba, setHiba] = useState('');
-    const szam = user?.kedvencek?.length || 0;
+    const szam = felhasznalo?.kedvencek?.length || 0;
 
     useEffect(() => {
         apiKeres('/fiok/kedvencek').then((data) => setAutok(data.autok)).catch((error) => setHiba(error.message));
@@ -74,7 +74,7 @@ const Kedvencek = () => {
     if (hiba) return <p className="uzenet uzenet-hiba">{hiba}</p>;
     if (!autok) return <div className="autok-racs">{[0, 1, 2].map((i) => <AutoKartyaVaz key={i} />)}</div>;
     // A szívre kattintva a kártya azonnal eltűnik a listából.
-    const lathato = autok.filter((auto) => user?.kedvencek?.includes(auto._id));
+    const lathato = autok.filter((auto) => felhasznalo?.kedvencek?.includes(auto._id));
     if (lathato.length === 0) {
         return (
             <div className="allapot-doboz uveg">
@@ -173,13 +173,13 @@ const Keresesek = () => {
 };
 
 const Profil = () => {
-    const { user, profilMentese, fiokTorlese } = useAuth();
+    const { felhasznalo, profilMentese, fiokTorlese } = useFelhasznalo();
     const navigate = useNavigate();
-    const [adatok, setAdatok] = useState({ nev: user.nev, email: user.email, jelenlegiJelszo: '', ujJelszo: '' });
+    const [adatok, setAdatok] = useState({ nev: felhasznalo.nev, email: felhasznalo.email, jelenlegiJelszo: '', ujJelszo: '' });
     const [allapot, setAllapot] = useState(null);
     const [torlesJelszo, setTorlesJelszo] = useState('');
     const [torlesHiba, setTorlesHiba] = useState('');
-    const emailValtozik = adatok.email.trim().toLowerCase() !== user.email;
+    const emailValtozik = adatok.email.trim().toLowerCase() !== felhasznalo.email;
     const kellJelszo = emailValtozik || adatok.ujJelszo.length > 0;
 
     const beallit = (mezo) => (event) => setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
@@ -190,7 +190,7 @@ const Profil = () => {
         try {
             const data = await profilMentese(adatok);
             setAdatok((elozo) => ({ ...elozo, jelenlegiJelszo: '', ujJelszo: '' }));
-            setAllapot({ tipus: 'siker', szoveg: data.message });
+            setAllapot({ tipus: 'siker', szoveg: data.uzenet });
         } catch (error) {
             setAllapot({ tipus: 'hiba', szoveg: error.message });
         }
@@ -246,7 +246,7 @@ const Profil = () => {
 };
 
 const Fiok = () => {
-    const { user, munkatars } = useAuth();
+    const { felhasznalo, munkatars } = useFelhasznalo();
     const [params, setParams] = useSearchParams();
     const lap = LAPOK.some(([kulcs]) => kulcs === params.get('lap')) ? params.get('lap') : 'kedvencek';
 
@@ -257,7 +257,7 @@ const Fiok = () => {
             <header className="fiok-fejlec beuszas">
                 <div>
                     <p className="felirat">Fiókom</p>
-                    <h1>Szia, <span className="gradiens-szoveg">{user.nev.split(' ').at(-1)}!</span></h1>
+                    <h1>Szia, <span className="gradiens-szoveg">{felhasznalo.nev.split(' ').at(-1)}!</span></h1>
                 </div>
                 {munkatars && <Link className="gomb gomb-uveg" to="/admin">Admin felület <Ikon nev="jobbra" meret={15} /></Link>}
             </header>
@@ -273,7 +273,7 @@ const Fiok = () => {
                         onClick={() => setParams(kulcs === 'kedvencek' ? {} : { lap: kulcs }, { replace: true })}
                     >
                         <Ikon nev={ikon} meret={16} /> {cimke}
-                        {kulcs === 'kedvencek' && user.kedvencek?.length > 0 && <span className="ful-szam">{user.kedvencek.length}</span>}
+                        {kulcs === 'kedvencek' && felhasznalo.kedvencek?.length > 0 && <span className="ful-szam">{felhasznalo.kedvencek.length}</span>}
                     </button>
                 ))}
             </div>

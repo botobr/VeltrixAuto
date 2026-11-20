@@ -1,9 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const AlkatreszModel = require('../models/Alkatresz');
-const AutokModel = require('../models/Autok');
+const AutoModel = require('../models/Auto');
 const { jogSzukseges, munkamenetJoga } = require('../middlewares/authMiddleware');
-const { deleteImagesQuietly } = require('../utils/cloudinary');
+const { kepekTorlese } = require('../utils/cloudinary');
 const { masholHasznalt } = require('../utils/kepek');
 const { alkatreszSlug, idSlugbol } = require('../utils/slug');
 const {
@@ -16,7 +16,7 @@ const biztonsagos = (ertek) => String(ertek).replace(/[.*+?^${}()|[\]\\]/g, '\\$
 const pontosEgyezes = (ertek) => new RegExp(`^${biztonsagos(String(ertek).trim())}$`, 'i');
 const lista = (ertek) => String(ertek || '').split(',').map((elem) => elem.trim()).filter(Boolean).slice(0, 12);
 const szamVagyNull = (ertek) => (ertek === undefined || ertek === '' || !Number.isFinite(Number(ertek)) ? null : Number(ertek));
-const hibasValasz = (res, hibak) => res.status(400).json({ error: hibak[0], hibak });
+const hibasValasz = (res, hibak) => res.status(400).json({ hiba: hibak[0], hibak });
 
 const RENDEZESEK = {
     ujElol: { kiemelt: -1, createdAt: -1, _id: -1 },
@@ -64,7 +64,10 @@ const szuroEpitese = (p = {}, { publikus = true } = {}) => {
     const minAr = szamVagyNull(p.minAr);
     const maxAr = szamVagyNull(p.maxAr);
     if (minAr !== null || maxAr !== null) {
-        feltetelek.push({ aktualisAr: { ...(minAr !== null ? { $gte: minAr } : {}), ...(maxAr !== null ? { $lte: maxAr } : {}) } });
+        const arFeltetel = {};
+        if (minAr !== null) arFeltetel.$gte = minAr;
+        if (maxAr !== null) arFeltetel.$lte = maxAr;
+        feltetelek.push({ aktualisAr: arFeltetel });
     }
     if (p.keszleten === '1') feltetelek.push({ keszlet: { $gt: 0 } });
     if (p.akcios === '1') feltetelek.push({ akciosAr: { $ne: null } });
@@ -140,8 +143,8 @@ router.get('/alkatreszek/szurok', async (req, res) => {
 /** Egy konkrét autóhoz illő alkatrészek: előbb a kifejezetten erre a típusra valók, aztán az univerzálisak. */
 router.get('/alkatreszek/autohoz/:autoId', async (req, res) => {
     const id = idSlugbol(req.params.autoId);
-    const auto = id ? await AutokModel.findById(id).select('marka modell evjarat') : null;
-    if (!auto) return res.status(404).json({ error: 'Autó nem található!' });
+    const auto = id ? await AutoModel.findById(id).select('marka modell evjarat') : null;
+    if (!auto) return res.status(404).json({ hiba: 'Autó nem található!' });
 
     const limit = 4;
     const specifikus = await AlkatreszModel.find({ $and: [{ lathato: true }, autohozFeltetel(auto, { univerzalisIs: false })] })
@@ -159,7 +162,7 @@ router.get('/alkatreszek/:slug', async (req, res) => {
     const id = idSlugbol(req.params.slug);
     const munkatars = munkamenetJoga(req, 'kezelofelulet');
     const alkatresz = id ? await AlkatreszModel.findOne(munkatars ? { _id: id } : { _id: id, lathato: true }) : null;
-    if (!alkatresz) return res.status(404).json({ error: 'A termék nem található!' });
+    if (!alkatresz) return res.status(404).json({ hiba: 'A termék nem található!' });
 
     if (!munkatars) await AlkatreszModel.updateOne({ _id: alkatresz._id }, { $inc: { megtekintesek: 1 } });
     const kapcsolodok = await AlkatreszModel.find({ _id: { $ne: alkatresz._id }, lathato: true, kategoria: alkatresz.kategoria })
@@ -174,7 +177,7 @@ router.get('/alkatreszek/:slug', async (req, res) => {
 
 const ervenyesId = (req, res, next) => (mongoose.Types.ObjectId.isValid(req.params.id)
     ? next()
-    : res.status(404).json({ error: 'A termék nem található!' }));
+    : res.status(404).json({ hiba: 'A termék nem található!' }));
 
 const cikkszamFoglalt = (error) => error?.code === 11000 && error?.keyPattern?.cikkszam;
 
@@ -194,7 +197,7 @@ router.get('/admin/alkatreszek', jogSzukseges('alkatreszSzerkesztes'), async (re
 
 router.get('/admin/alkatreszek/:id', jogSzukseges('alkatreszSzerkesztes'), ervenyesId, async (req, res) => {
     const alkatresz = await AlkatreszModel.findById(req.params.id);
-    if (!alkatresz) return res.status(404).json({ error: 'A termék nem található!' });
+    if (!alkatresz) return res.status(404).json({ hiba: 'A termék nem található!' });
     return res.status(200).json({ alkatresz: alkatreszValasz(alkatresz, { belso: true }) });
 });
 
@@ -204,7 +207,7 @@ router.post('/admin/alkatreszek', jogSzukseges('alkatreszSzerkesztes'), async (r
     if (await masholHasznalt(adatok.kepek, null)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez vagy termékhez tartozik.']);
     try {
         const alkatresz = await AlkatreszModel.create(adatok);
-        return res.status(201).json({ message: 'Termék létrehozva.', alkatresz: alkatreszValasz(alkatresz, { belso: true }) });
+        return res.status(201).json({ uzenet: 'Termék létrehozva.', alkatresz: alkatreszValasz(alkatresz, { belso: true }) });
     } catch (error) {
         if (cikkszamFoglalt(error)) return hibasValasz(res, ['Ezzel a cikkszámmal már van termék.']);
         throw error;
@@ -215,7 +218,7 @@ router.put('/admin/alkatreszek/:id', jogSzukseges('alkatreszSzerkesztes'), erven
     const { adatok, hibak } = alkatreszEllenorzese(req.body);
     if (hibak.length) return hibasValasz(res, hibak);
     const alkatresz = await AlkatreszModel.findById(req.params.id);
-    if (!alkatresz) return res.status(404).json({ error: 'A termék nem található!' });
+    if (!alkatresz) return res.status(404).json({ hiba: 'A termék nem található!' });
     if (await masholHasznalt(adatok.kepek, alkatresz._id)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez vagy termékhez tartozik.']);
 
     const regiKepek = new Set(alkatresz.kepek.map((kep) => kep.publicId));
@@ -227,8 +230,8 @@ router.put('/admin/alkatreszek/:id', jogSzukseges('alkatreszSzerkesztes'), erven
         throw error;
     }
     const megmaradt = new Set(alkatresz.kepek.map((kep) => kep.publicId));
-    await deleteImagesQuietly([...regiKepek].filter((publicId) => !megmaradt.has(publicId)));
-    return res.status(200).json({ message: 'Termék mentve.', alkatresz: alkatreszValasz(alkatresz, { belso: true }) });
+    await kepekTorlese([...regiKepek].filter((publicId) => !megmaradt.has(publicId)));
+    return res.status(200).json({ uzenet: 'Termék mentve.', alkatresz: alkatreszValasz(alkatresz, { belso: true }) });
 });
 
 /** Gyors módosítás a listából: készlet, ár, láthatóság, kiemelés. */
@@ -236,7 +239,7 @@ router.patch('/admin/alkatreszek/:id', jogSzukseges('alkatreszSzerkesztes'), erv
     const { adatok, hibak } = gyorsModositasEllenorzese(req.body);
     if (hibak.length) return hibasValasz(res, hibak);
     const alkatresz = await AlkatreszModel.findById(req.params.id);
-    if (!alkatresz) return res.status(404).json({ error: 'A termék nem található!' });
+    if (!alkatresz) return res.status(404).json({ hiba: 'A termék nem található!' });
     alkatresz.set(adatok);
     if (alkatresz.akciosAr !== null && alkatresz.akciosAr >= alkatresz.ar) {
         return hibasValasz(res, ['Az akciós árnak kisebbnek kell lennie a normál árnál.']);
@@ -247,10 +250,10 @@ router.patch('/admin/alkatreszek/:id', jogSzukseges('alkatreszSzerkesztes'), erv
 
 router.delete('/admin/alkatreszek/:id', jogSzukseges('alkatreszTorles'), ervenyesId, async (req, res) => {
     const alkatresz = await AlkatreszModel.findByIdAndDelete(req.params.id);
-    if (!alkatresz) return res.status(404).json({ error: 'A termék nem található!' });
+    if (!alkatresz) return res.status(404).json({ hiba: 'A termék nem található!' });
     // A korábbi rendelések a tételadatokat (név, ár, kép URL) saját maguk őrzik.
-    await deleteImagesQuietly(alkatresz.kepek.map((kep) => kep.publicId));
-    return res.status(200).json({ message: 'Termék törölve.' });
+    await kepekTorlese(alkatresz.kepek.map((kep) => kep.publicId));
+    return res.status(200).json({ uzenet: 'Termék törölve.' });
 });
 
 module.exports = router;

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import Ikon from '../components/Ikon';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { useSeo } from '../lib/useSeo';
-import { JelszoMezo } from './Login';
-import './Login.css';
+import { JelszoMezo } from './Belepes';
+import './Belepes.css';
 
 const ELONYOK = [
     ['sziv', 'Kedvenc autók mentése bármely eszközről'],
@@ -13,7 +13,7 @@ const ELONYOK = [
 ];
 
 const Regisztracio = () => {
-    const { user, regisztracio } = useAuth();
+    const { felhasznalo, regisztracio } = useFelhasznalo();
     const location = useLocation();
     const [adatok, setAdatok] = useState({ nev: '', email: '', jelszo: '', adatkezeles: false, weboldal: '' });
     const [hiba, setHiba] = useState('');
@@ -22,7 +22,7 @@ const Regisztracio = () => {
 
     useSeo({ cim: 'Regisztráció', noindex: true });
 
-    if (user && !folyamatban) return <Navigate to={location.state?.from || '/fiok'} replace />;
+    if (felhasznalo && !folyamatban) return <Navigate to={location.state?.from || '/fiok'} replace />;
 
     const beallit = (mezo) => (event) => {
         const ertek = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
@@ -43,21 +43,21 @@ const Regisztracio = () => {
     };
 
     return (
-        <main className="login-oldal">
-            <section className="login-kartya uveg beuszas">
-                <div className="login-disz" aria-hidden="true">V</div>
+        <main className="belepes-oldal">
+            <section className="belepes-kartya uveg beuszas">
+                <div className="belepes-disz" aria-hidden="true">V</div>
                 <p className="felirat">Ingyenes fiók</p>
                 <h1>Regisztráció</h1>
-                <ul className="login-elonyok">
+                <ul className="belepes-elonyok">
                     {ELONYOK.map(([ikon, szoveg]) => <li key={szoveg}><Ikon nev={ikon} meret={16} /> {szoveg}</li>)}
                 </ul>
                 {sikeres ? (
                     <>
-                        <p className="login-leiras">Elküldtük a megerősítő linket a(z) <strong>{adatok.email}</strong> címre. A fiókod aktiválásához kattints a linkre.</p>
-                        <Link className="gomb gomb-fo login-gomb" to="/login">Tovább a bejelentkezéshez</Link>
-                        <p className="login-vissza">Nem kaptad meg? <Link to={`/email-hitelesites?ujrakuldes=${encodeURIComponent(adatok.email)}`}>Új link kérése</Link></p>
+                        <p className="belepes-leiras">Elküldtük a megerősítő linket a(z) <strong>{adatok.email}</strong> címre. A fiókod aktiválásához kattints a linkre.</p>
+                        <Link className="gomb gomb-fo belepes-gomb" to="/belepes">Tovább a bejelentkezéshez</Link>
+                        <p className="belepes-vissza">Nem kaptad meg? <Link to={`/email-hitelesites?ujrakuldes=${encodeURIComponent(adatok.email)}`}>Új link kérése</Link></p>
                     </>
-                ) : <form className="login-urlap" onSubmit={kuldes}>
+                ) : <form className="belepes-urlap" onSubmit={kuldes}>
                     <div className="mezo">
                         <span><label htmlFor="reg-nev">Név</label></span>
                         <input className="bemenet" id="reg-nev" autoComplete="name" required minLength={2} maxLength={100}
@@ -83,12 +83,12 @@ const Regisztracio = () => {
                         </span>
                     </label>
                     {hiba && <p className="uzenet uzenet-hiba" role="alert">{hiba}</p>}
-                    <button className="gomb gomb-fo login-gomb" type="submit" disabled={folyamatban}>
+                    <button className="gomb gomb-fo belepes-gomb" type="submit" disabled={folyamatban}>
                         {folyamatban ? 'Regisztráció…' : 'Fiók létrehozása'}
                     </button>
                 </form>}
-                {!sikeres && <p className="login-valtas">
-                    Van már fiókod? <Link to="/login" state={location.state}>Jelentkezz be</Link>
+                {!sikeres && <p className="belepes-valtas">
+                    Van már fiókod? <Link to="/belepes" state={location.state}>Jelentkezz be</Link>
                 </p>}
             </section>
         </main>

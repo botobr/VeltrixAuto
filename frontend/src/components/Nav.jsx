@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { useKosar } from '../context/kosar';
 import Ikon from './Ikon';
 import './Nav.css';
 
 const Nav = () => {
-    const { user, munkatars, jog, logout } = useAuth();
+    const { felhasznalo, munkatars, jog, kijelentkezes } = useFelhasznalo();
     const { darab: kosarDarab } = useKosar();
     const navigate = useNavigate();
     const { pathname } = useLocation();
@@ -34,14 +34,14 @@ const Nav = () => {
             // Előbb a főoldalra lépünk: ha védett oldalról (pl. Fiók) jelentkezik ki, az különben
             // a kijelentkezés pillanatában a belépő oldalra irányítana.
             navigate('/');
-            await logout();
+            await kijelentkezes();
         } catch (error) {
             setHiba(error.message);
         }
     };
 
-    const monogram = (user?.nev || user?.email || '?').trim().charAt(0).toUpperCase();
-    const kedvencekSzama = user?.kedvencek?.length || 0;
+    const monogram = (felhasznalo?.nev || felhasznalo?.email || '?').trim().charAt(0).toUpperCase();
+    const kedvencekSzama = felhasznalo?.kedvencek?.length || 0;
 
     return (
         <header className={`nav-fejlec ${gorgetett ? 'nav-gorgetett' : ''} ${nyitva ? 'nav-nyitva' : ''}`}>
@@ -75,14 +75,14 @@ const Nav = () => {
                             <Ikon nev="kosar" meret={19} />
                             {kosarDarab > 0 && <span className="nav-jelveny">{kosarDarab > 99 ? '99+' : kosarDarab}</span>}
                         </Link>
-                        {user ? (
+                        {felhasznalo ? (
                             <>
                                 <Link className="nav-felhasznalo" to="/fiok" title="Fiókom">
                                     <span className="nav-avatar" aria-hidden="true">
                                         {monogram}
                                         {kedvencekSzama > 0 && <span className="nav-jelveny">{kedvencekSzama}</span>}
                                     </span>
-                                    <span className="nav-felhasznalo-nev">{user.nev || user.email}</span>
+                                    <span className="nav-felhasznalo-nev">{felhasznalo.nev || felhasznalo.email}</span>
                                 </Link>
                                 <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={handleLogout}>
                                     <Ikon nev="kilep" meret={15} /> Kilépés
@@ -95,7 +95,7 @@ const Nav = () => {
                             </>
                         ) : (
                             <>
-                                <Link className="gomb gomb-uveg gomb-kicsi" id="login-button" to="/login" state={{ from: pathname }}>Belépés</Link>
+                                <Link className="gomb gomb-uveg gomb-kicsi" id="belepes-gomb" to="/belepes" state={{ from: pathname }}>Belépés</Link>
                                 <Link className="gomb gomb-fo gomb-kicsi nav-cta" to="/regisztracio">Regisztráció</Link>
                             </>
                         )}

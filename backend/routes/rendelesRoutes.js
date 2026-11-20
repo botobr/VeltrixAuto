@@ -4,8 +4,8 @@ const mongoose = require('mongoose');
 const AlkatreszModel = require('../models/Alkatresz');
 const RendelesModel = require('../models/Rendeles');
 const TelephelyModel = require('../models/Telephely');
-const UserModel = require('../models/User');
-const { authRequired, jogSzukseges } = require('../middlewares/authMiddleware');
+const FelhasznaloModel = require('../models/Felhasznalo');
+const { bejelentkezesSzukseges, jogSzukseges } = require('../middlewares/authMiddleware');
 const { emailKuldes, oldalUrl } = require('../utils/email');
 const fizetes = require('../utils/fizetes');
 const korlatozo = require('../utils/rateLimit');
@@ -107,7 +107,7 @@ const vevoErtesites = (rendeles, kulcs, targy, bevezeto) => emailKuldes({
 const boltErtesites = async (rendeles) => {
     const cimzettek = process.env.ERTESITESI_EMAIL
         ? process.env.ERTESITESI_EMAIL.split(',').map((cim) => cim.trim())
-        : (await UserModel.find({ statusz: 'admin' }).select('email')).map((u) => u.email);
+        : (await FelhasznaloModel.find({ statusz: 'admin' }).select('email')).map((u) => u.email);
     return emailKuldes({
         cimzett: cimzettek,
         valaszCim: rendeles.vevo.email,
@@ -231,7 +231,7 @@ router.post('/rendelesek', rendelesLimit, async (req, res) => {
     const { tetelek, hianyzo } = await kosarBetoltese(body.tetelek);
     if (hianyzo.length) hibak.push('A kosárban van olyan termék, amely már nem elérhető. Frissítsd a kosarat.');
     if (tetelek.length === 0 && !hianyzo.length) hibak.push('A kosár üres.');
-    if (hibak.length) return res.status(400).json({ error: hibak[0], hibak });
+    if (hibak.length) return res.status(400).json({ hiba: hibak[0], hibak });
 
     // Készletfoglalás termékenként atomikusan; ha bármelyik nem sikerül, az eddigieket visszaadjuk.
     const lefoglalt = [];
@@ -247,7 +247,7 @@ router.post('/rendelesek', rendelesLimit, async (req, res) => {
         if (!eredmeny.modifiedCount) {
             await visszagorgetes();
             const friss = await AlkatreszModel.findById(tetel.alkatresz._id).select('keszlet nev');
-            return res.status(409).json({ error: `${tetel.alkatresz.nev}: ${friss?.keszlet ? `csak ${friss.keszlet} db van készleten` : 'elfogyott'}. Frissítsd a kosarat.` });
+            return res.status(409).json({ hiba: `${tetel.alkatresz.nev}: ${friss?.keszlet ? `csak ${friss.keszlet} db van készleten` : 'elfogyott'}. Frissítsd a kosarat.` });
         }
         lefoglalt.push(tetel);
     }
@@ -290,7 +290,7 @@ router.post('/rendelesek', rendelesLimit, async (req, res) => {
         } catch (error) {
             console.error(`Online fizetés indítása sikertelen (${rendeles.rendelesSzam}): ${error.message}`);
             await lemondas(rendeles, 'Az online fizetés nem indult el.');
-            return res.status(502).json({ error: 'Az online fizetés most nem indítható. Válassz másik fizetési módot, vagy próbáld újra később.' });
+            return res.status(502).json({ hiba: 'Az online fizetés most nem indítható. Válassz másik fizetési módot, vagy próbáld újra később.' });
         }
     }
 
@@ -312,7 +312,7 @@ const sajatRendeles = async (req) => {
 
 router.get('/rendelesek/:szam', async (req, res) => {
     const rendeles = await sajatRendeles(req);
-    if (!rendeles) return res.status(404).json({ error: 'A rendelés nem található.' });
+    if (!rendeles) return res.status(404).json({ hiba: 'A rendelés nem található.' });
     await rendeles.populate('szallitas.telephely', 'nev varos cim iranyitoszam telefon');
     return res.status(200).json({ rendeles: rendelesValasz(rendeles) });
 });
@@ -320,9 +320,9 @@ router.get('/rendelesek/:szam', async (req, res) => {
 /** Megszakított online fizetés újraindítása (amíg a rendelés fizetésre vár). */
 router.post('/rendelesek/:szam/fizetes', rendelesLimit, async (req, res) => {
     const rendeles = await sajatRendeles(req);
-    if (!rendeles) return res.status(404).json({ error: 'A rendelés nem található.' });
+    if (!rendeles) return res.status(404).json({ hiba: 'A rendelés nem található.' });
     if (rendeles.fizetes.mod !== 'kartya' || rendeles.statusz !== 'fizetesre_var' || !fizetes.kartyaElerheto()) {
-        return res.status(409).json({ error: 'Ennél a rendelésnél nincs függő online fizetés.' });
+        return res.status(409).json({ hiba: 'Ennél a rendelésnél nincs függő online fizetés.' });
     }
     try {
         const { url, munkamenetId } = await fizetes.fizetesInditasa(rendeles, rendeles.hozzaferesKulcs);
@@ -331,11 +331,11 @@ router.post('/rendelesek/:szam/fizetes', rendelesLimit, async (req, res) => {
         return res.status(200).json({ fizetesUrl: url });
     } catch (error) {
         console.error(`Online fizetés újraindítása sikertelen (${rendeles.rendelesSzam}): ${error.message}`);
-        return res.status(502).json({ error: 'Az online fizetés most nem indítható. Próbáld újra később.' });
+        return res.status(502).json({ hiba: 'Az online fizetés most nem indítható. Próbáld újra később.' });
     }
 });
 
-router.get('/fiok/rendelesek', authRequired, async (req, res) => {
+router.get('/fiok/rendelesek', bejelentkezesSzukseges, async (req, res) => {
     const rendelesek = await RendelesModel.find({ felhasznalo: req.session.userId }).sort({ createdAt: -1 }).limit(100);
     return res.status(200).json({ rendelesek: rendelesek.map((r) => rendelesValasz(r)) });
 });
@@ -347,12 +347,12 @@ router.get('/fiok/rendelesek', authRequired, async (req, res) => {
  * Csak az aktuális fizetési munkamenetre reagálunk, így egy korábbi, lejárt próbálkozás nem mond le egy újat.
  */
 const fizetesWebhook = async (req, res) => {
-    if (!fizetes.kartyaElerheto()) return res.status(404).json({ error: 'Az online fizetés nincs beállítva.' });
+    if (!fizetes.kartyaElerheto()) return res.status(404).json({ hiba: 'Az online fizetés nincs beállítva.' });
     let visszajelzes;
     try {
         visszajelzes = fizetes.webhookFeldolgozasa(req.body, req.headers['stripe-signature']);
     } catch {
-        return res.status(400).json({ error: 'Érvénytelen aláírás.' });
+        return res.status(400).json({ hiba: 'Érvénytelen aláírás.' });
     }
     const { tipus, munkamenetId } = visszajelzes;
     if (!tipus || !munkamenetId) return res.status(200).json({ fogadva: true });
@@ -414,20 +414,20 @@ router.get('/admin/rendelesek', jogSzukseges('rendelesKezeles'), async (req, res
 
 /** Státuszváltás, fizetés rögzítése (átutalás), belső megjegyzés. */
 router.patch('/admin/rendelesek/:id', jogSzukseges('rendelesKezeles'), async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'A rendelés nem található.' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ hiba: 'A rendelés nem található.' });
     const rendeles = await RendelesModel.findById(req.params.id).select('+hozzaferesKulcs');
-    if (!rendeles) return res.status(404).json({ error: 'A rendelés nem található.' });
+    if (!rendeles) return res.status(404).json({ hiba: 'A rendelés nem található.' });
     const body = req.body || {};
 
     if (body.belsoMegjegyzes !== undefined) {
         if (typeof body.belsoMegjegyzes !== 'string' || body.belsoMegjegyzes.length > 2000) {
-            return res.status(400).json({ error: 'A megjegyzés legfeljebb 2000 karakter lehet.' });
+            return res.status(400).json({ hiba: 'A megjegyzés legfeljebb 2000 karakter lehet.' });
         }
         rendeles.belsoMegjegyzes = body.belsoMegjegyzes.trim();
     }
 
     if (body.fizetve === true && rendeles.fizetes.statusz !== 'fizetve') {
-        if (rendeles.statusz === 'lemondva') return res.status(409).json({ error: 'Lemondott rendelésnél nem rögzíthető fizetés.' });
+        if (rendeles.statusz === 'lemondva') return res.status(409).json({ hiba: 'Lemondott rendelésnél nem rögzíthető fizetés.' });
         rendeles.fizetes.statusz = 'fizetve';
         rendeles.fizetes.fizetveEkkor = new Date();
         if (rendeles.statusz === 'fizetesre_var') rendeles.statusz = 'uj';
@@ -438,12 +438,12 @@ router.patch('/admin/rendelesek/:id', jogSzukseges('rendelesKezeles'), async (re
     if (body.statusz !== undefined && body.statusz !== rendeles.statusz) {
         const uj = body.statusz;
         if (!KOVETKEZO_STATUSZOK[rendeles.szallitas.mod].includes(uj)) {
-            return res.status(400).json({ error: 'Ennél a szállítási módnál ez a státusz nem választható.' });
+            return res.status(400).json({ hiba: 'Ennél a szállítási módnál ez a státusz nem választható.' });
         }
-        if (rendeles.statusz === 'lemondva') return res.status(409).json({ error: 'Lemondott rendelés nem állítható vissza (a készlet már visszakerült).' });
-        if (rendeles.statusz === 'teljesitve' && uj === 'lemondva') return res.status(409).json({ error: 'Teljesített rendelés nem mondható le.' });
+        if (rendeles.statusz === 'lemondva') return res.status(409).json({ hiba: 'Lemondott rendelés nem állítható vissza (a készlet már visszakerült).' });
+        if (rendeles.statusz === 'teljesitve' && uj === 'lemondva') return res.status(409).json({ hiba: 'Teljesített rendelés nem mondható le.' });
         if (uj !== 'lemondva' && rendeles.fizetes.statusz !== 'fizetve' && rendeles.fizetes.mod !== 'utanvet' && rendeles.fizetes.mod !== 'helyszinen') {
-            return res.status(409).json({ error: 'A rendelés még nincs kifizetve. Előbb rögzítsd a fizetést.' });
+            return res.status(409).json({ hiba: 'A rendelés még nincs kifizetve. Előbb rögzítsd a fizetést.' });
         }
         if (uj === 'lemondva') {
             await lemondas(rendeles, szoveg(body.megjegyzes, 300) || 'Lemondva a kereskedő által.');

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { apiKeres } from '../../lib/api';
 import { autoNev, autoUrl, formatDatum, formatSzam, formatTizedes, kepMeret } from '../../lib/auto';
 import { olvas, ir } from '../../lib/tarolo';
@@ -409,7 +409,7 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
 };
 
 const AdminDashboard = () => {
-    const { jog } = useAuth();
+    const { jog } = useFelhasznalo();
     const [idoszak, setIdoszak] = useState(() => {
         const mentett = olvas(TAROLO_KULCS, '30');
         return IDOSZAKOK.some(([kulcs]) => kulcs === mentett) ? mentett : '30';

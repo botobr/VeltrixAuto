@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import AlkatreszKartya, { ArKijelzes, KosarbaGomb } from '../components/AlkatreszKartya';
 import Galeria from '../components/Galeria';
 import Ikon from '../components/Ikon';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { useKosar } from '../context/kosar';
 import { apiKeres } from '../lib/api';
 import { useSeo } from '../lib/useSeo';
@@ -169,7 +169,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
 const AlkatreszReszletek = () => {
     const { slug } = useParams();
     const navigate = useNavigate();
-    const { munkatars } = useAuth();
+    const { munkatars } = useFelhasznalo();
     const [adat, setAdat] = useState({ slug: null, alkatresz: null, kapcsolodok: [], hiba: null });
 
     useEffect(() => {

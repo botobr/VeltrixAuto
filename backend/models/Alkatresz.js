@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { kepSchema } = require('./Autok');
+const { kepSchema } = require('./Auto');
 const { KATEGORIAK, egysegar } = require('../utils/webshop');
 
 /** Mely autókra illik: üres modell = a márka minden modellje; üres évjárat = nincs korlát. */

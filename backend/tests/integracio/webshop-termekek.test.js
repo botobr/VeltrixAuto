@@ -17,7 +17,7 @@ test('termék létrehozása: validáció, ismétlődő cikkszám, kompatibilitá
 
     const ismetlodo = await ertekesito.post('/admin/alkatreszek', k.alkatreszUrlap({ cikkszam: 'KW-35220' }));
     assert.equal(ismetlodo.status, 400);
-    assert.match(ismetlodo.adat.error, /cikkszámmal/);
+    assert.match(ismetlodo.adat.hiba, /cikkszámmal/);
 
     const nemIllik = await ertekesito.post('/admin/alkatreszek', k.alkatreszUrlap({ kompatibilitas: [] }));
     assert.equal(nemIllik.status, 400);

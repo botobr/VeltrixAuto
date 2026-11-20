@@ -6,8 +6,8 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const mongoose = require('mongoose');
-const dbConnection = require('../utils/dbConnect');
-const UserModel = require('../models/User');
+const adatbazisKapcsolodas = require('../utils/adatbazis');
+const FelhasznaloModel = require('../models/Felhasznalo');
 
 const [email, nev, jelszo] = process.argv.slice(2);
 
@@ -17,14 +17,14 @@ const futtatas = async () => {
         process.exitCode = 1;
         return;
     }
-    await dbConnection();
-    const meglevo = await UserModel.findOne({ email: email.trim().toLowerCase() });
+    await adatbazisKapcsolodas();
+    const meglevo = await FelhasznaloModel.findOne({ email: email.trim().toLowerCase() });
     if (meglevo) {
         meglevo.statusz = 'admin';
         await meglevo.save();
         console.log(`${meglevo.email} mostantól admin.`);
     } else {
-        await UserModel.create({ nev, email, jelszo, statusz: 'admin' });
+        await FelhasznaloModel.create({ nev, email, jelszo, statusz: 'admin' });
         console.log(`Admin létrehozva: ${email}`);
     }
 };

@@ -1,13 +1,13 @@
 const crypto = require('node:crypto');
 const express = require('express');
-const UserModel = require('../models/User');
-const publicUser = require('../utils/userResponse');
-const { authRequired } = require('../middlewares/authMiddleware');
+const FelhasznaloModel = require('../models/Felhasznalo');
+const felhasznaloValasz = require('../utils/felhasznaloValasz');
+const { bejelentkezesSzukseges } = require('../middlewares/authMiddleware');
 const korlatozo = require('../utils/rateLimit');
 const { emailKuldes, oldalUrl } = require('../utils/email');
 
 const router = express.Router();
-const loginProbal = new Map();
+const belepesiProbalkozasok = new Map();
 
 const EMAIL_MINTA = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const regisztracioLimit = korlatozo({ ablakMs: 60 * 60 * 1000, max: 5, uzenet: 'Túl sok regisztráció erről a címről. Próbáld újra később.' });
@@ -49,23 +49,23 @@ const jelszoVisszaallitoEmailKuldese = (user, token) => emailKuldes({
     ].join('\n'),
 });
 
-const loginLimit = (req, res, next) => {
+const belepesKorlat = (req, res, next) => {
     const ip = req.ip;
-    const probalkozas = loginProbal.get(ip);
+    const probalkozas = belepesiProbalkozasok.get(ip);
     if (probalkozas && probalkozas.letiltvaEddig > Date.now()) {
         const masodperc = Math.ceil((probalkozas.letiltvaEddig - Date.now()) / 1000);
-        return res.status(429).json({ error: `Túl sok próbálkozás. Próbáld újra ${masodperc} másodperc múlva.` });
+        return res.status(429).json({ hiba: `Túl sok próbálkozás. Próbáld újra ${masodperc} másodperc múlva.` });
     }
     next();
 };
 
-const sikertelenLogin = (ip) => {
-    const probalkozas = loginProbal.get(ip) || { db: 0 };
+const sikertelenBelepes = (ip) => {
+    const probalkozas = belepesiProbalkozasok.get(ip) || { db: 0 };
     probalkozas.db += 1;
     if (probalkozas.db >= 5) {
         probalkozas.letiltvaEddig = Date.now() + 15 * 60 * 1000;
     }
-    loginProbal.set(ip, probalkozas);
+    belepesiProbalkozasok.set(ip, probalkozas);
 };
 
 /** Új munkamenetet indít a felhasználónak (session fixation ellen). */
@@ -81,83 +81,83 @@ const bejelentkeztetes = (req, user) => new Promise((resolve, reject) => {
     });
 });
 
-router.post('/login', loginLimit, async (req, res) => {
+router.post('/bejelentkezes', belepesKorlat, async (req, res) => {
     const { email, jelszo } = req.body || {};
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-    if (!normalizedEmail || typeof jelszo !== 'string' || !jelszo) {
-        return res.status(400).json({ error: 'Email és jelszó megadása kötelező.' });
+    const tisztitottEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!tisztitottEmail || typeof jelszo !== 'string' || !jelszo) {
+        return res.status(400).json({ hiba: 'Email és jelszó megadása kötelező.' });
     }
-    const user = await UserModel.findOne({ email: normalizedEmail });
+    const user = await FelhasznaloModel.findOne({ email: tisztitottEmail });
 
-    if (!user || !(await user.comparePassword(jelszo))) {
-        sikertelenLogin(req.ip);
-        return res.status(401).json({ error: 'Hibás email vagy jelszó!' });
+    if (!user || !(await user.jelszoEgyezik(jelszo))) {
+        sikertelenBelepes(req.ip);
+        return res.status(401).json({ hiba: 'Hibás email vagy jelszó!' });
     }
 
     if (!user.emailHitelesitve) {
-        return res.status(403).json({ error: 'Előbb erősítsd meg az e-mail-címedet.' });
+        return res.status(403).json({ hiba: 'Előbb erősítsd meg az e-mail-címedet.' });
     }
 
-    loginProbal.delete(req.ip);
+    belepesiProbalkozasok.delete(req.ip);
     await bejelentkeztetes(req, user);
     return res.status(200).json({
-        message: 'Sikeres bejelentkezés!',
-        user: publicUser(user),
+        uzenet: 'Sikeres bejelentkezés!',
+        felhasznalo: felhasznaloValasz(user),
     });
 });
 
-router.post('/register', regisztracioLimit, async (req, res) => {
+router.post('/regisztracio', regisztracioLimit, async (req, res) => {
     const { nev, email, jelszo, weboldal, adatkezeles } = req.body || {};
     // Rejtett mező: ha ki van töltve, robot küldte.
     if (typeof weboldal === 'string' && weboldal.trim()) {
-        return res.status(400).json({ error: 'A regisztráció nem sikerült.' });
+        return res.status(400).json({ hiba: 'A regisztráció nem sikerült.' });
     }
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const tisztitottEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     if (typeof nev !== 'string' || nev.trim().length < 2 || nev.trim().length > 100) {
-        return res.status(400).json({ error: 'Add meg a neved (2–100 karakter).' });
+        return res.status(400).json({ hiba: 'Add meg a neved (2–100 karakter).' });
     }
-    if (!EMAIL_MINTA.test(normalizedEmail)) {
-        return res.status(400).json({ error: 'Érvényes e-mail-címet adj meg.' });
+    if (!EMAIL_MINTA.test(tisztitottEmail)) {
+        return res.status(400).json({ hiba: 'Érvényes e-mail-címet adj meg.' });
     }
     if (typeof jelszo !== 'string' || jelszo.length < 8 || jelszo.length > 200) {
-        return res.status(400).json({ error: 'A jelszó legalább 8 karakter legyen.' });
+        return res.status(400).json({ hiba: 'A jelszó legalább 8 karakter legyen.' });
     }
     if (adatkezeles !== true) {
-        return res.status(400).json({ error: 'A regisztrációhoz el kell fogadnod az adatkezelési tájékoztatót.' });
+        return res.status(400).json({ hiba: 'A regisztrációhoz el kell fogadnod az adatkezelési tájékoztatót.' });
     }
-    if (await UserModel.exists({ email: normalizedEmail })) {
-        return res.status(409).json({ error: 'Ezzel az e-mail-címmel már regisztráltak.' });
+    if (await FelhasznaloModel.exists({ email: tisztitottEmail })) {
+        return res.status(409).json({ hiba: 'Ezzel az e-mail-címmel már regisztráltak.' });
     }
 
     // Nyilvános regisztrációval mindig normál felhasználó jön létre.
     const { token, hash } = tokenLetrehozasa();
-    const user = await UserModel.create({
-        nev: nev.trim(), email: normalizedEmail, jelszo, statusz: 'felhasznalo',
+    const user = await FelhasznaloModel.create({
+        nev: nev.trim(), email: tisztitottEmail, jelszo, statusz: 'felhasznalo',
         emailHitelesitve: false,
         emailHitelesitoTokenHash: hash,
         emailHitelesitoLejarat: new Date(Date.now() + TOKEN_LEJARAT_MS),
     });
     hitelesitoEmailKuldese(user, token);
-    return res.status(201).json({ message: 'Regisztráció sikeres. Ellenőrizd az e-mail-fiókodat!', user: publicUser(user) });
+    return res.status(201).json({ uzenet: 'Regisztráció sikeres. Ellenőrizd az e-mail-fiókodat!', felhasznalo: felhasznaloValasz(user) });
 });
 
-router.post('/verify-email', emailLimit, async (req, res) => {
+router.post('/email-megerosites', emailLimit, async (req, res) => {
     const hash = tokenHash(req.body?.token);
     const user = hash
-        ? await UserModel.findOne({ emailHitelesitoTokenHash: hash, emailHitelesitoLejarat: { $gt: new Date() } }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat')
+        ? await FelhasznaloModel.findOne({ emailHitelesitoTokenHash: hash, emailHitelesitoLejarat: { $gt: new Date() } }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat')
         : null;
-    if (!user) return res.status(400).json({ error: 'A megerősítő link érvénytelen vagy lejárt.' });
+    if (!user) return res.status(400).json({ hiba: 'A megerősítő link érvénytelen vagy lejárt.' });
 
     user.emailHitelesitve = true;
     user.emailHitelesitoTokenHash = null;
     user.emailHitelesitoLejarat = null;
     await user.save();
-    return res.status(200).json({ message: 'E-mail-cím megerősítve. Most már bejelentkezhetsz.', user: publicUser(user) });
+    return res.status(200).json({ uzenet: 'E-mail-cím megerősítve. Most már bejelentkezhetsz.', felhasznalo: felhasznaloValasz(user) });
 });
 
-router.post('/resend-verification', emailLimit, async (req, res) => {
-    const normalizedEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    const user = EMAIL_MINTA.test(normalizedEmail) ? await UserModel.findOne({ email: normalizedEmail }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat') : null;
+router.post('/megerosites-ujrakuldese', emailLimit, async (req, res) => {
+    const tisztitottEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const user = EMAIL_MINTA.test(tisztitottEmail) ? await FelhasznaloModel.findOne({ email: tisztitottEmail }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat') : null;
     if (user && !user.emailHitelesitve) {
         const { token, hash } = tokenLetrehozasa();
         user.emailHitelesitoTokenHash = hash;
@@ -165,12 +165,12 @@ router.post('/resend-verification', emailLimit, async (req, res) => {
         await user.save();
         hitelesitoEmailKuldese(user, token);
     }
-    return res.status(200).json({ message: 'Ha ehhez a címhez nemrég regisztráltak, új megerősítő linket küldtünk.' });
+    return res.status(200).json({ uzenet: 'Ha ehhez a címhez nemrég regisztráltak, új megerősítő linket küldtünk.' });
 });
 
-router.post('/forgot-password', emailLimit, async (req, res) => {
-    const normalizedEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    const user = EMAIL_MINTA.test(normalizedEmail) ? await UserModel.findOne({ email: normalizedEmail }).select('+jelszoVisszaallitoTokenHash +jelszoVisszaallitoLejarat') : null;
+router.post('/elfelejtett-jelszo', emailLimit, async (req, res) => {
+    const tisztitottEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const user = EMAIL_MINTA.test(tisztitottEmail) ? await FelhasznaloModel.findOne({ email: tisztitottEmail }).select('+jelszoVisszaallitoTokenHash +jelszoVisszaallitoLejarat') : null;
     if (user) {
         const { token, hash } = tokenLetrehozasa();
         user.jelszoVisszaallitoTokenHash = hash;
@@ -178,110 +178,110 @@ router.post('/forgot-password', emailLimit, async (req, res) => {
         await user.save();
         jelszoVisszaallitoEmailKuldese(user, token);
     }
-    return res.status(200).json({ message: 'Ha létezik ilyen fiók, elküldtük a jelszó-visszaállító linket.' });
+    return res.status(200).json({ uzenet: 'Ha létezik ilyen fiók, elküldtük a jelszó-visszaállító linket.' });
 });
 
-router.post('/reset-password', emailLimit, async (req, res) => {
+router.post('/jelszo-visszaallitas', emailLimit, async (req, res) => {
     const jelszo = req.body?.jelszo;
     const hash = tokenHash(req.body?.token);
     if (typeof jelszo !== 'string' || jelszo.length < 8 || jelszo.length > 200) {
-        return res.status(400).json({ error: 'Az új jelszó legalább 8 karakter legyen.' });
+        return res.status(400).json({ hiba: 'Az új jelszó legalább 8 karakter legyen.' });
     }
     const user = hash
-        ? await UserModel.findOne({ jelszoVisszaallitoTokenHash: hash, jelszoVisszaallitoLejarat: { $gt: new Date() } }).select('+jelszoVisszaallitoTokenHash +jelszoVisszaallitoLejarat')
+        ? await FelhasznaloModel.findOne({ jelszoVisszaallitoTokenHash: hash, jelszoVisszaallitoLejarat: { $gt: new Date() } }).select('+jelszoVisszaallitoTokenHash +jelszoVisszaallitoLejarat')
         : null;
-    if (!user) return res.status(400).json({ error: 'A jelszó-visszaállító link érvénytelen vagy lejárt.' });
+    if (!user) return res.status(400).json({ hiba: 'A jelszó-visszaállító link érvénytelen vagy lejárt.' });
 
     user.jelszo = jelszo;
     user.jelszoVisszaallitoTokenHash = null;
     user.jelszoVisszaallitoLejarat = null;
     await user.save();
-    return res.status(200).json({ message: 'A jelszavad frissült. Most már bejelentkezhetsz.' });
+    return res.status(200).json({ uzenet: 'A jelszavad frissült. Most már bejelentkezhetsz.' });
 });
 
-router.get('/me', authRequired, async (req, res) => {
-    const user = await UserModel.findById(req.session.userId).select('-jelszo');
+router.get('/profil', bejelentkezesSzukseges, async (req, res) => {
+    const user = await FelhasznaloModel.findById(req.session.userId).select('-jelszo');
     if (!user) {
-        return res.status(404).json({ error: 'Felhasználó nem található!' });
+        return res.status(404).json({ hiba: 'Felhasználó nem található!' });
     }
     // Ha egy admin közben módosította a szerepkört, a munkamenet is kövesse.
     req.session.statusz = user.statusz;
-    return res.status(200).json({ user: publicUser(user) });
+    return res.status(200).json({ felhasznalo: felhasznaloValasz(user) });
 });
 
 /** Saját profil módosítása. E-mail- vagy jelszócseréhez a jelenlegi jelszó szükséges. */
-router.put('/me', authRequired, async (req, res) => {
+router.put('/profil', bejelentkezesSzukseges, async (req, res) => {
     const { nev, email, jelenlegiJelszo, ujJelszo } = req.body || {};
-    const user = await UserModel.findById(req.session.userId);
+    const user = await FelhasznaloModel.findById(req.session.userId);
     if (!user) {
-        return res.status(404).json({ error: 'Felhasználó nem található!' });
+        return res.status(404).json({ hiba: 'Felhasználó nem található!' });
     }
 
     if (typeof nev !== 'string' || nev.trim().length < 2 || nev.trim().length > 100) {
-        return res.status(400).json({ error: 'Add meg a neved (2–100 karakter).' });
+        return res.status(400).json({ hiba: 'Add meg a neved (2–100 karakter).' });
     }
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-    if (!EMAIL_MINTA.test(normalizedEmail)) {
-        return res.status(400).json({ error: 'Érvényes e-mail-címet adj meg.' });
+    const tisztitottEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!EMAIL_MINTA.test(tisztitottEmail)) {
+        return res.status(400).json({ hiba: 'Érvényes e-mail-címet adj meg.' });
     }
-    const emailValtozik = normalizedEmail !== user.email;
+    const emailValtozik = tisztitottEmail !== user.email;
     const jelszoValtozik = typeof ujJelszo === 'string' && ujJelszo.length > 0;
 
     if (jelszoValtozik && (ujJelszo.length < 8 || ujJelszo.length > 200)) {
-        return res.status(400).json({ error: 'Az új jelszó legalább 8 karakter legyen.' });
+        return res.status(400).json({ hiba: 'Az új jelszó legalább 8 karakter legyen.' });
     }
     if ((emailValtozik || jelszoValtozik)
-        && (typeof jelenlegiJelszo !== 'string' || !(await user.comparePassword(jelenlegiJelszo)))) {
-        return res.status(403).json({ error: 'A jelenlegi jelszó nem megfelelő.' });
+        && (typeof jelenlegiJelszo !== 'string' || !(await user.jelszoEgyezik(jelenlegiJelszo)))) {
+        return res.status(403).json({ hiba: 'A jelenlegi jelszó nem megfelelő.' });
     }
 
     user.nev = nev.trim();
     if (jelszoValtozik) user.jelszo = ujJelszo;
     if (emailValtozik) {
         const { token, hash } = tokenLetrehozasa();
-        user.email = normalizedEmail;
+        user.email = tisztitottEmail;
         user.emailHitelesitve = false;
         user.emailHitelesitoTokenHash = hash;
         user.emailHitelesitoLejarat = new Date(Date.now() + TOKEN_LEJARAT_MS);
         await user.save();
         hitelesitoEmailKuldese(user, token);
-        return res.status(200).json({ message: 'Profil frissítve. Az új e-mail-címet erősítsd meg a postaládádban.', user: publicUser(user) });
+        return res.status(200).json({ uzenet: 'Profil frissítve. Az új e-mail-címet erősítsd meg a postaládádban.', felhasznalo: felhasznaloValasz(user) });
     }
     await user.save();
-    return res.status(200).json({ message: 'Profil frissítve.', user: publicUser(user) });
+    return res.status(200).json({ uzenet: 'Profil frissítve.', felhasznalo: felhasznaloValasz(user) });
 });
 
 /** Fiók törlése (GDPR – elfeledtetéshez való jog). */
-router.delete('/me', authRequired, async (req, res) => {
-    const user = await UserModel.findById(req.session.userId);
+router.delete('/profil', bejelentkezesSzukseges, async (req, res) => {
+    const user = await FelhasznaloModel.findById(req.session.userId);
     if (!user) {
-        return res.status(404).json({ error: 'Felhasználó nem található!' });
+        return res.status(404).json({ hiba: 'Felhasználó nem található!' });
     }
-    if (typeof req.body?.jelszo !== 'string' || !(await user.comparePassword(req.body.jelszo))) {
-        return res.status(403).json({ error: 'A jelszó nem megfelelő.' });
+    if (typeof req.body?.jelszo !== 'string' || !(await user.jelszoEgyezik(req.body.jelszo))) {
+        return res.status(403).json({ hiba: 'A jelszó nem megfelelő.' });
     }
-    if (user.statusz === 'admin' && (await UserModel.countDocuments({ statusz: 'admin' })) <= 1) {
-        return res.status(409).json({ error: 'Az utolsó admin fiók nem törölhető.' });
+    if (user.statusz === 'admin' && (await FelhasznaloModel.countDocuments({ statusz: 'admin' })) <= 1) {
+        return res.status(409).json({ hiba: 'Az utolsó admin fiók nem törölhető.' });
     }
     await user.deleteOne();
     req.session.destroy(() => {
         res.clearCookie('connect.sid');
-        res.status(200).json({ message: 'A fiókodat töröltük.' });
+        res.status(200).json({ uzenet: 'A fiókodat töröltük.' });
     });
     return undefined;
 });
 
-router.post('/logout', authRequired, (req, res) => {
+router.post('/kijelentkezes', bejelentkezesSzukseges, (req, res) => {
     req.session.destroy((error) => {
         if (error) {
-            return res.status(500).json({ error: `Hiba: ${error.message}` });
+            return res.status(500).json({ hiba: `Hiba: ${error.message}` });
         }
 
         res.clearCookie('connect.sid');
-        return res.status(200).json({ message: 'Sikeres kijelentkezés!' });
+        return res.status(200).json({ uzenet: 'Sikeres kijelentkezés!' });
     });
 });
 
 module.exports = router;
 /** A sikertelen bejelentkezések számlálójának törlése – csak tesztkörnyezetből hívjuk. */
-module.exports.loginProbalkozasokTorlese = () => loginProbal.clear();
+module.exports.belepesiProbalkozasokTorlese = () => belepesiProbalkozasok.clear();

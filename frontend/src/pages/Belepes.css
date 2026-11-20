@@ -1,4 +1,4 @@
-.login-oldal {
+.belepes-oldal {
     display: grid;
     min-height: calc(100vh - 160px);
     padding: 48px 16px;
@@ -6,7 +6,7 @@
     position: relative;
 }
 
-.login-oldal::before {
+.belepes-oldal::before {
     background: var(--gradiens);
     border-radius: 50%;
     content: '';
@@ -18,13 +18,13 @@
     z-index: -1;
 }
 
-.login-kartya {
+.belepes-kartya {
     max-width: 440px;
     padding: clamp(28px, 6vw, 44px);
     width: 100%;
 }
 
-.login-disz {
+.belepes-disz {
     align-items: center;
     background: var(--gradiens);
     border-radius: 16px;
@@ -40,31 +40,31 @@
     width: 52px;
 }
 
-.login-kartya h1 {
+.belepes-kartya h1 {
     font-size: clamp(1.8rem, 6vw, 2.3rem);
     margin: 18px 0 0;
 }
 
-.login-leiras {
+.belepes-leiras {
     color: var(--halvany);
     line-height: 1.7;
     margin: 10px 0 28px;
 }
 
-.login-urlap {
+.belepes-urlap {
     display: grid;
     gap: 18px;
 }
 
-.login-jelszo {
+.belepes-jelszo {
     position: relative;
 }
 
-.login-jelszo .bemenet {
+.belepes-jelszo .bemenet {
     padding-right: 84px;
 }
 
-.login-mutat {
+.belepes-mutat {
     background: var(--panel);
     border: 1px solid var(--vonal);
     border-radius: 8px;
@@ -79,28 +79,28 @@
     transform: translateY(-50%);
 }
 
-.login-mutat:hover {
+.belepes-mutat:hover {
     color: var(--szoveg);
 }
 
-.login-gomb {
+.belepes-gomb {
     margin-top: 6px;
     width: 100%;
 }
 
-.login-valtas {
+.belepes-valtas {
     color: var(--halvany);
     font-size: 0.9rem;
     margin: 24px 0 0;
     text-align: center;
 }
 
-.login-valtas a {
+.belepes-valtas a {
     color: var(--szoveg);
     font-weight: 700;
 }
 
-.login-elonyok {
+.belepes-elonyok {
     display: grid;
     gap: 10px;
     list-style: none;
@@ -108,7 +108,7 @@
     padding: 0;
 }
 
-.login-elonyok li {
+.belepes-elonyok li {
     align-items: center;
     color: var(--halvany);
     display: flex;
@@ -116,12 +116,12 @@
     gap: 10px;
 }
 
-.login-elonyok .ikon {
+.belepes-elonyok .ikon {
     color: var(--tuz-2);
     flex: none;
 }
 
-.login-vissza {
+.belepes-vissza {
     color: var(--halvany);
     display: block;
     font-size: 0.9rem;
@@ -130,6 +130,6 @@
     text-decoration: none;
 }
 
-.login-vissza:hover {
+.belepes-vissza:hover {
     color: var(--szoveg);
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { useKosar } from '../context/kosar';
 import { apiKeres } from '../lib/api';
 import { useKosarEllenorzes } from '../lib/useKosarEllenorzes';
@@ -42,10 +42,10 @@ const Valasztas = ({ nev, ertek, aktualis, onValaszt, cim, leiras, jobb }) => (
 const ures = { iranyitoszam: '', varos: '', cim: '' };
 
 const Penztar = () => {
-    const { user } = useAuth();
+    const { felhasznalo } = useFelhasznalo();
     const { tetelek, urites } = useKosar();
     const navigate = useNavigate();
-    const [vevo, setVevo] = useState({ nev: user?.nev || '', email: user?.email || '', telefon: '' });
+    const [vevo, setVevo] = useState({ nev: felhasznalo?.nev || '', email: felhasznalo?.email || '', telefon: '' });
     const [szallitasiMod, setSzallitasiMod] = useState(null);
     const [telephely, setTelephely] = useState('');
     const [szallitasiCim, setSzallitasiCim] = useState(ures);
@@ -124,7 +124,7 @@ const Penztar = () => {
                                 <input className="bemenet" type="tel" required maxLength={40} autoComplete="tel" placeholder="+36 30 123 4567" value={vevo.telefon} onChange={(e) => beallito(setVevo)('telefon', e.target.value)} />
                             </Mezo>
                         </div>
-                        {!user && <p className="penztar-sugo">Van fiókod? <Link to="/login" state={{ from: '/penztar' }}>Jelentkezz be</Link>, és a rendeléseidet a Fiókomban is látod.</p>}
+                        {!felhasznalo && <p className="penztar-sugo">Van fiókod? <Link to="/belepes" state={{ from: '/penztar' }}>Jelentkezz be</Link>, és a rendeléseidet a Fiókomban is látod.</p>}
                     </fieldset>
 
                     <fieldset className="uveg penztar-blokk">

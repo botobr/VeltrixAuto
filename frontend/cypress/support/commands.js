@@ -15,7 +15,7 @@ Cypress.Commands.add('visszaallitas', () => {
 /** Bejelentkezés felület nélkül (API-n keresztül) – a gyors előkészítéshez. Szerepkör: admin | ertekesito | vasarlo. */
 Cypress.Commands.add('bejelentkezes', (szerep) => {
     const email = { admin: 'admin@teszt.hu', ertekesito: 'ertekesito@teszt.hu', vasarlo: 'vasarlo@teszt.hu' }[szerep];
-    return cy.request('POST', api('/api/auth/login'), { email, jelszo: 'Teszt1234' });
+    return cy.request('POST', api('/api/auth/bejelentkezes'), { email, jelszo: 'Teszt1234' });
 });
 
 /** Űrlapmező a címkéje alapján (pl. cy.mezo('Teljes név')). */

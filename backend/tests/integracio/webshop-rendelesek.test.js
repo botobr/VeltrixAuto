@@ -71,7 +71,7 @@ test('hiányzó készlet: 409, és a már lefoglalt tételek visszakerülnek', a
     const masodik = await k.alkatreszMentese({ keszlet: 1 });
     const valasz = await k.kliens().post('/rendelesek', k.rendelesTorzs([tetel(elso, 2), tetel(masodik, 3)]));
     assert.equal(valasz.status, 409);
-    assert.match(valasz.adat.error, /csak 1 db/);
+    assert.match(valasz.adat.hiba, /csak 1 db/);
     assert.equal(await keszlet(elso), 5);
     assert.equal(await keszlet(masodik), 1);
     assert.equal(await RendelesModel.countDocuments(), 0);

@@ -9,7 +9,7 @@ import HitelKalkulator from '../components/HitelKalkulator';
 import Ikon from '../components/Ikon';
 import Megosztas from '../components/Megosztas';
 import TelephelyInfo from '../components/TelephelyInfo';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { apiKeres } from '../lib/api';
 import { FELSZERELTSEG_CSOPORTOK, STATUSZOK, autoNev, formatAr, formatSzam, muszakiAdatok } from '../lib/auto';
 import { CEG } from '../lib/ceg';
@@ -321,7 +321,7 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
 const AutoReszletek = () => {
     const { slug } = useParams();
     const navigate = useNavigate();
-    const { munkatars } = useAuth();
+    const { munkatars } = useFelhasznalo();
     const [adat, setAdat] = useState({ slug: null, auto: null, hasonlok: [], hiba: null });
 
     useEffect(() => {

@@ -1,5 +1,5 @@
 const express = require('express');
-const AutokModel = require('../models/Autok');
+const AutoModel = require('../models/Auto');
 const ErdeklodesModel = require('../models/Erdeklodes');
 const { jogSzukseges } = require('../middlewares/authMiddleware');
 const { vanJoga } = require('../utils/jogosultsagok');
@@ -20,7 +20,7 @@ router.get('/admin/autok', async (req, res) => {
     if (req.query.lathatosag === 'kiemelt') feltetelek.push({ kiemelt: true });
     const szuro = feltetelek.length ? { $and: feltetelek } : {};
 
-    const autok = await AutokModel.find(szuro)
+    const autok = await AutoModel.find(szuro)
         .sort(req.query.rendezes === 'megtekintes' ? { megtekintesek: -1 } : rendezesEpitese(req.query.rendezes))
         .limit(500)
         .populate('telephely', 'nev varos');

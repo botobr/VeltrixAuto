@@ -10,7 +10,10 @@ const skala = (max, egesz) => {
     const nyers = max / 4;
     const nagysag = 10 ** Math.floor(Math.log10(nyers));
     const normalt = nyers / nagysag;
-    let lepes = (normalt <= 1 ? 1 : normalt <= 2 ? 2 : normalt <= 5 ? 5 : 10) * nagysag;
+    let lepes = 10 * nagysag;
+    if (normalt <= 1) lepes = nagysag;
+    else if (normalt <= 2) lepes = 2 * nagysag;
+    else if (normalt <= 5) lepes = 5 * nagysag;
     if (egesz) lepes = Math.max(1, Math.round(lepes));
     const teteje = Math.ceil(max / lepes) * lepes;
     return { lepes, teteje, racs: Array.from({ length: Math.round(teteje / lepes) + 1 }, (_, i) => i * lepes) };

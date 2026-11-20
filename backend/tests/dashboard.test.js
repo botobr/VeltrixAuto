@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const AutokModel = require('../models/Autok');
+const AutoModel = require('../models/Auto');
 const { autoAdatokEllenorzese } = require('../utils/autoMezok');
 const {
     arSavokKitoltese, budapestiNap, idoszakFeldolgozasa, idosorKitoltese,
@@ -71,14 +71,14 @@ const alapAuto = () => ({
 });
 
 test('eladás: elkelt autónál a dátum és az ár (vételár) automatikusan kitöltődik', async () => {
-    const auto = new AutokModel({ ...alapAuto(), statusz: 'elkelt' });
+    const auto = new AutoModel({ ...alapAuto(), statusz: 'elkelt' });
     await auto.validate();
     assert.ok(auto.eladas_datum instanceof Date);
     assert.equal(auto.eladasi_ar, 8990000);
 });
 
 test('eladás: megadott eladási ár megmarad, visszaállításkor törlődik', async () => {
-    const auto = new AutokModel({ ...alapAuto(), statusz: 'elkelt', eladasi_ar: 8500000 });
+    const auto = new AutoModel({ ...alapAuto(), statusz: 'elkelt', eladasi_ar: 8500000 });
     await auto.validate();
     assert.equal(auto.eladasi_ar, 8500000);
 

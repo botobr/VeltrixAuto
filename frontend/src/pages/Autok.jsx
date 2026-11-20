@@ -3,7 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import AutoKartya, { AutoKartyaVaz } from '../components/AutoKartya';
 import Ikon from '../components/Ikon';
 import SzuroPanel from '../components/SzuroPanel';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { apiKeres } from '../lib/api';
 import { formatSzam } from '../lib/auto';
 import { CIMKE_PARAMETEREK, RENDEZESEK, aktivSzurokSzama, szuroCimkek, szurokParamsbol } from '../lib/szurok';
@@ -13,16 +13,16 @@ import './Autok.css';
 const OLDAL_MERET = 12;
 
 const KeresesMentese = ({ szurok }) => {
-    const { user } = useAuth();
+    const { felhasznalo } = useFelhasznalo();
     const location = useLocation();
     const [nyitva, setNyitva] = useState(false);
     const [nev, setNev] = useState('');
     const [ertesites, setErtesites] = useState(true);
     const [allapot, setAllapot] = useState(null);
 
-    if (!user) {
+    if (!felhasznalo) {
         return (
-            <Link className="gomb gomb-uveg gomb-kicsi" to="/login" state={{ from: location.pathname + location.search, uzenet: 'A keresés mentéséhez jelentkezz be.' }}>
+            <Link className="gomb gomb-uveg gomb-kicsi" to="/belepes" state={{ from: location.pathname + location.search, uzenet: 'A keresés mentéséhez jelentkezz be.' }}>
                 <Ikon nev="harang" meret={15} /> Keresés mentése
             </Link>
         );

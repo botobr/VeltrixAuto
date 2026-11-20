@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Ikon from '../../components/Ikon';
-import { useAuth } from '../../context/auth';
+import { useFelhasznalo } from '../../context/felhasznalo';
 import { apiKeres } from '../../lib/api';
 import { formatSzam, kepMeret } from '../../lib/auto';
 import { KATEGORIAK, alkatreszUrl, ft } from '../../lib/webshop';
@@ -27,7 +27,7 @@ const KeszletMezo = ({ alkatresz, foglalt, onMentes }) => {
 };
 
 const AdminAlkatreszek = () => {
-    const { jog } = useAuth();
+    const { jog } = useFelhasznalo();
     const [szuro, setSzuro] = useState({ q: '', kategoria: '', keszlet: '', lathatosag: '', rendezes: 'ujElol' });
     const [q, setQ] = useState('');
     const [eredmeny, setEredmeny] = useState({ kulcs: null, alkatreszek: [], alacsonyKeszlet: 2 });

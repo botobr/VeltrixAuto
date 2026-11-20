@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/auth';
+import { useFelhasznalo } from '../context/felhasznalo';
 import { MAX_OSSZEHASONLITAS, useOsszehasonlitas } from '../context/osszehasonlitas';
 import Ikon from './Ikon';
 
 /** Kedvencnek jelölés – bejelentkezés nélkül a belépő oldalra visz. */
 export const KedvencGomb = ({ auto, cimkevel = false, className = '' }) => {
-    const { user, kedvencValtas } = useAuth();
+    const { felhasznalo, kedvencValtas } = useFelhasznalo();
     const navigate = useNavigate();
     const location = useLocation();
     const [hiba, setHiba] = useState('');
-    const kedvenc = Boolean(user?.kedvencek?.includes(auto._id));
+    const kedvenc = Boolean(felhasznalo?.kedvencek?.includes(auto._id));
 
     const kattintas = async (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (!user) {
-            navigate('/login', { state: { from: location.pathname + location.search, uzenet: 'A kedvencek mentéséhez jelentkezz be.' } });
+        if (!felhasznalo) {
+            navigate('/belepes', { state: { from: location.pathname + location.search, uzenet: 'A kedvencek mentéséhez jelentkezz be.' } });
             return;
         }
         setHiba('');

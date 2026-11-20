@@ -6,7 +6,7 @@ const { MongoStore } = require('connect-mongo');
 
 const authRoutes = require('./routes/authRoutes');
 const autoRoutes = require('./routes/autoRoutes');
-const userRoutes = require('./routes/userRoutes');
+const felhasznaloRoutes = require('./routes/felhasznaloRoutes');
 const erdeklodesRoutes = require('./routes/erdeklodesRoutes');
 const fiokRoutes = require('./routes/fiokRoutes');
 const telephelyRoutes = require('./routes/telephelyRoutes');
@@ -21,25 +21,25 @@ const { fizetesWebhook } = rendelesRoutes;
 const hibakezelo = (error, req, res, next) => {
     if (res.headersSent) return next(error);
     if (error.type === 'entity.too.large') {
-        return res.status(413).json({ error: 'A küldött adat túl nagy (a kép legfeljebb 4 MB lehet).' });
+        return res.status(413).json({ hiba: 'A küldött adat túl nagy (a kép legfeljebb 4 MB lehet).' });
     }
     if (error.type === 'entity.parse.failed') {
-        return res.status(400).json({ error: 'Érvénytelen kérés.' });
+        return res.status(400).json({ hiba: 'Érvénytelen kérés.' });
     }
     if (error.name === 'ValidationError') {
-        return res.status(400).json({ error: Object.values(error.errors)[0]?.message || 'Érvénytelen adatok.' });
+        return res.status(400).json({ hiba: Object.values(error.errors)[0]?.message || 'Érvénytelen adatok.' });
     }
     if (error.name === 'CastError') {
-        return res.status(400).json({ error: 'Érvénytelen azonosító vagy érték.' });
+        return res.status(400).json({ hiba: 'Érvénytelen azonosító vagy érték.' });
     }
     if (error.code === 11000) {
-        return res.status(409).json({ error: 'Ez az adat már létezik.' });
+        return res.status(409).json({ hiba: 'Ez az adat már létezik.' });
     }
     console.error(error);
-    return res.status(500).json({ error: `Hiba: ${error.message}` });
+    return res.status(500).json({ hiba: `Hiba: ${error.message}` });
 };
 
-const createApp = ({ sessionStore } = {}) => {
+const appLetrehozasa = ({ munkamenetTarolo } = {}) => {
     const app = express();
 
     if (process.env.TRUST_PROXY) {
@@ -72,7 +72,7 @@ const createApp = ({ sessionStore } = {}) => {
         secret: process.env.SESSION_SECRET || 'veltrix-dev-session-secret',
         resave: false,
         saveUninitialized: false,
-        store: sessionStore || MongoStore.create({
+        store: munkamenetTarolo || MongoStore.create({
             mongoUrl: process.env.MONGO_DB,
             collectionName: 'sessions',
         }),
@@ -87,18 +87,18 @@ const createApp = ({ sessionStore } = {}) => {
     app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
     app.use('/api/auth', authRoutes);
     app.use('/api', autoRoutes);
-    app.use('/api', userRoutes);
+    app.use('/api', felhasznaloRoutes);
     app.use('/api', erdeklodesRoutes);
     app.use('/api', fiokRoutes);
     app.use('/api', telephelyRoutes);
     app.use('/api', alkatreszRoutes);
     app.use('/api', rendelesRoutes);
     app.use('/api', adminRoutes);
-    app.use('/api', (req, res) => res.status(404).json({ error: 'Nem létező végpont.' }));
+    app.use('/api', (req, res) => res.status(404).json({ hiba: 'Nem létező végpont.' }));
     app.use('/', seoRoutes);
     app.use(hibakezelo);
 
     return app;
 };
 
-module.exports = createApp;
+module.exports = appLetrehozasa;
