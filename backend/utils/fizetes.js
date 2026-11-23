@@ -125,4 +125,38 @@ const webhookFeldolgozasa = (nyersTorzs, alairas) => {
     return { munkamenetId: munkamenet.id, rendelesId: rendelesId, tipus: tipus };
 };
 
-module.exports = { kartyaElerheto, fizetesInditasa, webhookFeldolgozasa };
+// Egy fizetési munkamenet állapota a Stripe-nál: 'fizetve', 'lejart' vagy 'nyitott'.
+// Az időzített takarítás használja, ha egy webhook valamiért nem érkezett meg.
+const munkamenetAllapota = async (munkamenetId) => {
+    const munkamenet = await stripe().checkout.sessions.retrieve(munkamenetId);
+    if (munkamenet.payment_status === 'paid') {
+        return 'fizetve';
+    }
+    if (munkamenet.status === 'expired') {
+        return 'lejart';
+    }
+    return 'nyitott';
+};
+
+// A kifizetett összeg teljes visszatérítése (lemondáskor).
+// Visszaadja: { id, osszeg } (az összeg forintban)
+const visszaterites = async (munkamenetId) => {
+    if (!munkamenetId) {
+        throw new Error('A rendeléshez nem tartozik online fizetés.');
+    }
+    const munkamenet = await stripe().checkout.sessions.retrieve(munkamenetId);
+    if (!munkamenet.payment_intent) {
+        throw new Error('A Stripe-nál nem található a fizetés.');
+    }
+
+    let paymentIntentId = munkamenet.payment_intent;
+    if (typeof paymentIntentId !== 'string') {
+        paymentIntentId = paymentIntentId.id;
+    }
+
+    const refund = await stripe().refunds.create({ payment_intent: paymentIntentId });
+    // a Stripe fillérben adja vissza (100-zal szorozva)
+    return { id: refund.id, osszeg: refund.amount / 100 };
+};
+
+module.exports = { kartyaElerheto, fizetesInditasa, webhookFeldolgozasa, munkamenetAllapota, visszaterites };

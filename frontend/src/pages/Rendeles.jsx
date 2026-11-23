@@ -211,6 +211,15 @@ const Rendeles = () => {
                             {r.szallitas.telephely && <div><dt>Átvételi hely</dt><dd>{r.szallitas.telephely.nev}, {cimSor(r.szallitas.telephely)}</dd></div>}
                             <div><dt>Fizetés</dt><dd>{r.fizetesNev}{r.fizetes.statusz === 'fizetve' && ' · kifizetve'}</dd></div>
                             <div><dt>Számlázási cím</dt><dd>{cimSor(r.szamlazasiCim)}</dd></div>
+                            {r.szamla && r.szamla.szam && (
+                                <div>
+                                    <dt>Számla</dt>
+                                    <dd>{r.szamla.szam} – e-mailben elküldtük{r.szamla.sztornoSzam && ' (sztornózva)'}</dd>
+                                </div>
+                            )}
+                            {r.fizetes.visszaterites && r.fizetes.visszaterites.ekkor && (
+                                <div><dt>Visszatérítés</dt><dd>A kártyás fizetés összegét visszatérítettük ({formatDatumIdo(r.fizetes.visszaterites.ekkor)}).</dd></div>
+                            )}
                             <div><dt>Telefon</dt><dd>{r.vevo.telefon}</dd></div>
                             {r.vevoMegjegyzes && <div><dt>Megjegyzés</dt><dd>{r.vevoMegjegyzes}</dd></div>}
                         </dl>

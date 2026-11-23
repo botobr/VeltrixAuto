@@ -42,6 +42,42 @@ const cimSor = (cim) => {
     return reszek.join(', ');
 };
 
+// a számla adatai a rendelésnél (szám, sztornó, vagy a hiba és egy újrapróbálás gomb)
+const SzamlaSor = ({ rendeles, foglalt, onModositas }) => {
+    const szamla = rendeles.szamla;
+    if (!szamla) {
+        return null;
+    }
+
+    if (szamla.szam) {
+        return (
+            <div>
+                <dt>Számla</dt>
+                <dd>
+                    {szamla.szam} ({formatDatumIdo(szamla.kiallitva)})
+                    {szamla.sztornoSzam && <> · sztornózva: {szamla.sztornoSzam}</>}
+                    {szamla.hiba && <span className="admin-jel">{szamla.hiba}</span>}
+                </dd>
+            </div>
+        );
+    }
+
+    if (szamla.hiba) {
+        return (
+            <div>
+                <dt>Számla</dt>
+                <dd>
+                    <span className="admin-jel">Nem készült el: {szamla.hiba}</span>{' '}
+                    <button className="szoveg-gomb" type="button" disabled={foglalt} onClick={() => onModositas(rendeles, { szamla: true })}>
+                        Újrapróbálom
+                    </button>
+                </dd>
+            </div>
+        );
+    }
+    return null;
+};
+
 // egy rendelés (lenyitható kártya)
 const RendelesKartya = ({ rendeles: r, kovetkezo, onModositas, foglalt }) => {
     const [nyitva, setNyitva] = useState(r.statusz === 'uj');
@@ -69,7 +105,11 @@ const RendelesKartya = ({ rendeles: r, kovetkezo, onModositas, foglalt }) => {
     const statuszValtas = (event) => {
         const uj = event.target.value;
         if (uj === 'lemondva') {
-            const biztos = window.confirm('Lemondod a(z) ' + r.rendelesSzam + ' rendelést? A készlet visszakerül, a vevő e-mailt kap.');
+            let kerdes = 'Lemondod a(z) ' + r.rendelesSzam + ' rendelést? A készlet visszakerül, a vevő e-mailt kap.';
+            if (r.fizetes.mod === 'kartya' && r.fizetes.statusz === 'fizetve') {
+                kerdes += ' A kártyás fizetés összegét a Stripe automatikusan visszatéríti.';
+            }
+            const biztos = window.confirm(kerdes);
             if (!biztos) {
                 return;
             }
@@ -111,6 +151,10 @@ const RendelesKartya = ({ rendeles: r, kovetkezo, onModositas, foglalt }) => {
                             {r.szallitas.cim && <div><dt>Szállítási cím</dt><dd>{cimSor(r.szallitas.cim)}</dd></div>}
                             {r.szallitas.telephely && <div><dt>Átvétel</dt><dd>{r.szallitas.telephely.nev} ({r.szallitas.telephely.varos})</dd></div>}
                             <div><dt>Számlázás</dt><dd>{cimSor(r.szamlazasiCim)}</dd></div>
+                            <SzamlaSor rendeles={r} foglalt={foglalt} onModositas={onModositas} />
+                            {r.fizetes.visszaterites && r.fizetes.visszaterites.id && (
+                                <div><dt>Visszatérítés</dt><dd>Visszatérítve: {formatDatumIdo(r.fizetes.visszaterites.ekkor)} (Stripe: {r.fizetes.visszaterites.id})</dd></div>
+                            )}
                             <div><dt>Összeg</dt><dd>{osszegReszletek}</dd></div>
                             {r.vevoMegjegyzes && <div><dt>Vevő megjegyzése</dt><dd>{r.vevoMegjegyzes}</dd></div>}
                         </dl>

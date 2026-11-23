@@ -4,10 +4,12 @@ const mongoose = require('mongoose');
 const AlkatreszModel = require('../models/Alkatresz');
 const RendelesModel = require('../models/Rendeles');
 const TelephelyModel = require('../models/Telephely');
-const FelhasznaloModel = require('../models/Felhasznalo');
 const { bejelentkezesSzukseges, jogSzukseges } = require('../middlewares/authMiddleware');
-const { emailKuldes, oldalUrl } = require('../utils/email');
 const fizetes = require('../utils/fizetes');
+const szamlazas = require('../utils/szamlazas');
+const {
+    boltErtesites, esemeny, fizetveJelolese, lemondas, lemondasSzovege, szamlaKeszitese, vevoErtesites,
+} = require('../utils/rendelesek');
 const korlatozo = require('../utils/rateLimit');
 const { alkatreszSlug } = require('../utils/slug');
 const {
@@ -23,11 +25,6 @@ const EMAIL_MINTA = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const TELEFON_MINTA = /^[+\d][\d\s()/-]{5,}$/;
 const IRANYITOSZAM_MINTA = /^\d{4}$/;
 const ADOSZAM_MINTA = /^\d{8}-\d-\d{2}$/;
-
-const szamFormatum = new Intl.NumberFormat('hu-HU');
-
-// pl. 12 990 Ft
-const ft = (ertek) => szamFormatum.format(ertek) + ' Ft';
 
 // szöveg levágva, ha nem szöveg akkor ''
 const szoveg = (ertek, max) => {
@@ -84,128 +81,6 @@ const szallitasiModok = (termekekOsszege, telephelyVan) => {
     return modok;
 };
 
-// Lemondáskor visszaadjuk a készletet, de csak egyszer!
-// Az updateOne-nal jelöljük meg, így ha kétszer hívják, másodszorra már nem csinál semmit.
-const keszletVisszaadasa = async (rendeles) => {
-    const jelolve = await RendelesModel.updateOne(
-        { _id: rendeles._id, keszletVisszaadva: false },
-        { $set: { keszletVisszaadva: true } },
-    );
-    if (jelolve.modifiedCount === 0) {
-        return;
-    }
-
-    for (const tetel of rendeles.tetelek) {
-        await AlkatreszModel.updateOne(
-            { _id: tetel.alkatresz },
-            { $inc: { keszlet: tetel.mennyiseg, eladottDb: -tetel.mennyiseg } },
-        );
-    }
-    rendeles.keszletVisszaadva = true;
-};
-
-// esemény hozzáadása a rendelés történetéhez
-const esemeny = (rendeles, statusz, megjegyzes = '') => {
-    rendeles.esemenyek.push({ statusz: statusz, idopont: new Date(), megjegyzes: megjegyzes });
-};
-
-const lemondas = async (rendeles, megjegyzes) => {
-    rendeles.statusz = 'lemondva';
-    esemeny(rendeles, 'lemondva', megjegyzes);
-    await rendeles.save();
-    await keszletVisszaadasa(rendeles);
-};
-
-const rendelesLink = (rendeles, kulcs) => {
-    return oldalUrl() + '/rendeles/' + encodeURIComponent(rendeles.rendelesSzam) + '?kulcs=' + kulcs;
-};
-
-// a rendelés tételei szövegként az e-mailekhez
-const tetelekSzoveg = (rendeles) => {
-    const sorok = [];
-    for (const tetel of rendeles.tetelek) {
-        sorok.push('  ' + tetel.mennyiseg + ' × ' + tetel.nev + ' (' + tetel.cikkszam + ') – ' + ft(tetel.egysegar * tetel.mennyiseg));
-    }
-    sorok.push('  Szállítás: ' + ft(rendeles.osszegek.szallitas));
-    if (rendeles.osszegek.kezelesiDij) {
-        sorok.push('  Kezelési díj: ' + ft(rendeles.osszegek.kezelesiDij));
-    }
-    sorok.push('  Végösszeg: ' + ft(rendeles.osszegek.vegosszeg));
-    return sorok.join('\n');
-};
-
-const atutalasiInfo = (rendeles) => {
-    if (!process.env.BANKSZAMLASZAM) {
-        return 'Az utalási adatokat külön e-mailben küldjük el.';
-    }
-    let szamla = process.env.BANKSZAMLASZAM;
-    if (process.env.BANKSZAMLA_KEDVEZMENYEZETT) {
-        szamla = szamla + ' (' + process.env.BANKSZAMLA_KEDVEZMENYEZETT + ')';
-    }
-    return 'Kérjük, utald át a végösszeget: ' + szamla + ', közlemény: ' + rendeles.rendelesSzam;
-};
-
-// e-mail a vevőnek
-const vevoErtesites = (rendeles, kulcs, targy, bevezeto) => {
-    const sorok = [
-        'Kedves ' + rendeles.vevo.nev + '!',
-        '',
-        bevezeto,
-        '',
-        tetelekSzoveg(rendeles),
-        '',
-        'Szállítás: ' + SZALLITASI_MODOK[rendeles.szallitas.mod].nev,
-        'Fizetés: ' + FIZETESI_MODOK[rendeles.fizetes.mod].nev,
-    ];
-    // átutalásnál beleírjuk az utalási adatokat is
-    if (rendeles.fizetes.mod === 'atutalas' && rendeles.fizetes.statusz === 'fuggo') {
-        sorok.push('');
-        sorok.push(atutalasiInfo(rendeles));
-    }
-    sorok.push('');
-    sorok.push('A rendelésed állapota: ' + rendelesLink(rendeles, kulcs));
-
-    return emailKuldes({
-        cimzett: rendeles.vevo.email,
-        targy: targy + ' – ' + rendeles.rendelesSzam,
-        szoveg: sorok.join('\n'),
-    });
-};
-
-// e-mail a boltnak az új rendelésről (az ERTESITESI_EMAIL címekre, vagy az adminoknak)
-const boltErtesites = async (rendeles) => {
-    let cimzettek = [];
-    if (process.env.ERTESITESI_EMAIL) {
-        cimzettek = process.env.ERTESITESI_EMAIL.split(',').map((cim) => cim.trim());
-    } else {
-        const adminok = await FelhasznaloModel.find({ statusz: 'admin' }).select('email');
-        cimzettek = adminok.map((admin) => admin.email);
-    }
-
-    let megjegyzes = '';
-    if (rendeles.vevoMegjegyzes) {
-        megjegyzes = 'Megjegyzés: ' + rendeles.vevoMegjegyzes;
-    }
-
-    const sorok = [
-        'Vevő: ' + rendeles.vevo.nev + ', ' + rendeles.vevo.email + ', ' + rendeles.vevo.telefon,
-        '',
-        tetelekSzoveg(rendeles),
-        '',
-        'Szállítás: ' + SZALLITASI_MODOK[rendeles.szallitas.mod].nev + ' · Fizetés: ' + FIZETESI_MODOK[rendeles.fizetes.mod].nev,
-        megjegyzes,
-        '',
-        'Kezelés: ' + oldalUrl() + '/admin?lap=rendelesek',
-    ];
-
-    return emailKuldes({
-        cimzett: cimzettek,
-        valaszCim: rendeles.vevo.email,
-        targy: 'Új webshop rendelés: ' + rendeles.rendelesSzam + ' (' + ft(rendeles.osszegek.vegosszeg) + ')',
-        szoveg: sorok.join('\n'),
-    });
-};
-
 // A rendelés adatai a frontendnek. A vevő nem látja a belső megjegyzést és a kulcsot.
 const rendelesValasz = (rendeles, { belso = false } = {}) => {
     let adat;
@@ -222,6 +97,13 @@ const rendelesValasz = (rendeles, { belso = false } = {}) => {
         delete adat.keszletVisszaadva;
         if (adat.fizetes) {
             delete adat.fizetes.munkamenetId;
+            if (adat.fizetes.visszaterites) {
+                delete adat.fizetes.visszaterites.id;
+            }
+        }
+        // a vevő a számlából csak a számla számát látja
+        if (adat.szamla) {
+            adat.szamla = { szam: adat.szamla.szam, sztornoSzam: adat.szamla.sztornoSzam };
         }
     }
 
@@ -626,19 +508,13 @@ const fizetesWebhook = async (req, res) => {
         return res.status(200).json({ fogadva: true });
     }
 
-    // sikeres fizetés
+    // sikeres fizetés: rögzítjük, értesítünk, és kiállítjuk a számlát
     if (visszajelzes.tipus === 'fizetve' && rendeles.fizetes.statusz !== 'fizetve') {
-        rendeles.fizetes.statusz = 'fizetve';
-        rendeles.fizetes.fizetveEkkor = new Date();
-        if (rendeles.statusz === 'fizetesre_var') {
-            rendeles.statusz = 'uj';
-            esemeny(rendeles, 'uj', 'Online fizetés sikeres.');
-        } else {
-            esemeny(rendeles, rendeles.statusz, 'Online fizetés beérkezett.');
-        }
+        fizetveJelolese(rendeles, 'Online fizetés sikeres.');
         await rendeles.save();
         vevoErtesites(rendeles, rendeles.hozzaferesKulcs, 'Sikeres fizetés', 'A fizetésed sikeres volt, köszönjük! Hamarosan megkezdjük az összekészítést.');
         boltErtesites(rendeles);
+        await szamlaKeszitese(rendeles);
     }
 
     // nem fizetett időben: lemondjuk, a készlet visszakerül
@@ -725,17 +601,27 @@ router.patch('/admin/rendelesek/:id', jogSzukseges('rendelesKezeles'), async (re
         rendeles.belsoMegjegyzes = adatok.belsoMegjegyzes.trim();
     }
 
+    // ha most lesz kifizetve, utána számlát kell kiállítani
+    let lettFizetve = false;
+
     // fizetés rögzítése (pl. megjött az átutalás)
     if (adatok.fizetve === true && rendeles.fizetes.statusz !== 'fizetve') {
         if (rendeles.statusz === 'lemondva') {
             return res.status(409).json({ hiba: 'Lemondott rendelésnél nem rögzíthető fizetés.' });
         }
-        rendeles.fizetes.statusz = 'fizetve';
-        rendeles.fizetes.fizetveEkkor = new Date();
-        if (rendeles.statusz === 'fizetesre_var') {
-            rendeles.statusz = 'uj';
+        fizetveJelolese(rendeles, 'Fizetés rögzítve.');
+        lettFizetve = true;
+    }
+
+    // számla kiállításának újrapróbálása (ha elsőre nem sikerült)
+    if (adatok.szamla === true) {
+        if (!szamlazas.beallitva()) {
+            return res.status(409).json({ hiba: 'A számlázás nincs beállítva (BILLINGO_API_KEY, BILLINGO_BLOCK_ID).' });
         }
-        esemeny(rendeles, rendeles.statusz, 'Fizetés rögzítve.');
+        if (rendeles.fizetes.statusz !== 'fizetve') {
+            return res.status(409).json({ hiba: 'Csak kifizetett rendeléshez állítható ki számla.' });
+        }
+        lettFizetve = true;
     }
 
     // státusz váltás
@@ -762,8 +648,14 @@ router.patch('/admin/rendelesek/:id', jogSzukseges('rendelesKezeles'), async (re
 
         if (uj === 'lemondva') {
             const megjegyzes = szoveg(adatok.megjegyzes, 300) || 'Lemondva a kereskedő által.';
-            await lemondas(rendeles, megjegyzes);
-            vevoErtesites(rendeles, rendeles.hozzaferesKulcs, 'Rendelésed lemondva', 'A rendelésedet lemondtuk. Ha már fizettél, a visszatérítésről külön értesítünk.');
+            try {
+                // kártyás fizetésnél itt történik a visszatérítés is
+                await lemondas(rendeles, megjegyzes);
+            } catch (error) {
+                console.error('Lemondás sikertelen (' + rendeles.rendelesSzam + '): ' + error.message);
+                return res.status(502).json({ hiba: 'A visszatérítés nem sikerült, a rendelést nem mondtuk le: ' + error.message });
+            }
+            vevoErtesites(rendeles, rendeles.hozzaferesKulcs, 'Rendelésed lemondva', lemondasSzovege(rendeles, 'A rendelésedet lemondtuk.'));
             return res.status(200).json({ rendeles: rendelesValasz(rendeles, { belso: true }) });
         }
 
@@ -772,6 +664,7 @@ router.patch('/admin/rendelesek/:id', jogSzukseges('rendelesKezeles'), async (re
         if (uj === 'teljesitve' && rendeles.fizetes.statusz !== 'fizetve') {
             rendeles.fizetes.statusz = 'fizetve';
             rendeles.fizetes.fizetveEkkor = new Date();
+            lettFizetve = true;
         }
         esemeny(rendeles, uj, szoveg(adatok.megjegyzes, 300));
 
@@ -788,6 +681,9 @@ router.patch('/admin/rendelesek/:id', jogSzukseges('rendelesKezeles'), async (re
     await rendeles.save();
     if (ertesitesTargy) {
         vevoErtesites(rendeles, rendeles.hozzaferesKulcs, ertesitesTargy, ertesitesSzoveg);
+    }
+    if (lettFizetve) {
+        await szamlaKeszitese(rendeles);
     }
     return res.status(200).json({ rendeles: rendelesValasz(rendeles, { belso: true }) });
 });

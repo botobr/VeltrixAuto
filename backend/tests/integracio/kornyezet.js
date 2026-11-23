@@ -13,6 +13,9 @@ const session = require('express-session');
 
 process.env.CLOUDINARY_API_CLOUD_NAME = 'teszt';
 process.env.NODE_ENV = 'test';
+// a tesztek ne hívják a valódi Billingót (a számlázást a tesztek maguk kapcsolják be, kamu függvényekkel)
+delete process.env.BILLINGO_API_KEY;
+delete process.env.BILLINGO_BLOCK_ID;
 
 // A Cloudinary függvényeit lecseréljük (az app betöltése előtt), hogy a teszt ne töltsön fel
 // semmit az internetre. A törölt képeket megjegyezzük, hogy ellenőrizni tudjuk.
@@ -44,6 +47,14 @@ fizetes.fizetesInditasa = async () => {
         munkamenetId: 'cs_test_' + munkamenetSorszam,
     };
 };
+
+// a visszatérítés és a munkamenet lekérdezése is kamu (a tesztek felülírhatják)
+let visszateritesSorszam = 0;
+fizetes.visszaterites = async () => {
+    visszateritesSorszam++;
+    return { id: 're_test_' + visszateritesSorszam, osszeg: null };
+};
+fizetes.munkamenetAllapota = async () => 'lejart';
 
 const appLetrehozasa = require('../../app');
 const AlkatreszModel = require('../../models/Alkatresz');

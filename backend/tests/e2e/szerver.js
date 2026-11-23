@@ -22,6 +22,8 @@ process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_TITOK;
 process.env.BANKSZAMLASZAM = '11773016-12345678-00000000';
 process.env.BANKSZAMLA_KEDVEZMENYEZETT = 'Veltrix Autó Kft.';
 delete process.env.ERTESITESI_EMAIL;
+delete process.env.BILLINGO_API_KEY;
+delete process.env.BILLINGO_BLOCK_ID;
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
@@ -64,6 +66,11 @@ fizetes.fizetesInditasa = async (rendeles, kulcs) => {
         url: FRONTEND + '/rendeles/' + encodeURIComponent(rendeles.rendelesSzam) + '?kulcs=' + kulcs + '&fizetes=siker',
         munkamenetId: 'cs_e2e_' + munkamenetSorszam,
     };
+};
+
+// a visszatérítést sem küldjük el a Stripe-nak
+fizetes.visszaterites = async () => {
+    return { id: 're_e2e_' + Date.now(), osszeg: null };
 };
 
 console.info = () => {};

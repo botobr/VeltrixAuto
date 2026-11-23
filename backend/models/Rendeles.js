@@ -67,6 +67,25 @@ const rendelesSchema = new mongoose.Schema(
             fizetveEkkor: { type: Date, default: null },
             // Stripe fizetésnél a Stripe munkamenet azonosítója
             munkamenetId: { type: String, default: null, index: true },
+            // kártyás fizetés visszatérítése lemondáskor (Stripe refund)
+            visszaterites: {
+                id: { type: String, default: null },
+                osszeg: { type: Number, default: null },
+                ekkor: { type: Date, default: null },
+            },
+        },
+
+        // a számla adatai (Billingo)
+        szamla: {
+            id: { type: String, default: null },
+            szam: { type: String, default: null },
+            kiallitva: { type: Date, default: null },
+            sztornoSzam: { type: String, default: null },
+            sztornozva: { type: Date, default: null },
+            // ha nem sikerült kiállítani, itt az oka (az adminban újra lehet próbálni)
+            hiba: { type: String, default: null },
+            // igaz, amíg épp készül a számla (hogy ne készüljön kettő)
+            folyamatban: { type: Boolean, default: false },
         },
 
         statusz: { type: String, enum: Object.keys(RENDELES_STATUSZOK), required: true, index: true },

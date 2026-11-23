@@ -120,12 +120,16 @@ const Aszf = () => (
             <li>
                 <strong>Előre utalás:</strong> az utalási adatokat a visszaigazolásban küldjük el; közleményként a rendelésszámot
                 kérjük megadni. A terméket az összeg beérkezése után adjuk fel. Ha az összeg {DIJAK.utalasiHatarido} napon belül
-                nem érkezik meg, a rendelést lemondhatjuk.
+                nem érkezik meg, a rendelést automatikusan lemondjuk, és erről e-mailben értesítünk.
             </li>
             <li><strong>Utánvét:</strong> fizetés készpénzben vagy kártyával a futárnál; kezelési díja {ft(DIJAK.utanvet)}.</li>
             <li><strong>Fizetés átvételkor:</strong> személyes átvételnél a telephelyen, készpénzzel vagy bankkártyával.</li>
         </ul>
-        <p>A vásárlásról elektronikus számlát állítunk ki.</p>
+        <p>
+            A vásárlásról elektronikus számlát állítunk ki, amelyet a fizetés beérkezése után (utánvétnél és átvételkori
+            fizetésnél a teljesítéskor) e-mailben küldünk el. Ha egy már kifizetett rendelést lemondunk, bankkártyás fizetésnél
+            az összeget automatikusan visszatérítjük a fizetéshez használt kártyára, és a számlát sztornózzuk.
+        </p>
 
         <h2>8. Szállítás és átvétel</h2>
         <ul>
@@ -324,7 +328,7 @@ const Adatkezeles = () => (
             <li>e-mail-küldő szolgáltató (értesítések, érdeklődések és rendelés-visszaigazolások továbbítása);</li>
             <li>Stripe Payments Europe Ltd. (Írország) – online bankkártyás fizetés; a kártyaadatokat önálló adatkezelőként kezeli, azok hozzánk nem jutnak el;</li>
             <li>futárszolgálat (házhozszállításnál a címzett neve, címe és telefonszáma a kézbesítéshez);</li>
-            <li>számlázó szolgáltató (a számla kiállításához szükséges adatok);</li>
+            <li>Billingo Technologies Zrt. – számlázó szolgáltató (a számla kiállításához szükséges adatok: név, számlázási cím, adószám, e-mail-cím);</li>
             <li>Google Fonts (betűtípusok betöltése – ennek során az IP-cím a Google szervereihez jut);</li>
             <li>OpenStreetMap (csak ha a térkép betöltésére kattint).</li>
         </ul>

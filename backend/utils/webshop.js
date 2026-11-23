@@ -42,6 +42,8 @@ const RENDELES_STATUSZOK = {
 const MAX_TETEL = 30;
 const MAX_MENNYISEG = 99;
 const ALACSONY_KESZLET = 2;
+// előre utalásnál ennyi nap alatt kell megérkeznie a pénznek, utána a rendelést automatikusan lemondjuk
+const UTALASI_HATARIDO_NAP = 8;
 
 // ennyit kell fizetni egy darabért (ha van akció, akkor az akciós ár)
 const egysegar = (alkatresz) => {
@@ -294,6 +296,7 @@ module.exports = {
     RENDELES_STATUSZOK,
     MAX_MENNYISEG,
     ALACSONY_KESZLET,
+    UTALASI_HATARIDO_NAP,
     egysegar,
     alkatreszEllenorzese,
     gyorsModositasEllenorzese,
