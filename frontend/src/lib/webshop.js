@@ -1,7 +1,5 @@
-/*
- * A webshop (tuning alkatrészek) frontend-segédei. Az árakat és a végösszeget
- * mindig a backend számolja (/api/kosar) – itt csak megjelenítés történik.
- */
+// Webshop segédfüggvények a frontendhez.
+// Az árakat és a végösszeget mindig a backend számolja (/api/kosar), itt csak kiírjuk őket.
 
 export const KATEGORIAK = {
     futomu: 'Futómű',
@@ -35,49 +33,103 @@ export const ALKATRESZ_RENDEZESEK = [
 ];
 
 const szamFormatum = new Intl.NumberFormat('hu-HU');
-export const ft = (ertek) => `${szamFormatum.format(Math.round(ertek || 0))} Ft`;
 
-export const alkatreszUrl = (alkatresz) => `/alkatreszek/${alkatresz.slug || alkatresz._id || alkatresz.id}`;
+// pl. 12 990 Ft
+export const ft = (ertek) => {
+    return szamFormatum.format(Math.round(ertek || 0)) + ' Ft';
+};
 
-/** Készlet szövegesen a vevőnek. */
+export const alkatreszUrl = (alkatresz) => {
+    return '/alkatreszek/' + (alkatresz.slug || alkatresz._id || alkatresz.id);
+};
+
+// a készlet szövegesen a vásárlónak
 export const keszletSzoveg = (keszlet) => {
-    if (keszlet <= 0) return { szoveg: 'Elfogyott', tipus: 'elfogyott' };
-    if (keszlet <= 2) return { szoveg: `Utolsó ${keszlet} db`, tipus: 'utolso' };
+    if (keszlet <= 0) {
+        return { szoveg: 'Elfogyott', tipus: 'elfogyott' };
+    }
+    if (keszlet <= 2) {
+        return { szoveg: 'Utolsó ' + keszlet + ' db', tipus: 'utolso' };
+    }
     return { szoveg: 'Készleten', tipus: 'keszleten' };
 };
 
-/** Kompatibilitási sor olvasható formában: „BMW 3-as sorozat (2012–2019)”. */
-export const kompatibilitasSzoveg = ({ marka, modell, evjaratTol, evjaratIg }) => {
-    const evek = evjaratTol || evjaratIg ? ` (${evjaratTol || '…'}–${evjaratIg || '…'})` : '';
-    return `${marka}${modell ? ` ${modell}` : ' – minden modell'}${evek}`;
+// pl. "BMW 3-as sorozat (2012–2019)"
+export const kompatibilitasSzoveg = (sor) => {
+    let szoveg = sor.marka;
+    if (sor.modell) {
+        szoveg += ' ' + sor.modell;
+    } else {
+        szoveg += ' – minden modell';
+    }
+    if (sor.evjaratTol || sor.evjaratIg) {
+        szoveg += ' (' + (sor.evjaratTol || '…') + '–' + (sor.evjaratIg || '…') + ')';
+    }
+    return szoveg;
 };
 
-/** Üres termékűrlap (az admin szerkesztőhöz). */
-export const uresAlkatresz = () => ({
-    nev: '', cikkszam: '', gyarto: '', kategoria: '', rovidLeiras: '', leiras: '',
-    ar: '', akciosAr: '', keszlet: '0', kepek: [], parameterek: [], kompatibilitas: [],
-    univerzalis: false, lathato: true, kiemelt: false,
-});
+// üres termék űrlap az admin szerkesztőhöz
+export const uresAlkatresz = () => {
+    return {
+        nev: '',
+        cikkszam: '',
+        gyarto: '',
+        kategoria: '',
+        rovidLeiras: '',
+        leiras: '',
+        ar: '',
+        akciosAr: '',
+        keszlet: '0',
+        kepek: [],
+        parameterek: [],
+        kompatibilitas: [],
+        univerzalis: false,
+        lathato: true,
+        kiemelt: false,
+    };
+};
 
-export const alkatreszUrlapbol = (a) => ({
-    ...uresAlkatresz(),
-    ...a,
-    ar: a.ar ?? '',
-    akciosAr: a.akciosAr ?? '',
-    keszlet: a.keszlet ?? '0',
-    kepek: (a.kepek || []).filter((kep) => kep.publicId),
-    kompatibilitas: (a.kompatibilitas || []).map((sor) => ({ ...sor, evjaratTol: sor.evjaratTol ?? '', evjaratIg: sor.evjaratIg ?? '' })),
-    parameterek: a.parameterek || [],
-});
+// ha az érték null vagy undefined, akkor a megadott alapérték
+const vagyAlap = (ertek, alap) => {
+    if (ertek === null || ertek === undefined) {
+        return alap;
+    }
+    return ertek;
+};
 
-/*
- * Díjak az ÁSZF-hez és a tájékoztató szövegekhez. A tényleges számítást a backend végzi
- * (backend/utils/webshop.js: SZALLITASI_MODOK, FIZETESI_MODOK) – ha ott változik, itt is írd át.
- */
+// a szervertől kapott termékből űrlap adatok (a null értékekből üres mező lesz)
+export const alkatreszUrlapbol = (alkatresz) => {
+    const kompatibilitas = [];
+    for (const sor of alkatresz.kompatibilitas || []) {
+        kompatibilitas.push({ ...sor, evjaratTol: vagyAlap(sor.evjaratTol, ''), evjaratIg: vagyAlap(sor.evjaratIg, '') });
+    }
+
+    // csak a már feltöltött képek
+    const kepek = [];
+    for (const kep of alkatresz.kepek || []) {
+        if (kep.publicId) {
+            kepek.push(kep);
+        }
+    }
+
+    return {
+        ...uresAlkatresz(),
+        ...alkatresz,
+        ar: vagyAlap(alkatresz.ar, ''),
+        akciosAr: vagyAlap(alkatresz.akciosAr, ''),
+        keszlet: vagyAlap(alkatresz.keszlet, '0'),
+        kepek: kepek,
+        kompatibilitas: kompatibilitas,
+        parameterek: alkatresz.parameterek || [],
+    };
+};
+
+// A díjak az ÁSZF-hez és a tájékoztató szövegekhez.
+// A számolást a backend végzi (backend/utils/webshop.js), ha ott változik, itt is át kell írni!
 export const DIJAK = {
     futar: 2490,
     ingyenesSzallitasHatar: 100000,
     utanvet: 590,
-    // Ennyi napon belül várjuk az előre utalt összeget, utána a rendelés lemondható.
+    // ennyi napon belül kell átutalni, utána lemondhatjuk a rendelést
     utalasiHatarido: 8,
 };

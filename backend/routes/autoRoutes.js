@@ -20,126 +20,229 @@ const kepLimit = korlatozo({ ablakMs: 10 * 60 * 1000, max: 200, uzenet: 'Túl so
 const TELEPHELY_MEZOK = 'nev iranyitoszam varos cim megye telefon email nyitvatartas szelesseg hosszusag';
 const LISTA_TELEPHELY_MEZOK = 'nev varos megye';
 
-/** Munkatárs (admin vagy értékesítő): látja a rejtett hirdetéseket és a belső adatokat. */
+// munkatárs = admin vagy értékesítő, ők a rejtett hirdetéseket is látják
 const munkatars = (req) => munkamenetJoga(req, 'kezelofelulet');
-const belsoNezet = (req) => ({ admin: true, penzugy: munkamenetJoga(req, 'penzugy') });
-const ELADASI_MEZOK = ['eladas_datum', 'eladasi_ar'];
 
-/** Pénzügyi jog nélkül az eladási adatokat figyelmen kívül hagyjuk (a meglévők megmaradnak). */
+const belsoNezet = (req) => {
+    return { admin: true, penzugy: munkamenetJoga(req, 'penzugy') };
+};
+
+// pénzügyi jog nélkül az eladási adatokat nem lehet módosítani
 const penzugyiMezokKiszurese = (req, adatok) => {
-    if (munkamenetJoga(req, 'penzugy')) return adatok;
+    if (munkamenetJoga(req, 'penzugy')) {
+        return adatok;
+    }
     const szurt = { ...adatok };
-    for (const mezo of ELADASI_MEZOK) delete szurt[mezo];
+    delete szurt.eladas_datum;
+    delete szurt.eladasi_ar;
     return szurt;
 };
 
-const hibasValasz = (res, hibak) => res.status(400).json({ hiba: hibak[0], hibak });
+const hibasValasz = (res, hibak) => {
+    return res.status(400).json({ hiba: hibak[0], hibak: hibak });
+};
 
-/** Csak olyan képet engedünk menteni, amely nincs egy másik autóhoz vagy termékhez rendelve. */
-const idegenKepek = (kepek, sajatId) => masholHasznalt(kepek, sajatId);
+const telephelyLetezik = async (id) => {
+    if (!id) {
+        return true; // a telephely nem kötelező
+    }
+    const van = await TelephelyModel.exists({ _id: id });
+    return Boolean(van);
+};
 
-const telephelyLetezik = async (id) => !id || Boolean(await TelephelyModel.exists({ _id: id }));
+// az autó összes képének azonosítója (a régi kepPublicId mezővel együtt)
+const autoKepei = (auto) => {
+    const idk = [];
+    if (auto.kepPublicId) {
+        idk.push(auto.kepPublicId);
+    }
+    for (const kep of auto.kepek) {
+        if (kep.publicId && !idk.includes(kep.publicId)) {
+            idk.push(kep.publicId);
+        }
+    }
+    return idk;
+};
 
 // ---------- Nyilvános lekérdezések ----------
 
+// autók listája szűréssel és lapozással
 router.get('/autok', async (req, res) => {
-    const oldal = Math.max(Number.parseInt(req.query.oldal, 10) || 1, 1);
-    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
-    const kiemeltek = req.query.kiemelt === '1';
+    let oldal = Number.parseInt(req.query.oldal, 10) || 1;
+    if (oldal < 1) {
+        oldal = 1;
+    }
+    let limit = Number.parseInt(req.query.limit, 10) || 12;
+    if (limit < 1) {
+        limit = 1;
+    }
+    if (limit > 50) {
+        limit = 50;
+    }
 
     const szuro = await szuroEpitese(req.query);
-    if (kiemeltek) szuro.$and = [...(szuro.$and || []), { kiemelt: true }];
+    // a főoldalon csak a kiemelt autók kellenek
+    if (req.query.kiemelt === '1') {
+        if (!szuro.$and) {
+            szuro.$and = [];
+        }
+        szuro.$and.push({ kiemelt: true });
+    }
 
-    const [osszes, autok] = await Promise.all([
-        AutoModel.countDocuments(szuro),
-        AutoModel.find(szuro)
-            .sort(rendezesEpitese(req.query.rendezes))
-            .skip((oldal - 1) * limit)
-            .limit(limit)
-            .populate('telephely', LISTA_TELEPHELY_MEZOK),
-    ]);
+    const osszes = await AutoModel.countDocuments(szuro);
+    const autok = await AutoModel.find(szuro)
+        .sort(rendezesEpitese(req.query.rendezes))
+        .skip((oldal - 1) * limit)
+        .limit(limit)
+        .populate('telephely', LISTA_TELEPHELY_MEZOK);
 
     return res.status(200).json({
         autok: autok.map((auto) => autoValasz(auto)),
-        lapozas: { oldal, limit, osszes, oldalak: Math.ceil(osszes / limit) },
+        lapozas: { oldal: oldal, limit: limit, osszes: osszes, oldalak: Math.ceil(osszes / limit) },
     });
 });
 
-/** A szűrőpanelhez: elérhető márkák/modellek, megyék, értéktartományok. */
+// a szűrőpanel adatai: márkák és modellek, megyék, ár- és évjárat tartomány
 router.get('/autok/szurok', async (req, res) => {
-    const alap = { $and: [...publikusFeltetelek(), { statusz: { $ne: 'elkelt' } }] };
-    const [markak, tartomanyok, telephelyek] = await Promise.all([
-        AutoModel.aggregate([
-            { $match: alap },
-            { $group: { _id: '$marka', modellek: { $addToSet: '$modell' }, db: { $sum: 1 } } },
-            { $sort: { _id: 1 } },
-        ]),
-        AutoModel.aggregate([
-            { $match: alap },
-            {
-                $group: {
-                    _id: null,
-                    minAr: { $min: '$vetel_ar' }, maxAr: { $max: '$vetel_ar' },
-                    minEv: { $min: '$evjarat' }, maxEv: { $max: '$evjarat' },
-                    maxKm: { $max: '$kmora_allas' }, maxLe: { $max: '$teljesitmeny' },
-                },
-            },
-        ]),
-        TelephelyModel.find().select(LISTA_TELEPHELY_MEZOK).sort({ nev: 1 }),
-    ]);
+    const feltetelek = publikusFeltetelek();
+    feltetelek.push({ statusz: { $ne: 'elkelt' } });
+
+    const autok = await AutoModel.find({ $and: feltetelek })
+        .select('marka modell vetel_ar evjarat kmora_allas teljesitmeny');
+    const telephelyek = await TelephelyModel.find().select(LISTA_TELEPHELY_MEZOK).sort({ nev: 1 });
+
+    // márkánként a modellek és a darabszám
+    const markak = [];
+    for (const auto of autok) {
+        let marka = markak.find((elem) => elem.marka === auto.marka);
+        if (!marka) {
+            marka = { marka: auto.marka, db: 0, modellek: [] };
+            markak.push(marka);
+        }
+        marka.db++;
+        if (!marka.modellek.includes(auto.modell)) {
+            marka.modellek.push(auto.modell);
+        }
+    }
+    markak.sort((a, b) => (a.marka < b.marka ? -1 : 1));
+    for (const marka of markak) {
+        marka.modellek.sort((a, b) => a.localeCompare(b, 'hu'));
+    }
+
+    // megyék, ahol van telephely
+    const megyek = [];
+    for (const telephely of telephelyek) {
+        if (!megyek.includes(telephely.megye)) {
+            megyek.push(telephely.megye);
+        }
+    }
+    megyek.sort((a, b) => a.localeCompare(b, 'hu'));
+
+    // legkisebb és legnagyobb értékek a csúszkákhoz
+    let tartomanyok = null;
+    if (autok.length > 0) {
+        tartomanyok = {
+            minAr: autok[0].vetel_ar,
+            maxAr: autok[0].vetel_ar,
+            minEv: autok[0].evjarat,
+            maxEv: autok[0].evjarat,
+            maxKm: autok[0].kmora_allas,
+            maxLe: autok[0].teljesitmeny,
+        };
+        for (const auto of autok) {
+            tartomanyok.minAr = Math.min(tartomanyok.minAr, auto.vetel_ar);
+            tartomanyok.maxAr = Math.max(tartomanyok.maxAr, auto.vetel_ar);
+            tartomanyok.minEv = Math.min(tartomanyok.minEv, auto.evjarat);
+            tartomanyok.maxEv = Math.max(tartomanyok.maxEv, auto.evjarat);
+            tartomanyok.maxKm = Math.max(tartomanyok.maxKm, auto.kmora_allas);
+            tartomanyok.maxLe = Math.max(tartomanyok.maxLe, auto.teljesitmeny);
+        }
+    }
 
     return res.status(200).json({
-        markak: markak.map((m) => ({ marka: m._id, db: m.db, modellek: m.modellek.sort((a, b) => a.localeCompare(b, 'hu')) })),
-        megyek: [...new Set(telephelyek.map((t) => t.megye))].sort((a, b) => a.localeCompare(b, 'hu')),
-        telephelyek,
-        tartomanyok: tartomanyok[0] ? { ...tartomanyok[0], _id: undefined } : null,
+        markak: markak,
+        megyek: megyek,
+        telephelyek: telephelyek,
+        tartomanyok: tartomanyok,
     });
 });
 
+// egy autó adatlapja és 3 hasonló autó
 router.get('/autok/:id', async (req, res) => {
     const id = idSlugbol(req.params.id);
     if (!id) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
     }
-    const feltetel = munkatars(req) ? { _id: id } : { $and: [{ _id: id }, ...publikusFeltetelek()] };
+
+    let feltetel;
+    if (munkatars(req)) {
+        feltetel = { _id: id };
+    } else {
+        feltetel = { $and: [{ _id: id }, ...publikusFeltetelek()] };
+    }
+
     const auto = await AutoModel.findOne(feltetel).populate('telephely', TELEPHELY_MEZOK);
     if (!auto) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
     }
 
+    // hasonló autó: ugyanaz a márka, vagy ugyanaz a kivitel hasonló áron (+-40%)
+    const hasonloFeltetel = {
+        $or: [
+            { marka: auto.marka },
+            { kivitel: auto.kivitel, vetel_ar: { $gte: auto.vetel_ar * 0.6, $lte: auto.vetel_ar * 1.4 } },
+        ],
+    };
     const hasonlok = await AutoModel.find({
         $and: [
             ...publikusFeltetelek(),
             { _id: { $ne: auto._id } },
             { statusz: { $ne: 'elkelt' } },
-            { $or: [{ marka: auto.marka }, { kivitel: auto.kivitel, vetel_ar: { $gte: auto.vetel_ar * 0.6, $lte: auto.vetel_ar * 1.4 } }] },
+            hasonloFeltetel,
         ],
     }).sort({ createdAt: -1 }).limit(3).populate('telephely', LISTA_TELEPHELY_MEZOK);
 
+    let nezet = {};
+    if (munkatars(req)) {
+        nezet = belsoNezet(req);
+    }
+
     return res.status(200).json({
-        auto: autoValasz(auto, munkatars(req) ? belsoNezet(req) : {}),
+        auto: autoValasz(auto, nezet),
         hasonlok: hasonlok.map((elem) => autoValasz(elem)),
     });
 });
 
-/** Megtekintés és telefonszám-kattintás számlálása (a frontend munkamenetenként egyszer küldi). */
+// megtekintés és telefonszám kattintás számolása (statisztikához)
 router.post('/autok/:id/esemeny', esemenyLimit, async (req, res) => {
     const id = idSlugbol(req.params.id);
-    const mezo = { megtekintes: 'megtekintesek', telefon: 'telefonKattintasok' }[req.body?.tipus];
+    const tipus = req.body ? req.body.tipus : null;
+
+    let mezo = null;
+    if (tipus === 'megtekintes') {
+        mezo = 'megtekintesek';
+    } else if (tipus === 'telefon') {
+        mezo = 'telefonKattintasok';
+    }
+
     if (!id || !mezo) {
         return res.status(400).json({ hiba: 'Érvénytelen esemény.' });
     }
+
+    // a munkatársak kattintásait nem számoljuk
     if (!munkatars(req)) {
-        await AutoModel.updateOne({ _id: id }, { $inc: { [mezo]: 1 } });
+        const noveles = {};
+        noveles[mezo] = 1;
+        await AutoModel.updateOne({ _id: id }, { $inc: noveles });
     }
     return res.status(204).end();
 });
 
 // ---------- Képek (admin) ----------
 
-// Képfeltöltés: autóhoz és webshop-termékhez is.
+// képfeltöltés (autóhoz és alkatrészhez is ezt használjuk)
 router.post('/kepek', jogSzukseges('hirdetesSzerkesztes', 'alkatreszSzerkesztes'), kepLimit, async (req, res) => {
-    const kep = req.body?.kep;
+    const kep = req.body ? req.body.kep : null;
     if (typeof kep !== 'string' || !kep.startsWith('data:image/')) {
         return res.status(400).json({ hiba: 'Érvényes képet kell küldeni.' });
     }
@@ -147,68 +250,98 @@ router.post('/kepek', jogSzukseges('hirdetesSzerkesztes', 'alkatreszSzerkesztes'
     return res.status(201).json({ url: feltoltott.secure_url, publicId: feltoltott.public_id });
 });
 
-/** Mentés nélkül elvetett, frissen feltöltött képek takarítása. Autóhoz vagy termékhez tartozó képet nem töröl. */
+// Feltöltött, de végül nem mentett képek törlése.
+// Ha a képet már használja egy autó vagy alkatrész, azt nem töröljük.
 router.delete('/kepek', jogSzukseges('hirdetesSzerkesztes', 'alkatreszSzerkesztes'), async (req, res) => {
-    const publicIds = Array.isArray(req.body?.publicIds)
-        ? req.body.publicIds.filter((id) => typeof id === 'string' && id.startsWith('veltrix/autok/')).slice(0, 50)
-        : [];
-    const foglalt = await hasznaltKepek(publicIds);
-    await kepekTorlese(publicIds.filter((id) => !foglalt.has(id)));
+    let publicIdk = [];
+    if (req.body && Array.isArray(req.body.publicIds)) {
+        for (const id of req.body.publicIds) {
+            if (typeof id === 'string' && id.startsWith('veltrix/autok/')) {
+                publicIdk.push(id);
+            }
+        }
+    }
+    publicIdk = publicIdk.slice(0, 50);
+
+    const foglalt = await hasznaltKepek(publicIdk);
+    const torlendok = publicIdk.filter((id) => !foglalt.has(id));
+    await kepekTorlese(torlendok);
     return res.status(204).end();
 });
 
 // ---------- Hirdetések kezelése (admin) ----------
 
+// új autó
 router.post('/autok', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
     const ellenorzes = autoAdatokEllenorzese(req.body);
-    const { hibak } = ellenorzes;
+    if (ellenorzes.hibak.length > 0) {
+        return hibasValasz(res, ellenorzes.hibak);
+    }
     const adatok = penzugyiMezokKiszurese(req, ellenorzes.adatok);
-    if (hibak.length) return hibasValasz(res, hibak);
-    if (!(await telephelyLetezik(adatok.telephely))) return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
-    if (await idegenKepek(adatok.kepek, null)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
+
+    if (!(await telephelyLetezik(adatok.telephely))) {
+        return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
+    }
+    if (await masholHasznalt(adatok.kepek, null)) {
+        return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
+    }
 
     const ujAuto = await AutoModel.create(adatok);
+
+    // akiknek illik a mentett keresésére, kapnak e-mailt (nem várjuk meg)
     if (ujAuto.lathato && ujAuto.statusz !== 'elkelt') {
         ujAutoErtesites(ujAuto);
     }
     return res.status(201).json({ uzenet: 'Autó sikeresen létrehozva!', auto: autoValasz(ujAuto, belsoNezet(req)) });
 });
 
+// autó módosítása
 router.put('/autok/:id', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
     }
+
     const ellenorzes = autoAdatokEllenorzese(req.body);
-    const { hibak } = ellenorzes;
+    if (ellenorzes.hibak.length > 0) {
+        return hibasValasz(res, ellenorzes.hibak);
+    }
     const adatok = penzugyiMezokKiszurese(req, ellenorzes.adatok);
-    if (hibak.length) return hibasValasz(res, hibak);
 
     const auto = await AutoModel.findById(req.params.id);
     if (!auto) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
     }
-    if (!(await telephelyLetezik(adatok.telephely))) return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
-    if (await idegenKepek(adatok.kepek, auto._id)) return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
+    if (!(await telephelyLetezik(adatok.telephely))) {
+        return hibasValasz(res, ['A kiválasztott telephely nem létezik.']);
+    }
+    if (await masholHasznalt(adatok.kepek, auto._id)) {
+        return hibasValasz(res, ['Egy kép már egy másik hirdetéshez tartozik.']);
+    }
 
-    const regiKepek = new Set([auto.kepPublicId, ...auto.kepek.map((kep) => kep.publicId)].filter(Boolean));
+    const regiKepek = autoKepei(auto);
     auto.set(adatok);
     const mentettAuto = await auto.save();
 
-    const megmaradt = new Set(mentettAuto.kepek.map((kep) => kep.publicId));
-    await kepekTorlese([...regiKepek].filter((id) => !megmaradt.has(id)));
+    // azokat a képeket, amiket kivettek a hirdetésből, töröljük a Cloudinary-ról
+    const megmaradtKepek = autoKepei(mentettAuto);
+    const torlendok = regiKepek.filter((id) => !megmaradtKepek.includes(id));
+    await kepekTorlese(torlendok);
 
     return res.status(200).json({ uzenet: 'Autó sikeresen frissítve!', auto: autoValasz(mentettAuto, belsoNezet(req)) });
 });
 
-/** Gyors állapotváltás: státusz, láthatóság, kiemelés, lejárat. */
+// gyors állapotváltás a listából: státusz, látható, kiemelt, lejárat
 router.patch('/autok/:id/allapot', jogSzukseges('hirdetesSzerkesztes'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
     }
     const { adatok, hibak } = allapotEllenorzese(req.body);
-    if (hibak.length) return hibasValasz(res, hibak);
+    if (hibak.length > 0) {
+        return hibasValasz(res, hibak);
+    }
 
-    // Betöltés + mentés (nem findByIdAndUpdate), hogy a modell hookja kitöltse/törölje az eladási adatokat.
+    // nem findByIdAndUpdate-et használunk, mert így lefut a modell pre('validate') része
+    // (ez tölti ki az eladási adatokat)
     const auto = await AutoModel.findById(req.params.id);
     if (!auto) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
@@ -218,6 +351,7 @@ router.patch('/autok/:id/allapot', jogSzukseges('hirdetesSzerkesztes'), async (r
     return res.status(200).json({ uzenet: 'Állapot frissítve.', auto: autoValasz(auto, belsoNezet(req)) });
 });
 
+// autó törlése
 router.delete('/autok/:id', jogSzukseges('hirdetesTorles'), async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).json({ hiba: 'Autó nem található!' });
@@ -227,8 +361,9 @@ router.delete('/autok/:id', jogSzukseges('hirdetesTorles'), async (req, res) => 
         return res.status(404).json({ hiba: 'Autó nem található!' });
     }
 
+    // a kedvencek közül is kivesszük
     await FelhasznaloModel.updateMany({ kedvencek: auto._id }, { $pull: { kedvencek: auto._id } });
-    await kepekTorlese([auto.kepPublicId, ...auto.kepek.map((kep) => kep.publicId)]);
+    await kepekTorlese(autoKepei(auto));
     return res.status(200).json({ uzenet: 'Autó sikeresen törölve!' });
 });
 

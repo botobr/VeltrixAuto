@@ -14,9 +14,29 @@ const LEPESEK = {
 };
 const LEPES_NEV = { uj: 'Beérkezett', feldolgozas: 'Összekészítés', feladva: 'Feladva', atveheto: 'Átvehető', teljesitve: 'Teljesítve' };
 
-const cimSor = (c) => [c?.nev, c?.adoszam && `adószám: ${c.adoszam}`, [c?.iranyitoszam, c?.varos].filter(Boolean).join(' '), c?.cim].filter(Boolean).join(', ');
+// egy cím egy sorban, pl. "Nagy Péter, 1111 Budapest, Fő utca 1."
+const cimSor = (cim) => {
+    if (!cim) {
+        return '';
+    }
+    const reszek = [];
+    if (cim.nev) {
+        reszek.push(cim.nev);
+    }
+    if (cim.adoszam) {
+        reszek.push('adószám: ' + cim.adoszam);
+    }
+    const varos = [cim.iranyitoszam, cim.varos].filter((resz) => resz).join(' ');
+    if (varos) {
+        reszek.push(varos);
+    }
+    if (cim.cim) {
+        reszek.push(cim.cim);
+    }
+    return reszek.join(', ');
+};
 
-/** Rendelés-visszaigazolás és állapotkövetés (a vevő e-mailben is megkapja a linkjét). */
+// A rendelés visszaigazolása és állapota (a vevő e-mailben is megkapja a linkjét).
 const Rendeles = () => {
     const { szam } = useParams();
     const [params] = useSearchParams();
@@ -26,26 +46,45 @@ const Rendeles = () => {
     const [fizetesInditas, setFizetesInditas] = useState(false);
     const [frissites, setFrissites] = useState(0);
 
-    useSeo({ cim: `Rendelés ${szam}`, noindex: true });
+    useSeo({ cim: 'Rendelés ' + szam, noindex: true });
 
     useEffect(() => {
-        apiKeres(`/rendelesek/${encodeURIComponent(szam)}?kulcs=${encodeURIComponent(kulcs)}`, {}, 'A rendelés betöltése nem sikerült.')
-            .then((data) => setAllapot({ rendeles: data.rendeles, hiba: '' }))
-            .catch((error) => setAllapot({ rendeles: null, hiba: error.status === 404 ? 'A rendelés nem található, vagy a link érvénytelen.' : error.message }));
+        const url = '/rendelesek/' + encodeURIComponent(szam) + '?kulcs=' + encodeURIComponent(kulcs);
+        apiKeres(url, {}, 'A rendelés betöltése nem sikerült.')
+            .then((data) => {
+                setAllapot({ rendeles: data.rendeles, hiba: '' });
+            })
+            .catch((error) => {
+                let uzenet = error.message;
+                if (error.status === 404) {
+                    uzenet = 'A rendelés nem található, vagy a link érvénytelen.';
+                }
+                setAllapot({ rendeles: null, hiba: uzenet });
+            });
     }, [szam, kulcs, frissites]);
 
-    // Sikeres kártyás fizetés után a visszajelzés pár másodperc alatt ér be – addig újrakérdezzük.
-    const varakozas = fizetesVissza === 'siker' && allapot.rendeles?.fizetes.statusz === 'fuggo' && allapot.rendeles?.statusz === 'fizetesre_var';
+    // Kártyás fizetés után a Stripe visszajelzése pár másodperc múlva ér ide,
+    // addig 2 másodpercenként újra lekérjük a rendelést (max 10-szer).
+    let varakozas = false;
+    if (fizetesVissza === 'siker' && allapot.rendeles) {
+        varakozas = allapot.rendeles.fizetes.statusz === 'fuggo' && allapot.rendeles.statusz === 'fizetesre_var';
+    }
     useEffect(() => {
-        if (!varakozas || frissites >= 10) return undefined;
-        const idozito = setTimeout(() => setFrissites((n) => n + 1), 2000);
+        if (!varakozas || frissites >= 10) {
+            return undefined;
+        }
+        const idozito = setTimeout(() => {
+            setFrissites((szamlalo) => szamlalo + 1);
+        }, 2000);
         return () => clearTimeout(idozito);
     }, [varakozas, frissites]);
 
+    // megszakadt kártyás fizetés újraindítása
     const ujraFizetes = async () => {
         setFizetesInditas(true);
         try {
-            const valasz = await apiKeres(`/rendelesek/${encodeURIComponent(szam)}/fizetes?kulcs=${encodeURIComponent(kulcs)}`, { method: 'POST' }, 'A fizetés nem indítható.');
+            const url = '/rendelesek/' + encodeURIComponent(szam) + '/fizetes?kulcs=' + encodeURIComponent(kulcs);
+            const valasz = await apiKeres(url, { method: 'POST' }, 'A fizetés nem indítható.');
             window.location.assign(valasz.fizetesUrl);
         } catch (error) {
             setAllapot((elozo) => ({ ...elozo, hiba: error.message }));
@@ -53,27 +92,53 @@ const Rendeles = () => {
         }
     };
 
-    const { rendeles: r, hiba } = allapot;
+    const r = allapot.rendeles;
+    const hiba = allapot.hiba;
     if (!r) {
-        return hiba
-            ? <main className="oldal"><div className="allapot-doboz uveg" role="alert"><h1>Hoppá</h1><p>{hiba}</p><Link className="gomb gomb-uveg" to="/alkatreszek">Vissza a webshopba</Link></div></main>
-            : <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Rendelés betöltése…</main>;
+        if (hiba) {
+            return (
+                <main className="oldal">
+                    <div className="allapot-doboz uveg" role="alert">
+                        <h1>Hoppá</h1>
+                        <p>{hiba}</p>
+                        <Link className="gomb gomb-uveg" to="/alkatreszek">Vissza a webshopba</Link>
+                    </div>
+                </main>
+            );
+        }
+        return <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Rendelés betöltése…</main>;
     }
 
     const lepesek = LEPESEK[r.szallitas.mod];
     const aktualisLepes = lepesek.indexOf(r.statusz);
     const lemondva = r.statusz === 'lemondva';
 
+    // az oldal címe az állapottól függ
+    let cim = r.statuszNev;
+    if (lemondva) {
+        cim = 'A rendelés lemondva';
+    } else if (r.statusz === 'fizetesre_var') {
+        cim = varakozas ? 'Fizetés ellenőrzése…' : 'Fizetésre vár';
+    } else if (params.get('uj') || fizetesVissza === 'siker') {
+        cim = <>Köszönjük a <span className="gradiens-szoveg">rendelésed!</span></>;
+    }
+
+    // a lépés osztálya: kész / aktuális / még nem
+    const lepesOsztaly = (i) => {
+        if (i < aktualisLepes) {
+            return 'kesz';
+        }
+        if (i === aktualisLepes) {
+            return 'aktualis';
+        }
+        return '';
+    };
+
     return (
         <main className="oldal rendeles-oldal">
             <header className="webshop-fejlec">
                 <p className="felirat">Rendelés · {r.rendelesSzam}</p>
-                <h1>
-                    {lemondva ? 'A rendelés lemondva'
-                        : r.statusz === 'fizetesre_var' ? (varakozas ? 'Fizetés ellenőrzése…' : 'Fizetésre vár')
-                            : params.get('uj') || fizetesVissza === 'siker' ? <>Köszönjük a <span className="gradiens-szoveg">rendelésed!</span></>
-                                : r.statuszNev}
-                </h1>
+                <h1>{cim}</h1>
                 <p className="rendeles-alcim">Leadva: {formatDatumIdo(r.createdAt)} · visszaigazolást küldtünk ide: <strong>{r.vevo.email}</strong></p>
             </header>
 
@@ -84,7 +149,7 @@ const Rendeles = () => {
             {!lemondva && r.statusz !== 'fizetesre_var' && (
                 <ol className="rendeles-lepesek" aria-label="A rendelés állapota">
                     {lepesek.map((lepes, i) => (
-                        <li key={lepes} className={i < aktualisLepes ? 'kesz' : i === aktualisLepes ? 'aktualis' : ''} aria-current={i === aktualisLepes ? 'step' : undefined}>
+                        <li key={lepes} className={lepesOsztaly(i)} aria-current={i === aktualisLepes ? 'step' : undefined}>
                             <span>{i < aktualisLepes ? <Ikon nev="pipa" meret={14} /> : i + 1}</span>
                             {LEPES_NEV[lepes]}
                         </li>
@@ -131,7 +196,7 @@ const Rendeles = () => {
                             {r.tetelek.map((t) => (
                                 <li key={t.alkatresz}>
                                     {t.kep ? <img src={kepMeret(t.kep, 120)} alt="" /> : <span className="top-kep-hiany" />}
-                                    <span><Link to={`/alkatreszek/${t.slug}`}>{t.nev}</Link><small>{t.cikkszam} · {t.mennyiseg} × {ft(t.egysegar)}</small></span>
+                                    <span><Link to={'/alkatreszek/' + t.slug}>{t.nev}</Link><small>{t.cikkszam} · {t.mennyiseg} × {ft(t.egysegar)}</small></span>
                                     <strong>{ft(t.egysegar * t.mennyiseg)}</strong>
                                 </li>
                             ))}

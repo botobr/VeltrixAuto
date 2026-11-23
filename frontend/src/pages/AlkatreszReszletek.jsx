@@ -12,47 +12,111 @@ import NemTalalhato from './NemTalalhato';
 import './AutoReszletek.css';
 import './Webshop.css';
 
-const strukturaltAdat = (a) => ({
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: a.nev,
-    sku: a.cikkszam,
-    brand: { '@type': 'Brand', name: a.gyarto },
-    category: a.kategoriaNev,
-    image: a.kepek.map((kep) => kep.url),
-    description: a.rovidLeiras || a.leiras?.slice(0, 300) || undefined,
-    offers: {
-        '@type': 'Offer',
-        priceCurrency: 'HUF',
-        price: a.akcios ? a.akciosAr : a.ar,
-        availability: a.keszlet > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        itemCondition: 'https://schema.org/NewCondition',
-        url: `${window.location.origin}${alkatreszUrl(a)}`,
-    },
-});
+// a ténylegesen fizetendő ár
+const aktualisAr = (alkatresz) => {
+    if (alkatresz.akcios) {
+        return alkatresz.akciosAr;
+    }
+    return alkatresz.ar;
+};
 
-const MennyisegValaszto = ({ ertek, max, onValtozas }) => (
-    <div className="mennyiseg" role="group" aria-label="Mennyiség">
-        <button type="button" className="ikon-gomb" onClick={() => onValtozas(Math.max(1, ertek - 1))} disabled={ertek <= 1} aria-label="Eggyel kevesebb">
-            <Ikon nev="minusz" meret={16} />
-        </button>
-        <input className="bemenet" type="number" inputMode="numeric" min={1} max={max} value={ertek} aria-label="Darabszám"
-            onChange={(e) => onValtozas(Math.min(Math.max(1, Number.parseInt(e.target.value, 10) || 1), Math.max(1, max)))} />
-        <button type="button" className="ikon-gomb" onClick={() => onValtozas(Math.min(max, ertek + 1))} disabled={ertek >= max} aria-label="Eggyel több">
-            <Ikon nev="plusz" meret={16} />
-        </button>
-    </div>
-);
+// strukturált adat a Google-nek (schema.org Product)
+const strukturaltAdat = (a) => {
+    let leiras = a.rovidLeiras;
+    if (!leiras && a.leiras) {
+        leiras = a.leiras.slice(0, 300);
+    }
 
+    let elerhetoseg = 'https://schema.org/OutOfStock';
+    if (a.keszlet > 0) {
+        elerhetoseg = 'https://schema.org/InStock';
+    }
+
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: a.nev,
+        sku: a.cikkszam,
+        brand: { '@type': 'Brand', name: a.gyarto },
+        category: a.kategoriaNev,
+        image: a.kepek.map((kep) => kep.url),
+        description: leiras || undefined,
+        offers: {
+            '@type': 'Offer',
+            priceCurrency: 'HUF',
+            price: aktualisAr(a),
+            availability: elerhetoseg,
+            itemCondition: 'https://schema.org/NewCondition',
+            url: window.location.origin + alkatreszUrl(a),
+        },
+    };
+};
+
+// link a webshop listához, ami erre az autóra szűr
+const kompatibilitasLink = (sor) => {
+    let link = '/alkatreszek?autoMarka=' + encodeURIComponent(sor.marka);
+    if (sor.modell) {
+        link += '&autoModell=' + encodeURIComponent(sor.modell);
+    }
+    return link;
+};
+
+// darabszám választó (- és + gombbal)
+const MennyisegValaszto = ({ ertek, max, onValtozas }) => {
+    const kevesebb = () => {
+        if (ertek > 1) {
+            onValtozas(ertek - 1);
+        }
+    };
+
+    const tobb = () => {
+        if (ertek < max) {
+            onValtozas(ertek + 1);
+        }
+    };
+
+    // beírt szám: legalább 1 és legfeljebb max
+    const beiras = (event) => {
+        let szam = Number.parseInt(event.target.value, 10) || 1;
+        if (szam < 1) {
+            szam = 1;
+        }
+        if (szam > max) {
+            szam = Math.max(1, max);
+        }
+        onValtozas(szam);
+    };
+
+    return (
+        <div className="mennyiseg" role="group" aria-label="Mennyiség">
+            <button type="button" className="ikon-gomb" onClick={kevesebb} disabled={ertek <= 1} aria-label="Eggyel kevesebb">
+                <Ikon nev="minusz" meret={16} />
+            </button>
+            <input className="bemenet" type="number" inputMode="numeric" min={1} max={max} value={ertek} aria-label="Darabszám" onChange={beiras} />
+            <button type="button" className="ikon-gomb" onClick={tobb} disabled={ertek >= max} aria-label="Eggyel több">
+                <Ikon nev="plusz" meret={16} />
+            </button>
+        </div>
+    );
+};
+
+// a termék adatlapja
 const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
     const { mennyiseg: kosarban } = useKosar();
     const [darab, setDarab] = useState(1);
     const keszlet = keszletSzoveg(a.keszlet);
-    const maxDarab = Math.max(0, Math.min(99, a.keszlet - kosarban(a._id)));
+
+    // ennyit lehet még a kosárba tenni (max 99)
+    let maxDarab = Math.min(99, a.keszlet - kosarban(a._id));
+    if (maxDarab < 0) {
+        maxDarab = 0;
+    }
+    // a kiválasztott darab nem lehet több a maximumnál
+    const valasztottDarab = Math.max(1, Math.min(darab, maxDarab));
 
     useSeo({
-        cim: `${a.nev} – ${a.gyarto} (${a.cikkszam})`,
-        leiras: a.rovidLeiras || `${a.gyarto} ${a.nev} – ${a.kategoriaNev}. Ár: ${ft(a.akcios ? a.akciosAr : a.ar)}.`,
+        cim: a.nev + ' – ' + a.gyarto + ' (' + a.cikkszam + ')',
+        leiras: a.rovidLeiras || a.gyarto + ' ' + a.nev + ' – ' + a.kategoriaNev + '. Ár: ' + ft(aktualisAr(a)) + '.',
         kep: a.kep,
         utvonal: alkatreszUrl(a),
         tipus: 'product',
@@ -66,7 +130,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
                 <Ikon nev="jobbra" meret={14} />
                 <Link to="/alkatreszek">Tuning alkatrészek</Link>
                 <Ikon nev="jobbra" meret={14} />
-                <Link to={`/alkatreszek?kategoria=${a.kategoria}`}>{a.kategoriaNev}</Link>
+                <Link to={'/alkatreszek?kategoria=' + a.kategoria}>{a.kategoriaNev}</Link>
                 <Ikon nev="jobbra" meret={14} />
                 <span aria-current="page">{a.nev}</span>
             </nav>
@@ -91,7 +155,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
                         <ArKijelzes alkatresz={a} />
                         {a.akcios && <span className="alkatresz-megtakaritas">Megtakarítás: {ft(a.ar - a.akciosAr)}</span>}
                     </div>
-                    <p className={`alkatresz-keszlet keszlet-${keszlet.tipus}`}><Ikon nev="csomag" meret={15} /> {keszlet.szoveg}</p>
+                    <p className={'alkatresz-keszlet keszlet-' + keszlet.tipus}><Ikon nev="csomag" meret={15} /> {keszlet.szoveg}</p>
 
                     {a.rovidLeiras && <p className="alkatresz-panel-leiras">{a.rovidLeiras}</p>}
 
@@ -100,7 +164,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
                             {maxDarab > 0
                                 ? <MennyisegValaszto ertek={Math.min(darab, maxDarab)} max={maxDarab} onValtozas={setDarab} />
                                 : <p className="alkatresz-kosarban">A teljes készlet a kosaradban van.</p>}
-                            <KosarbaGomb alkatresz={a} mennyiseg={Math.max(1, Math.min(darab, maxDarab))} nagy />
+                            <KosarbaGomb alkatresz={a} mennyiseg={valasztottDarab} nagy />
                         </div>
                     )}
                     {kosarban(a._id) > 0 && <Link className="szoveg-gomb" to="/kosar">{kosarban(a._id)} db a kosaradban – Kosár megtekintése →</Link>}
@@ -112,7 +176,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
                     </div>
 
                     {munkatars && (
-                        <Link className="gomb gomb-uveg gomb-kicsi reszletek-admin" to={`/admin/alkatreszek/${a._id}`}>
+                        <Link className="gomb gomb-uveg gomb-kicsi reszletek-admin" to={'/admin/alkatreszek/' + a._id}>
                             <Ikon nev="szerkeszt" meret={15} /> Termék szerkesztése
                         </Link>
                     )}
@@ -128,7 +192,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
                         <ul className="kompatibilitas-lista">
                             {a.kompatibilitas.map((sor) => (
                                 <li key={kompatibilitasSzoveg(sor)}>
-                                    <Link to={`/alkatreszek?autoMarka=${encodeURIComponent(sor.marka)}${sor.modell ? `&autoModell=${encodeURIComponent(sor.modell)}` : ''}`}>
+                                    <Link to={kompatibilitasLink(sor)}>
                                         <Ikon nev="auto" meret={15} /> {kompatibilitasSzoveg(sor)}
                                     </Link>
                                 </li>
@@ -141,7 +205,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
                     <section className="reszletek-blokk" aria-labelledby="parameterek-cim">
                         <h2 id="parameterek-cim">Műszaki adatok</h2>
                         <dl className="adatlap">
-                            {a.parameterek.map((p) => <div key={p.nev}><dt>{p.nev}</dt><dd>{p.ertek}</dd></div>)}
+                            {a.parameterek.map((parameter) => <div key={parameter.nev}><dt>{parameter.nev}</dt><dd>{parameter.ertek}</dd></div>)}
                         </dl>
                     </section>
                 )}
@@ -166,6 +230,7 @@ const Reszletek = ({ alkatresz: a, kapcsolodok, munkatars }) => {
     );
 };
 
+// a termék betöltése az URL alapján
 const AlkatreszReszletek = () => {
     const { slug } = useParams();
     const navigate = useNavigate();
@@ -174,20 +239,29 @@ const AlkatreszReszletek = () => {
 
     useEffect(() => {
         const controller = new AbortController();
-        apiKeres(`/alkatreszek/${encodeURIComponent(slug)}`, { signal: controller.signal }, 'A termék betöltése nem sikerült.')
+        apiKeres('/alkatreszek/' + encodeURIComponent(slug), { signal: controller.signal }, 'A termék betöltése nem sikerült.')
             .then((data) => {
-                setAdat({ slug, alkatresz: data.alkatresz, kapcsolodok: data.kapcsolodok || [], hiba: null });
-                if (data.alkatresz.slug !== slug) navigate(`/alkatreszek/${data.alkatresz.slug}`, { replace: true });
+                setAdat({ slug: slug, alkatresz: data.alkatresz, kapcsolodok: data.kapcsolodok || [], hiba: null });
+                // ha régi a link, átírjuk a helyesre
+                if (data.alkatresz.slug !== slug) {
+                    navigate('/alkatreszek/' + data.alkatresz.slug, { replace: true });
+                }
             })
             .catch((error) => {
-                if (error.name !== 'AbortError') setAdat({ slug, alkatresz: null, kapcsolodok: [], hiba: error });
+                if (error.name !== 'AbortError') {
+                    setAdat({ slug: slug, alkatresz: null, kapcsolodok: [], hiba: error });
+                }
             });
         return () => controller.abort();
     }, [slug, navigate]);
 
-    const aktualis = adat.slug === slug || adat.alkatresz?.slug === slug;
-    if (!aktualis) return <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Termék betöltése…</main>;
-    if (adat.hiba?.status === 404) return <NemTalalhato cim="Ez a termék nem található" szoveg="Lehet, hogy már nem forgalmazzuk. Nézz körül a többi alkatrész között!" />;
+    const aktualis = adat.slug === slug || (adat.alkatresz && adat.alkatresz.slug === slug);
+    if (!aktualis) {
+        return <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Termék betöltése…</main>;
+    }
+    if (adat.hiba && adat.hiba.status === 404) {
+        return <NemTalalhato cim="Ez a termék nem található" szoveg="Lehet, hogy már nem forgalmazzuk. Nézz körül a többi alkatrész között!" />;
+    }
     if (adat.hiba) {
         return (
             <main className="oldal">

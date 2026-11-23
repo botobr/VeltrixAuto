@@ -19,27 +19,35 @@ const SZOLGALTATASOK = [
     ['szerviz', 'Szervizelés', 'Partnerszervizeinkben a vásárlás után is számíthatsz ránk.', '/szolgaltatasok#szervizeles'],
 ];
 
+// gyorskereső a főoldalon (márka és max ár)
 const GyorsKereso = ({ markak }) => {
     const navigate = useNavigate();
     const [marka, setMarka] = useState('');
     const [maxAr, setMaxAr] = useState('');
 
+    const kereses = (event) => {
+        event.preventDefault();
+        const parameterek = new URLSearchParams();
+        if (marka) {
+            parameterek.set('marka', marka);
+        }
+        if (maxAr) {
+            parameterek.set('maxAr', maxAr);
+        }
+        if (parameterek.size > 0) {
+            navigate('/autok?' + parameterek.toString());
+        } else {
+            navigate('/autok');
+        }
+    };
+
     return (
-        <form
-            className="gyorskereso uveg"
-            onSubmit={(event) => {
-                event.preventDefault();
-                const p = new URLSearchParams();
-                if (marka) p.set('marka', marka);
-                if (maxAr) p.set('maxAr', maxAr);
-                navigate(`/autok${p.size ? `?${p}` : ''}`);
-            }}
-        >
+        <form className="gyorskereso uveg" onSubmit={kereses}>
             <label>
                 <span>Márka</span>
                 <select value={marka} onChange={(event) => setMarka(event.target.value)}>
                     <option value="">Bármelyik</option>
-                    {markak.map((m) => <option key={m.marka} value={m.marka}>{m.marka}</option>)}
+                    {markak.map((elem) => <option key={elem.marka} value={elem.marka}>{elem.marka}</option>)}
                 </select>
             </label>
             <label>
@@ -59,7 +67,7 @@ const Home = () => {
     const [markak, setMarkak] = useState([]);
 
     useSeo({
-        leiras: `${CEG.nev}: válogatott használt autók részletes adatlappal, garanciával, finanszírozással és beszámítással.`,
+        leiras: CEG.nev + ': válogatott használt autók részletes adatlappal, garanciával, finanszírozással és beszámítással.',
         utvonal: '/',
         jsonLd: {
             '@context': 'https://schema.org',
@@ -68,29 +76,60 @@ const Home = () => {
             url: window.location.origin,
             potentialAction: {
                 '@type': 'SearchAction',
-                target: `${window.location.origin}/autok?q={kereses}`,
+                target: window.location.origin + '/autok?q={kereses}',
                 'query-input': 'required name=kereses',
             },
         },
     });
 
+    // a kiemelt autók (ha nincs, akkor a legújabbak) és a márkák betöltése
     useEffect(() => {
         const controller = new AbortController();
-        const { signal } = controller;
-        Promise.all([
-            apiKeres('/autok?limit=3&kiemelt=1', { signal }),
-            apiKeres('/autok?limit=3&rendezes=ujElol', { signal }),
-        ])
-            .then(([kiemelt, friss]) => {
+        const signal = controller.signal;
+
+        const betoltes = async () => {
+            try {
+                const kiemelt = await apiKeres('/autok?limit=3&kiemelt=1', { signal: signal });
+                const friss = await apiKeres('/autok?limit=3&rendezes=ujElol', { signal: signal });
                 const vanKiemelt = kiemelt.autok.length > 0;
-                setAdatok({ autok: vanKiemelt ? kiemelt.autok : friss.autok, osszes: friss.lapozas.osszes, kiemelt: vanKiemelt, betoltes: false });
-            })
-            .catch((error) => {
-                if (error.name !== 'AbortError') setAdatok({ autok: [], osszes: null, kiemelt: false, betoltes: false });
-            });
-        apiKeres('/autok/szurok', { signal }).then((data) => setMarkak(data.markak || [])).catch(() => {});
+                setAdatok({
+                    autok: vanKiemelt ? kiemelt.autok : friss.autok,
+                    osszes: friss.lapozas.osszes,
+                    kiemelt: vanKiemelt,
+                    betoltes: false,
+                });
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    setAdatok({ autok: [], osszes: null, kiemelt: false, betoltes: false });
+                }
+            }
+        };
+        betoltes();
+
+        apiKeres('/autok/szurok', { signal: signal })
+            .then((data) => setMarkak(data.markak || []))
+            .catch(() => {});
+
         return () => controller.abort();
     }, []);
+
+    // az autók rész tartalma (betöltés / autók / üres)
+    let autokResz;
+    if (adatok.betoltes) {
+        autokResz = <div className="autok-racs">{[0, 1, 2].map((i) => <AutoKartyaVaz key={i} />)}</div>;
+    } else if (adatok.autok.length > 0) {
+        autokResz = (
+            <div className="autok-racs">
+                {adatok.autok.map((auto, i) => <AutoKartya key={auto._id} auto={auto} kesleltetes={i} />)}
+            </div>
+        );
+    } else {
+        let szoveg = 'Hamarosan érkeznek az első autók.';
+        if (adatok.osszes === null) {
+            szoveg = 'A kínálat most nem érhető el – próbáld újra később.';
+        }
+        autokResz = <p className="home-ures uveg">{szoveg}</p>;
+    }
 
     return (
         <main className="oldal home">
@@ -110,7 +149,7 @@ const Home = () => {
                     <dl className="home-statok">
                         <div>
                             <dt>Elérhető autó</dt>
-                            <dd>{adatok.osszes == null ? '—' : formatSzam(adatok.osszes)}</dd>
+                            <dd>{adatok.osszes === null ? '—' : formatSzam(adatok.osszes)}</dd>
                         </div>
                         <div>
                             <dt>Márka</dt>
@@ -149,19 +188,7 @@ const Home = () => {
                     </Link>
                 </div>
 
-                {adatok.betoltes ? (
-                    <div className="autok-racs">{[0, 1, 2].map((i) => <AutoKartyaVaz key={i} />)}</div>
-                ) : adatok.autok.length > 0 ? (
-                    <div className="autok-racs">
-                        {adatok.autok.map((auto, i) => <AutoKartya key={auto._id} auto={auto} kesleltetes={i} />)}
-                    </div>
-                ) : (
-                    <p className="home-ures uveg">
-                        {adatok.osszes == null
-                            ? 'A kínálat most nem érhető el – próbáld újra később.'
-                            : 'Hamarosan érkeznek az első autók.'}
-                    </p>
-                )}
+                {autokResz}
             </section>
 
             <section className="home-szekcio" aria-labelledby="szolg-cim">

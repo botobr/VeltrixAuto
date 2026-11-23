@@ -4,6 +4,7 @@ import { useFelhasznalo } from '../context/felhasznalo';
 import { useSeo } from '../lib/useSeo';
 import './Belepes.css';
 
+// jelszó mező "Mutat" gombbal (a regisztrációnál is ezt használjuk)
 export const JelszoMezo = ({ id, value, onChange, autoComplete, placeholder, minLength }) => {
     const [lathato, setLathato] = useState(false);
     return (
@@ -37,13 +38,39 @@ const Belepes = () => {
 
     useSeo({ cim: 'Bejelentkezés', noindex: true });
 
-    const cel = (belepett) => location.state?.from || (belepett?.jogok?.includes('kezelofelulet') ? '/admin' : '/fiok');
-
-    if (felhasznalo && !folyamatban) {
-        return <Navigate to={location.state?.from || (munkatars ? '/admin' : '/fiok')} replace />;
+    // ahonnan ide küldték (pl. egy védett oldalról)
+    let honnan = null;
+    let uzenet = 'Lépj be a fiókodba a kedvenceid és mentett kereséseid eléréséhez.';
+    if (location.state) {
+        honnan = location.state.from || null;
+        if (location.state.uzenet) {
+            uzenet = location.state.uzenet;
+        }
     }
 
-    const handleSubmit = async (event) => {
+    // belépés után: vissza oda, ahonnan jött, vagy a munkatárs az adminba, a vásárló a fiókjába
+    const cel = (belepett) => {
+        if (honnan) {
+            return honnan;
+        }
+        if (belepett && belepett.jogok && belepett.jogok.includes('kezelofelulet')) {
+            return '/admin';
+        }
+        return '/fiok';
+    };
+
+    // ha már be van jelentkezve, nem kell ez az oldal
+    if (felhasznalo && !folyamatban) {
+        let hova = '/fiok';
+        if (honnan) {
+            hova = honnan;
+        } else if (munkatars) {
+            hova = '/admin';
+        }
+        return <Navigate to={hova} replace />;
+    }
+
+    const kuldes = async (event) => {
         event.preventDefault();
         setHiba('');
         setFolyamatban(true);
@@ -64,8 +91,8 @@ const Belepes = () => {
                 <div className="belepes-disz" aria-hidden="true">V</div>
                 <p className="felirat">Üdv újra itt</p>
                 <h1>Bejelentkezés</h1>
-                <p className="belepes-leiras">{location.state?.uzenet || 'Lépj be a fiókodba a kedvenceid és mentett kereséseid eléréséhez.'}</p>
-                <form className="belepes-urlap" onSubmit={handleSubmit}>
+                <p className="belepes-leiras">{uzenet}</p>
+                <form className="belepes-urlap" onSubmit={kuldes}>
                     <div className="mezo">
                         <span><label htmlFor="email">E-mail-cím</label></span>
                         <input

@@ -7,8 +7,16 @@ import { formatDatumIdo, kepMeret } from '../../lib/auto';
 
 const STATUSZOK = [['uj', 'Új'], ['folyamatban', 'Folyamatban'], ['lezart', 'Lezárt']];
 
+// belső megjegyzés (kilépéskor mentődik)
 const Megjegyzes = ({ erdeklodes, onMentes }) => {
     const [szoveg, setSzoveg] = useState(erdeklodes.megjegyzes || '');
+
+    const mentes = () => {
+        if (szoveg !== (erdeklodes.megjegyzes || '')) {
+            onMentes({ megjegyzes: szoveg });
+        }
+    };
+
     return (
         <label className="mezo erdeklodes-megjegyzes">
             <span>Belső megjegyzés</span>
@@ -19,12 +27,13 @@ const Megjegyzes = ({ erdeklodes, onMentes }) => {
                 placeholder="pl. visszahívva, próbaút pénteken 10:00"
                 value={szoveg}
                 onChange={(event) => setSzoveg(event.target.value)}
-                onBlur={() => { if (szoveg !== (erdeklodes.megjegyzes || '')) onMentes({ megjegyzes: szoveg }); }}
+                onBlur={mentes}
             />
         </label>
     );
 };
 
+// a beérkezett érdeklődések listája
 const AdminErdeklodesek = () => {
     const { jog } = useFelhasznalo();
     const [params, setParams] = useSearchParams();
@@ -32,73 +41,115 @@ const AdminErdeklodesek = () => {
     const autoSzuro = params.get('auto') || '';
     const [adat, setAdat] = useState({ kulcs: null, erdeklodesek: [], statuszSzamok: {}, lapozas: null });
     const [hiba, setHiba] = useState('');
-    const kulcs = `${statusz}|${autoSzuro}`;
+    const kulcs = statusz + '|' + autoSzuro;
+
+    // a lekérdezés paraméterei (oldalszámmal)
+    const lekeresParameterei = (oldal) => {
+        const parameterek = new URLSearchParams();
+        if (oldal) {
+            parameterek.set('oldal', String(oldal));
+        }
+        if (statusz) {
+            parameterek.set('statusz', statusz);
+        }
+        if (autoSzuro) {
+            parameterek.set('auto', autoSzuro);
+        }
+        return parameterek.toString();
+    };
 
     useEffect(() => {
         const controller = new AbortController();
-        const p = new URLSearchParams();
-        if (statusz) p.set('statusz', statusz);
-        if (autoSzuro) p.set('auto', autoSzuro);
-        apiKeres(`/admin/erdeklodesek?${p}`, { signal: controller.signal })
-            .then((data) => setAdat({ kulcs, ...data }))
-            .catch((error) => { if (error.name !== 'AbortError') setHiba(error.message); });
+        const parameterek = new URLSearchParams();
+        if (statusz) {
+            parameterek.set('statusz', statusz);
+        }
+        if (autoSzuro) {
+            parameterek.set('auto', autoSzuro);
+        }
+        apiKeres('/admin/erdeklodesek?' + parameterek.toString(), { signal: controller.signal })
+            .then((data) => {
+                setAdat({ kulcs: kulcs, ...data });
+            })
+            .catch((error) => {
+                if (error.name !== 'AbortError') {
+                    setHiba(error.message);
+                }
+            });
         return () => controller.abort();
     }, [kulcs, statusz, autoSzuro]);
 
     const szuroBeallitasa = (mezo, ertek) => {
         const uj = new URLSearchParams(params);
-        if (ertek) uj.set(mezo, ertek);
-        else uj.delete(mezo);
+        if (ertek) {
+            uj.set(mezo, ertek);
+        } else {
+            uj.delete(mezo);
+        }
         setParams(uj, { replace: true });
     };
 
     const modositas = async (erdeklodes, adatok) => {
         setHiba('');
         try {
-            const data = await apiKeres(`/admin/erdeklodesek/${erdeklodes._id}`, { method: 'PATCH', body: adatok }, 'A mentés nem sikerült.');
-            setAdat((elozo) => ({
-                ...elozo,
-                erdeklodesek: elozo.erdeklodesek.map((e) => (e._id === erdeklodes._id ? { ...e, ...data.erdeklodes, auto: e.auto } : e)),
-                statuszSzamok: adatok.statusz && adatok.statusz !== erdeklodes.statusz
-                    ? { ...elozo.statuszSzamok, [erdeklodes.statusz]: (elozo.statuszSzamok[erdeklodes.statusz] || 1) - 1, [adatok.statusz]: (elozo.statuszSzamok[adatok.statusz] || 0) + 1 }
-                    : elozo.statuszSzamok,
-            }));
+            const data = await apiKeres('/admin/erdeklodesek/' + erdeklodes._id, { method: 'PATCH', body: adatok }, 'A mentés nem sikerült.');
+            setAdat((elozo) => {
+                const erdeklodesek = elozo.erdeklodesek.map((elem) => {
+                    if (elem._id === erdeklodes._id) {
+                        // az autó adatai nincsenek a válaszban, azokat megtartjuk
+                        return { ...elem, ...data.erdeklodes, auto: elem.auto };
+                    }
+                    return elem;
+                });
+
+                // ha változott a státusz, a darabszámokat is átírjuk
+                const statuszSzamok = { ...elozo.statuszSzamok };
+                if (adatok.statusz && adatok.statusz !== erdeklodes.statusz) {
+                    statuszSzamok[erdeklodes.statusz] = (statuszSzamok[erdeklodes.statusz] || 1) - 1;
+                    statuszSzamok[adatok.statusz] = (statuszSzamok[adatok.statusz] || 0) + 1;
+                }
+
+                return { ...elozo, erdeklodesek: erdeklodesek, statuszSzamok: statuszSzamok };
+            });
         } catch (error) {
             setHiba(error.message);
         }
     };
 
     const torles = async (erdeklodes) => {
-        if (!window.confirm(`Törlöd ${erdeklodes.nev} érdeklődését?`)) return;
+        if (!window.confirm('Törlöd ' + erdeklodes.nev + ' érdeklődését?')) {
+            return;
+        }
         try {
-            await apiKeres(`/admin/erdeklodesek/${erdeklodes._id}`, { method: 'DELETE' });
-            setAdat((elozo) => ({ ...elozo, erdeklodesek: elozo.erdeklodesek.filter((e) => e._id !== erdeklodes._id) }));
+            await apiKeres('/admin/erdeklodesek/' + erdeklodes._id, { method: 'DELETE' });
+            setAdat((elozo) => ({ ...elozo, erdeklodesek: elozo.erdeklodesek.filter((elem) => elem._id !== erdeklodes._id) }));
         } catch (error) {
             setHiba(error.message);
         }
     };
 
     const tovabbiak = async () => {
-        const p = new URLSearchParams({ oldal: String(adat.lapozas.oldal + 1) });
-        if (statusz) p.set('statusz', statusz);
-        if (autoSzuro) p.set('auto', autoSzuro);
         try {
-            const data = await apiKeres(`/admin/erdeklodesek?${p}`);
+            const data = await apiKeres('/admin/erdeklodesek?' + lekeresParameterei(adat.lapozas.oldal + 1));
             setAdat((elozo) => ({ ...elozo, erdeklodesek: [...elozo.erdeklodesek, ...data.erdeklodesek], lapozas: data.lapozas }));
         } catch (error) {
             setHiba(error.message);
         }
     };
 
-    const osszes = Object.values(adat.statuszSzamok).reduce((s, db) => s + db, 0);
+    // az összes érdeklődés száma
+    let osszes = 0;
+    for (const statuszKulcs in adat.statuszSzamok) {
+        osszes += adat.statuszSzamok[statuszKulcs];
+    }
 
     return (
         <div className="admin-lista">
             <div className="admin-eszkoztar">
                 <div className="szuro-csipek" role="group" aria-label="Szűrés státusz szerint">
-                    <button type="button" className={`csip ${!statusz ? 'aktiv' : ''}`} onClick={() => szuroBeallitasa('statusz', '')}>Összes ({osszes})</button>
+                    <button type="button" className={!statusz ? 'csip aktiv' : 'csip'} onClick={() => szuroBeallitasa('statusz', '')}>Összes ({osszes})</button>
                     {STATUSZOK.map(([ertek, cimke]) => (
-                        <button key={ertek} type="button" className={`csip ${statusz === ertek ? 'aktiv' : ''}`} onClick={() => szuroBeallitasa('statusz', ertek)}>
+                        <button key={ertek} type="button" className={statusz === ertek ? 'csip aktiv' : 'csip'} onClick={() => szuroBeallitasa('statusz', ertek)}>
                             {cimke} ({adat.statuszSzamok[ertek] || 0})
                         </button>
                     ))}
@@ -112,17 +163,19 @@ const AdminErdeklodesek = () => {
 
             {hiba && <p className="uzenet uzenet-hiba" role="alert">{hiba}</p>}
 
-            {adat.kulcs !== kulcs ? (
-                <div className="betoltes"><span className="porgo" aria-hidden="true" /></div>
-            ) : adat.erdeklodesek.length === 0 ? (
+            {adat.kulcs !== kulcs && <div className="betoltes"><span className="porgo" aria-hidden="true" /></div>}
+
+            {adat.kulcs === kulcs && adat.erdeklodesek.length === 0 && (
                 <div className="allapot-doboz uveg"><h3>Nincs érdeklődés ebben a nézetben</h3></div>
-            ) : (
+            )}
+
+            {adat.kulcs === kulcs && adat.erdeklodesek.length > 0 && (
                 <div className="erdeklodesek">
                     {adat.erdeklodesek.map((e) => (
-                        <article className={`erdeklodes uveg erdeklodes-${e.statusz}`} key={e._id}>
+                        <article className={'erdeklodes uveg erdeklodes-' + e.statusz} key={e._id}>
                             <header className="erdeklodes-fej">
                                 {e.auto ? (
-                                    <Link className="erdeklodes-auto" to={`/autok/${e.auto.slug}`}>
+                                    <Link className="erdeklodes-auto" to={'/autok/' + e.auto.slug}>
                                         {e.auto.kep && <img src={kepMeret(e.auto.kep, 120)} alt="" />}
                                         <span>{e.auto.nev}</span>
                                     </Link>
@@ -131,8 +184,8 @@ const AdminErdeklodesek = () => {
                             </header>
                             <div className="erdeklodes-szemely">
                                 <strong>{e.nev}</strong>
-                                <a href={`mailto:${e.email}?subject=${encodeURIComponent(`Re: ${e.auto?.nev || e.autoNev}`)}`}><Ikon nev="level" meret={14} /> {e.email}</a>
-                                {e.telefon && <a href={`tel:${e.telefon.replace(/[^\d+]/g, '')}`}><Ikon nev="telefon" meret={14} /> {e.telefon}</a>}
+                                <a href={'mailto:' + e.email + '?subject=' + encodeURIComponent('Re: ' + (e.auto ? e.auto.nev : e.autoNev))}><Ikon nev="level" meret={14} /> {e.email}</a>
+                                {e.telefon && <a href={'tel:' + e.telefon.replace(/[^\d+]/g, '')}><Ikon nev="telefon" meret={14} /> {e.telefon}</a>}
                             </div>
                             <p className="erdeklodes-uzenet">{e.uzenet}</p>
                             <Megjegyzes key={e._id} erdeklodes={e} onMentes={(adatok) => modositas(e, adatok)} />

@@ -15,7 +15,7 @@ import JelszoVisszaallitas from './pages/JelszoVisszaallitas';
 import Belepes from './pages/Belepes';
 import NemTalalhato from './pages/NemTalalhato';
 
-// A ritkábban használt oldalak külön csomagban töltődnek be.
+// a ritkábban használt oldalak csak akkor töltődnek be, ha megnyitják őket (lazy)
 const Regisztracio = lazy(() => import('./pages/Regisztracio'));
 const Fiok = lazy(() => import('./pages/Fiok'));
 const Osszehasonlitas = lazy(() => import('./pages/Osszehasonlitas'));
@@ -38,20 +38,31 @@ const Betoltes = ({ szoveg = 'Betöltés…' }) => (
     </main>
 );
 
-/** Bejelentkezéshez (és opcionálisan egy jogosultsághoz) kötött oldal. */
+// Olyan oldal, amihez be kell jelentkezni (és ha meg van adva, akkor egy jog is kell hozzá).
 const VedettOldal = ({ children, jog: szuksegesJog }) => {
     const { felhasznalo, jog, betoltes } = useFelhasznalo();
     const location = useLocation();
-    if (betoltes) return <Betoltes szoveg="Munkamenet ellenőrzése…" />;
-    if (!felhasznalo) return <Navigate to="/belepes" replace state={{ from: location.pathname + location.search }} />;
-    if (szuksegesJog && !jog(szuksegesJog)) return <NemTalalhato cim="Ehhez az oldalhoz nincs jogosultságod" szoveg="Az oldal csak a kereskedés munkatársai számára érhető el." />;
+
+    if (betoltes) {
+        return <Betoltes szoveg="Munkamenet ellenőrzése…" />;
+    }
+    // ha nincs bejelentkezve, a belépés oldalra küldjük (és utána visszajön ide)
+    if (!felhasznalo) {
+        return <Navigate to="/belepes" replace state={{ from: location.pathname + location.search }} />;
+    }
+    if (szuksegesJog && !jog(szuksegesJog)) {
+        return <NemTalalhato cim="Ehhez az oldalhoz nincs jogosultságod" szoveg="Az oldal csak a kereskedés munkatársai számára érhető el." />;
+    }
     return children;
 };
 
+// oldalváltáskor az oldal tetejére görgetünk
 const GorgetesFelulre = () => {
     const { pathname, hash } = useLocation();
     useEffect(() => {
-        if (!hash) window.scrollTo({ top: 0, behavior: 'instant' });
+        if (!hash) {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
     }, [pathname, hash]);
     return null;
 };

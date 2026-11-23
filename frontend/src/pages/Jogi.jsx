@@ -15,7 +15,7 @@ const Szolgaltato = () => (
         <div><dt>Székhely</dt><dd>{CEG.szekhely}</dd></div>
         <div><dt>Cégjegyzékszám</dt><dd>{CEG.cegjegyzekszam}</dd></div>
         <div><dt>Adószám</dt><dd>{CEG.adoszam}</dd></div>
-        <div><dt>E-mail</dt><dd><a href={`mailto:${CEG.email}`}>{CEG.email}</a></dd></div>
+        <div><dt>E-mail</dt><dd><a href={'mailto:' + CEG.email}>{CEG.email}</a></dd></div>
         <div><dt>Telefon</dt><dd>{CEG.telefon}</dd></div>
         <div><dt>Tárhelyszolgáltató</dt><dd>{CEG.tarhelySzolgaltato}</dd></div>
     </dl>
@@ -153,7 +153,7 @@ const Aszf = () => (
             megkötése és a termék átvétele közötti időszakban is gyakorolható.
         </p>
         <p>
-            <strong>Az elállás módja:</strong> egyértelmű nyilatkozat, amelyet e-mailben (<a href={`mailto:${CEG.email}`}>{CEG.email}</a>)
+            <strong>Az elállás módja:</strong> egyértelmű nyilatkozat, amelyet e-mailben (<a href={'mailto:' + CEG.email}>{CEG.email}</a>)
             vagy postai levélben ({CEG.szekhely}) küldhet el; ehhez használhatja az alábbi nyilatkozat-mintát is. A határidő
             betartásához elegendő, ha a nyilatkozatot a határidő lejárta előtt elküldi.
         </p>
@@ -252,7 +252,7 @@ const Adatkezeles = () => (
     <>
         <h2>1. Az adatkezelő</h2>
         <Szolgaltato />
-        <p>Adatvédelmi kérdésekben: <a href={`mailto:${CEG.adatvedelmiEmail}`}>{CEG.adatvedelmiEmail}</a></p>
+        <p>Adatvédelmi kérdésekben: <a href={'mailto:' + CEG.adatvedelmiEmail}>{CEG.adatvedelmiEmail}</a></p>
 
         <h2>2. Kezelt adatok, célok és jogalapok</h2>
         <div className="jogi-tabla-tarto">
@@ -388,6 +388,7 @@ const Cookie = () => (
     </>
 );
 
+// a jogi dokumentumok (mindhárom ugyanazon az oldalon)
 const DOKUMENTUMOK = {
     aszf: { cim: 'Általános Szerződési Feltételek', rovid: 'ÁSZF', Tartalom: Aszf },
     adatkezeles: { cim: 'Adatkezelési tájékoztató', rovid: 'Adatkezelés', Tartalom: Adatkezeles },
@@ -395,8 +396,9 @@ const DOKUMENTUMOK = {
 };
 
 const Jogi = ({ dokumentum }) => {
-    const { cim, Tartalom } = DOKUMENTUMOK[dokumentum];
-    useSeo({ cim, utvonal: `/${dokumentum}` });
+    const cim = DOKUMENTUMOK[dokumentum].cim;
+    const Tartalom = DOKUMENTUMOK[dokumentum].Tartalom;
+    useSeo({ cim: cim, utvonal: '/' + dokumentum });
 
     return (
         <main className="oldal tartalom jogi">
@@ -405,8 +407,8 @@ const Jogi = ({ dokumentum }) => {
                 <h1>{cim}</h1>
                 <p>Hatályos: {CEG.jogiDatum}</p>
                 <nav className="tartalom-ugro" aria-label="Jogi dokumentumok">
-                    {Object.entries(DOKUMENTUMOK).map(([kulcs, doc]) => (
-                        <Link key={kulcs} className={`csip ${kulcs === dokumentum ? 'aktiv' : ''}`} to={`/${kulcs}`}>{doc.rovid}</Link>
+                    {Object.keys(DOKUMENTUMOK).map((kulcs) => (
+                        <Link key={kulcs} className={kulcs === dokumentum ? 'csip aktiv' : 'csip'} to={'/' + kulcs}>{DOKUMENTUMOK[kulcs].rovid}</Link>
                     ))}
                 </nav>
             </header>

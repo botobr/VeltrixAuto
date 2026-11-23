@@ -1,4 +1,4 @@
-/** Az URL-ben tárolt szűrők (a backend /api/autok paramétereivel azonos nevekkel). */
+// a szűrők nevei az URL-ben (ugyanazok, mint a backend /api/autok paraméterei)
 export const SZURO_KULCSOK = [
     'q', 'marka', 'modell', 'uzemanyag', 'valto', 'hajtas', 'kivitel', 'megye', 'telephely',
     'minAr', 'maxAr', 'evjaratTol', 'evjaratIg', 'kmTol', 'kmIg', 'teljesitmenyTol', 'teljesitmenyIg',
@@ -13,45 +13,97 @@ export const RENDEZESEK = [
     ['kmNovekvo', 'Legkevesebb km'],
 ];
 
-export const szurokParamsbol = (params) => Object.fromEntries(
-    SZURO_KULCSOK.filter((kulcs) => params.get(kulcs)).map((kulcs) => [kulcs, params.get(kulcs)]),
-);
-
-export const aktivSzurokSzama = (szurok) => Object.keys(szurok).filter((kulcs) => kulcs !== 'q').length;
-
-export const lista = (ertek) => (ertek ? ertek.split(',').filter(Boolean) : []);
-
-const szam = new Intl.NumberFormat('hu-HU');
-const tartomanyCimke = (tol, ig, egyseg) => {
-    if (tol && ig) return `${szam.format(tol)}–${szam.format(ig)} ${egyseg}`;
-    if (tol) return `${szam.format(tol)} ${egyseg}-tól`;
-    return `${szam.format(ig)} ${egyseg}-ig`;
+// az URL paramétereiből a beállított szűrők: { marka: 'BMW', ... }
+export const szurokParamsbol = (params) => {
+    const szurok = {};
+    for (const kulcs of SZURO_KULCSOK) {
+        if (params.get(kulcs)) {
+            szurok[kulcs] = params.get(kulcs);
+        }
+    }
+    return szurok;
 };
 
-/** Ember számára olvasható összefoglaló a mentett keresésekhez és a szűrőcímkékhez. */
+// hány szűrő van beállítva (a keresőszót nem számoljuk)
+export const aktivSzurokSzama = (szurok) => {
+    let db = 0;
+    for (const kulcs in szurok) {
+        if (kulcs !== 'q') {
+            db++;
+        }
+    }
+    return db;
+};
+
+// "Benzin,Dízel" -> ['Benzin', 'Dízel']
+export const lista = (ertek) => {
+    if (!ertek) {
+        return [];
+    }
+    return ertek.split(',').filter((elem) => elem !== '');
+};
+
+const szam = new Intl.NumberFormat('hu-HU');
+
+// pl. "1 000 000–5 000 000 Ft" vagy "100 LE-tól"
+const tartomanyCimke = (tol, ig, egyseg) => {
+    if (tol && ig) {
+        return szam.format(tol) + '–' + szam.format(ig) + ' ' + egyseg;
+    }
+    if (tol) {
+        return szam.format(tol) + ' ' + egyseg + '-tól';
+    }
+    return szam.format(ig) + ' ' + egyseg + '-ig';
+};
+
+// A beállított szűrők szövegesen (a címkékhez és a mentett keresésekhez).
+// Egy elem: [kulcs, felirat]
 export const szuroCimkek = (szurok) => {
     const cimkek = [];
-    if (szurok.q) cimkek.push(['q', `„${szurok.q}”`]);
-    if (szurok.marka) cimkek.push(['marka', szurok.modell ? `${szurok.marka} ${szurok.modell}` : szurok.marka]);
+
+    if (szurok.q) {
+        cimkek.push(['q', '„' + szurok.q + '”']);
+    }
+    if (szurok.marka) {
+        let felirat = szurok.marka;
+        if (szurok.modell) {
+            felirat = szurok.marka + ' ' + szurok.modell;
+        }
+        cimkek.push(['marka', felirat]);
+    }
     for (const kulcs of ['uzemanyag', 'valto', 'hajtas', 'kivitel']) {
-        if (szurok[kulcs]) cimkek.push([kulcs, lista(szurok[kulcs]).join(', ')]);
+        if (szurok[kulcs]) {
+            cimkek.push([kulcs, lista(szurok[kulcs]).join(', ')]);
+        }
     }
-    if (szurok.minAr || szurok.maxAr) cimkek.push(['ar', tartomanyCimke(szurok.minAr, szurok.maxAr, 'Ft')]);
+    if (szurok.minAr || szurok.maxAr) {
+        cimkek.push(['ar', tartomanyCimke(szurok.minAr, szurok.maxAr, 'Ft')]);
+    }
     if (szurok.evjaratTol || szurok.evjaratIg) {
-        cimkek.push(['evjarat', `${szurok.evjaratTol || '…'}–${szurok.evjaratIg || '…'}`]);
+        cimkek.push(['evjarat', (szurok.evjaratTol || '…') + '–' + (szurok.evjaratIg || '…')]);
     }
-    if (szurok.kmTol || szurok.kmIg) cimkek.push(['km', tartomanyCimke(szurok.kmTol, szurok.kmIg, 'km')]);
+    if (szurok.kmTol || szurok.kmIg) {
+        cimkek.push(['km', tartomanyCimke(szurok.kmTol, szurok.kmIg, 'km')]);
+    }
     if (szurok.teljesitmenyTol || szurok.teljesitmenyIg) {
         cimkek.push(['teljesitmeny', tartomanyCimke(szurok.teljesitmenyTol, szurok.teljesitmenyIg, 'LE')]);
     }
-    if (szurok.megye) cimkek.push(['megye', lista(szurok.megye).join(', ')]);
-    if (szurok.telephely) cimkek.push(['telephely', 'Kiválasztott telephely']);
-    if (szurok.ujak === '1') cimkek.push(['ujak', 'Új hirdetések']);
-    if (szurok.garancias === '1') cimkek.push(['garancias', 'Garanciális']);
+    if (szurok.megye) {
+        cimkek.push(['megye', lista(szurok.megye).join(', ')]);
+    }
+    if (szurok.telephely) {
+        cimkek.push(['telephely', 'Kiválasztott telephely']);
+    }
+    if (szurok.ujak === '1') {
+        cimkek.push(['ujak', 'Új hirdetések']);
+    }
+    if (szurok.garancias === '1') {
+        cimkek.push(['garancias', 'Garanciális']);
+    }
     return cimkek;
 };
 
-/** Egy címke eltávolításakor törlendő URL-paraméterek. */
+// ha egy címkét törölnek, ezeket az URL paramétereket kell kivenni
 export const CIMKE_PARAMETEREK = {
     q: ['q'],
     marka: ['marka', 'modell'],

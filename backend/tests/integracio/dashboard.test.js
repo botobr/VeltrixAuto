@@ -9,20 +9,45 @@ after(k.leallitas);
 beforeEach(k.uritas);
 
 const NAP = 24 * 60 * 60 * 1000;
-// Közös viszonyítási pont, hogy a napkülönbségek pontosan egész napok legyenek (az átlagok kerekítése miatt).
+// egy közös "most", hogy a napok pontosan egész napok legyenek (az átlagok kerekítése miatt)
 const MOST = Date.now();
+
+// n nappal ezelőtti dátum
 const napja = (n) => new Date(MOST - n * NAP);
 
-/*
- * Ismert adatkészlet, kézzel kiszámolt elvárt értékekkel:
- *  - eladások: 5 napja 10 M (vételár 10,5 M), 20 napja 6 M, 45 napja 8 M (előző 30 nap), 400 napja 3 M (12 hónapon kívül)
- *  - készlet: Toyota 9 M (100 napja, „régi”), Audi 4 M foglalt, Opel 25 M rejtett
- */
+// eladott autó mentése
+const elkelt = (marka, vetelAr, eladasiAr, eladvaNapja, felvetelNapja, extra = {}) => {
+    return k.autoMentese({
+        marka: marka,
+        vetel_ar: vetelAr,
+        statusz: 'elkelt',
+        eladasi_ar: eladasiAr,
+        eladas_datum: napja(eladvaNapja),
+        createdAt: napja(felvetelNapja),
+        ...extra,
+    });
+};
+
+// érdeklődés mentése n nappal ezelőttre
+const erdeklodesMentese = async (auto, napokkal, statusz) => {
+    const erdeklodes = await ErdeklodesModel.create({ auto: auto._id, nev: 'Vevő', email: 'v@teszt.hu', uzenet: 'Érdekel az autó.', statusz: statusz });
+    await ErdeklodesModel.collection.updateOne({ _id: erdeklodes._id }, { $set: { createdAt: napja(napokkal) } });
+};
+
+// összeadja a lista elemeinek egy mezőjét
+const osszeg = (lista, mezo) => {
+    let osszesen = 0;
+    for (const elem of lista) {
+        osszesen += elem[mezo];
+    }
+    return osszesen;
+};
+
+// Tesztadatok, az elvárt értékeket kézzel számoltuk ki:
+//  - eladások: 5 napja 10 M (vételár 10,5 M), 20 napja 6 M, 45 napja 8 M (előző 30 nap), 400 napja 3 M (12 hónapon kívül)
+//  - készlet: Toyota 9 M (100 napja, "régi"), Audi 4 M foglalt, Opel 25 M rejtett
 const adatfeltoltes = async () => {
     const telephely = await TelephelyModel.create({ nev: 'Veltrix Budaörs', varos: 'Budaörs', cim: 'Fő út 1.', megye: 'Pest' });
-    const elkelt = (marka, vetelAr, eladasiAr, eladvaNapja, felvetelNapja, extra = {}) => k.autoMentese({
-        marka, vetel_ar: vetelAr, statusz: 'elkelt', eladasi_ar: eladasiAr, eladas_datum: napja(eladvaNapja), createdAt: napja(felvetelNapja), ...extra,
-    });
     await elkelt('Toyota', 10500000, 10000000, 5, 40, { telephely: telephely._id });
     await elkelt('BMW', 6000000, 6000000, 20, 30);
     await elkelt('Toyota', 8000000, 8000000, 45, 60);
@@ -33,11 +58,9 @@ const adatfeltoltes = async () => {
     await k.autoMentese({ marka: 'Opel', vetel_ar: 25000000, lathato: false, createdAt: napja(5), uzemanyag: 'Benzin' });
 
     const auto = await k.autoMentese({ marka: 'Mazda' });
-    const erdeklodes = (napokkal, statusz) => ErdeklodesModel.create({ auto: auto._id, nev: 'Vevő', email: 'v@teszt.hu', uzenet: 'Érdekel az autó.', statusz })
-        .then((e) => ErdeklodesModel.collection.updateOne({ _id: e._id }, { $set: { createdAt: napja(napokkal) } }));
-    await erdeklodes(1, 'uj');
-    await erdeklodes(2, 'folyamatban');
-    await erdeklodes(40, 'lezart');
+    await erdeklodesMentese(auto, 1, 'uj');
+    await erdeklodesMentese(auto, 2, 'folyamatban');
+    await erdeklodesMentese(auto, 40, 'lezart');
 };
 
 test('bevétel: időszak, előző időszak, változás, átlagok (30 nap)', async () => {
@@ -57,14 +80,17 @@ test('bevétel: időszak, előző időszak, változás, átlagok (30 nap)', asyn
     assert.equal(adat.bevetel.atlagEngedmeny, 0.0238); // (0,5/10,5 + 0) / 2
 
     assert.equal(adat.havi.length, 12);
-    assert.equal(adat.havi.reduce((osszeg, honap) => osszeg + honap.bevetel, 0), 24000000, 'a 400 napos eladás kimarad');
-    assert.deepEqual(adat.legutobbEladott.map((auto) => auto.eladasi_ar), [10000000, 6000000, 8000000, 3000000]);
+    assert.equal(osszeg(adat.havi, 'bevetel'), 24000000, 'a 400 napos eladás kimarad');
+
+    const eladasiArak = adat.legutobbEladott.map((auto) => auto.eladasi_ar);
+    assert.deepEqual(eladasiArak, [10000000, 6000000, 8000000, 3000000]);
 });
 
 test('készlet: darab, érték, állásidő, státuszok, kategóriák, ársávok', async () => {
     await adatfeltoltes();
     const admin = await k.bejelentkezve('admin');
-    const { keszlet } = (await admin.get('/admin/dashboard')).adat;
+    const valasz = await admin.get('/admin/dashboard');
+    const keszlet = valasz.adat.keszlet;
 
     assert.equal(keszlet.db, 4); // Toyota, Audi, Opel + az érdeklődésekhez felvett Mazda
     assert.equal(keszlet.ertek, 9000000 + 4000000 + 25000000 + 8990000);
@@ -73,7 +99,11 @@ test('készlet: darab, érték, állásidő, státuszok, kategóriák, ársávok
     assert.equal(keszlet.rejtett, 1);
     assert.deepEqual(keszlet.uzemanyag, [{ nev: 'Hibrid', db: 2 }, { nev: 'Benzin', db: 1 }, { nev: 'Dízel', db: 1 }]);
 
-    const sav = Object.fromEntries(keszlet.arSavok.map((s) => [s.nev, s.db]));
+    // ársávonként a darabszám
+    const sav = {};
+    for (const arSav of keszlet.arSavok) {
+        sav[arSav.nev] = arSav.db;
+    }
     assert.equal(sav['5 M Ft alatt'], 1);
     assert.equal(sav['5–10 M Ft'], 2);
     assert.equal(sav['20–50 M Ft'], 1);
@@ -82,39 +112,45 @@ test('készlet: darab, érték, állásidő, státuszok, kategóriák, ársávok
 test('márkák és telephelyek: készlet és időszaki bevétel összefésülve', async () => {
     await adatfeltoltes();
     const admin = await k.bejelentkezve('admin');
-    const { markak, telephelyek } = (await admin.get('/admin/dashboard?idoszak=30')).adat;
+    const valasz = await admin.get('/admin/dashboard?idoszak=30');
+    const markak = valasz.adat.markak;
+    const telephelyek = valasz.adat.telephelyek;
 
     assert.deepEqual(markak[0], { marka: 'Toyota', keszletDb: 1, keszletErtek: 9000000, eladottDb: 1, bevetel: 10000000 });
     assert.deepEqual(markak[1], { marka: 'BMW', keszletDb: 0, keszletErtek: 0, eladottDb: 1, bevetel: 6000000 });
 
-    const budaors = telephelyek.find((t) => t.nev === 'Veltrix Budaörs');
+    const budaors = telephelyek.find((telephely) => telephely.nev === 'Veltrix Budaörs');
     assert.equal(budaors.keszletDb, 1);
     assert.equal(budaors.bevetel, 10000000);
-    assert.equal(telephelyek.find((t) => t.id === 'nincs').keszletDb, 3);
+
+    const telephelyNelkul = telephelyek.find((telephely) => telephely.id === 'nincs');
+    assert.equal(telephelyNelkul.keszletDb, 3);
 });
 
 test('teljes időszak: nincs előző időszak; ismeretlen időszak → 30 nap', async () => {
     await adatfeltoltes();
     const admin = await k.bejelentkezve('admin');
-    const osszes = (await admin.get('/admin/dashboard?idoszak=osszes')).adat;
-    assert.equal(osszes.bevetel.idoszak, 27000000);
-    assert.equal(osszes.bevetel.elozo, null);
-    assert.equal(osszes.bevetel.valtozas, null);
+    const osszes = await admin.get('/admin/dashboard?idoszak=osszes');
+    assert.equal(osszes.adat.bevetel.idoszak, 27000000);
+    assert.equal(osszes.adat.bevetel.elozo, null);
+    assert.equal(osszes.adat.bevetel.valtozas, null);
 
-    assert.equal((await admin.get('/admin/dashboard?idoszak=nemletezik')).adat.idoszak.kulcs, '30');
+    const ismeretlen = await admin.get('/admin/dashboard?idoszak=nemletezik');
+    assert.equal(ismeretlen.adat.idoszak.kulcs, '30');
 });
 
 test('érdeklődések: státuszok, időszak, napi idősor', async () => {
     await adatfeltoltes();
     const admin = await k.bejelentkezve('admin');
-    const { erdeklodesek } = (await admin.get('/admin/dashboard?idoszak=30')).adat;
+    const valasz = await admin.get('/admin/dashboard?idoszak=30');
+    const erdeklodesek = valasz.adat.erdeklodesek;
     assert.equal(erdeklodesek.uj, 1);
     assert.equal(erdeklodesek.folyamatban, 1);
     assert.equal(erdeklodesek.lezart, 1);
     assert.equal(erdeklodesek.idoszak, 2);
     assert.equal(erdeklodesek.elozo, 1);
     assert.equal(erdeklodesek.napi.length, 30);
-    assert.equal(erdeklodesek.napi.reduce((osszeg, nap) => osszeg + nap.db, 0), 2);
+    assert.equal(osszeg(erdeklodesek.napi, 'db'), 2);
 });
 
 test('értékesítő: a dashboard pénzügyi adatok nélkül érkezik', async () => {
@@ -126,13 +162,21 @@ test('értékesítő: a dashboard pénzügyi adatok nélkül érkezik', async ()
     assert.equal(adat.bevetel, null);
     assert.equal(adat.havi, null);
     assert.deepEqual(adat.eladasok, { idoszak: 2, elozo: 1, valtozas: 100, atlagNap: 23 });
-    assert.ok(adat.markak.every((marka) => !('bevetel' in marka)));
-    assert.ok(adat.telephelyek.every((telephely) => !('bevetel' in telephely)));
-    assert.ok(adat.legutobbEladott.every((auto) => !('eladasi_ar' in auto)));
-    // Az ársávok határai (pl. 10 000 000 Ft) nem eladási adatok, ezért a keresésből kimaradnak.
-    const { arSavok: _arSavok, ...keszletArsavNelkul } = adat.keszlet;
-    const valasz = JSON.stringify({ ...adat, keszlet: keszletArsavNelkul });
-    assert.ok(!valasz.includes('10000000'), 'a 10 M Ft-os eladási ár sehol nem szerepel a válaszban');
+    for (const marka of adat.markak) {
+        assert.ok(!('bevetel' in marka));
+    }
+    for (const telephely of adat.telephelyek) {
+        assert.ok(!('bevetel' in telephely));
+    }
+    for (const auto of adat.legutobbEladott) {
+        assert.ok(!('eladasi_ar' in auto));
+    }
+
+    // Az ársávok határai (pl. 10 000 000 Ft) nem eladási adatok, ezért azokat kivesszük az ellenőrzésből.
+    const keszletArsavNelkul = { ...adat.keszlet };
+    delete keszletArsavNelkul.arSavok;
+    const szoveg = JSON.stringify({ ...adat, keszlet: keszletArsavNelkul });
+    assert.ok(!szoveg.includes('10000000'), 'a 10 M Ft-os eladási ár sehol nem szerepel a válaszban');
     assert.equal(adat.keszlet.db, 4, 'a készletadatokat látja');
 });
 

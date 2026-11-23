@@ -6,8 +6,18 @@ const { parameterekTisztitasa, szuroEpitese, autoValasz } = require('../utils/au
 
 const kep = { url: 'https://res.cloudinary.com/demo/image/upload/v1/veltrix/autok/a.jpg', publicId: 'veltrix/autok/a', tipus: 'kulso' };
 const alapAuto = {
-    marka: 'BMW', modell: '320d', szin: 'Fekete', kivitel: 'Sedan', uzemanyag: 'Dízel', szarmazasi_hely: 'Németország',
-    evjarat: 2019, vetel_ar: 8990000, teljesitmeny: 190, hengerur_tartalom: 1995, kmora_allas: 85000, kepek: [kep],
+    marka: 'BMW',
+    modell: '320d',
+    szin: 'Fekete',
+    kivitel: 'Sedan',
+    uzemanyag: 'Dízel',
+    szarmazasi_hely: 'Németország',
+    evjarat: 2019,
+    vetel_ar: 8990000,
+    teljesitmeny: 190,
+    hengerur_tartalom: 1995,
+    kmora_allas: 85000,
+    kepek: [kep],
 };
 
 test('érvényes autóadatok: nincs hiba, alapértékek beállnak', () => {
@@ -22,8 +32,9 @@ test('érvényes autóadatok: nincs hiba, alapértékek beállnak', () => {
 
 test('hiányzó kötelező mező és kép nélküli autó: hiba', () => {
     const { hibak } = autoAdatokEllenorzese({ ...alapAuto, marka: '  ', kepek: [] });
-    assert.ok(hibak.some((hiba) => hiba.startsWith('Márka')));
-    assert.ok(hibak.some((hiba) => hiba.includes('képet')));
+    const osszesHiba = hibak.join(' | ');
+    assert.ok(osszesHiba.includes('Márka'));
+    assert.ok(osszesHiba.includes('képet'));
 });
 
 test('ismeretlen váltó, hibás alvázszám és tört évjárat: hiba', () => {
@@ -32,8 +43,9 @@ test('ismeretlen váltó, hibás alvázszám és tört évjárat: hiba', () => {
 });
 
 test('idegen domainről származó kép nem fogadható el', () => {
-    const { hibak } = autoAdatokEllenorzese({ ...alapAuto, kepek: [{ url: 'https://gonosz.example/x.jpg', publicId: 'veltrix/autok/x' }] });
-    assert.ok(hibak.some((hiba) => hiba.includes('kép')));
+    const idegenKep = { url: 'https://gonosz.example/x.jpg', publicId: 'veltrix/autok/x' };
+    const { hibak } = autoAdatokEllenorzese({ ...alapAuto, kepek: [idegenKep] });
+    assert.ok(hibak.join(' | ').includes('kép'));
 });
 
 test('felszereltség: ismétlődések és üres elemek kiszűrve', () => {
@@ -42,9 +54,15 @@ test('felszereltség: ismétlődések és üres elemek kiszűrve', () => {
 });
 
 test('állapotmódosítás: csak az engedélyezett mezők, érvényes státusz', () => {
-    assert.deepEqual(allapotEllenorzese({ statusz: 'foglalt', marka: 'X' }).adatok, { statusz: 'foglalt' });
-    assert.equal(allapotEllenorzese({ statusz: 'eladva' }).hibak.length, 1);
-    assert.equal(allapotEllenorzese({}).hibak.length, 1);
+    // a márkát itt nem lehet módosítani, kimarad
+    const jo = allapotEllenorzese({ statusz: 'foglalt', marka: 'X' });
+    assert.deepEqual(jo.adatok, { statusz: 'foglalt' });
+
+    const rosszStatusz = allapotEllenorzese({ statusz: 'eladva' });
+    assert.equal(rosszStatusz.hibak.length, 1);
+
+    const ures = allapotEllenorzese({});
+    assert.equal(ures.hibak.length, 1);
 });
 
 test('slug: ékezetek eltávolítva, azonosító visszanyerhető', () => {
@@ -59,11 +77,16 @@ test('slug: ékezetek eltávolítva, azonosító visszanyerhető', () => {
 test('szűrő: tartományok, többes érték és nyilvános feltételek', async () => {
     const szuro = await szuroEpitese({ minAr: '1000000', maxAr: '', valto: 'Automata,Manuális', garancias: '1' });
     const feltetelek = szuro.$and;
-    assert.ok(feltetelek.some((f) => f.lathato));
-    assert.ok(feltetelek.some((f) => f.statusz?.$ne === 'elkelt'));
-    assert.ok(feltetelek.some((f) => f.vetel_ar?.$gte === 1000000 && f.vetel_ar.$lte === undefined));
-    assert.ok(feltetelek.some((f) => f.valto?.$in?.length === 2));
-    assert.ok(feltetelek.some((f) => f.garancia_honap?.$gt === 0));
+
+    // megkeressük a feltételek között az egyes mezőket
+    const keres = (mezo) => feltetelek.find((feltetel) => feltetel[mezo] !== undefined);
+
+    assert.ok(keres('lathato'));
+    assert.equal(keres('statusz').statusz.$ne, 'elkelt');
+    assert.equal(keres('vetel_ar').vetel_ar.$gte, 1000000);
+    assert.equal(keres('vetel_ar').vetel_ar.$lte, undefined);
+    assert.equal(keres('valto').valto.$in.length, 2);
+    assert.equal(keres('garancia_honap').garancia_honap.$gt, 0);
 });
 
 test('szűrő: reguláris kifejezés karakterei nem törik el a keresést', async () => {
@@ -74,7 +97,8 @@ test('szűrő: reguláris kifejezés karakterei nem törik el a keresést', asyn
 });
 
 test('mentett keresés: ismeretlen kulcsok eldobva', () => {
-    assert.deepEqual(parameterekTisztitasa({ marka: 'BMW', $where: 'x', kmIg: 100000, ures: '' }), { marka: 'BMW', kmIg: '100000' });
+    const tisztitott = parameterekTisztitasa({ marka: 'BMW', $where: 'x', kmIg: 100000, ures: '' });
+    assert.deepEqual(tisztitott, { marka: 'BMW', kmIg: '100000' });
 });
 
 test('nyilvános válasz: belső adatok rejtve, régi egyképes rekord képtömbbé alakul', () => {

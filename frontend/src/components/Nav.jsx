@@ -15,24 +15,27 @@ const Nav = () => {
     const [gorgetett, setGorgetett] = useState(false);
     const [elozoUtvonal, setElozoUtvonal] = useState(pathname);
 
-    // Navigáláskor a mobilmenü bezárul.
+    // ha másik oldalra megyünk, a mobil menü bezárul
     if (elozoUtvonal !== pathname) {
         setElozoUtvonal(pathname);
         setNyitva(false);
     }
 
+    // ha legörgettek, a fejléc kap egy hátteret
     useEffect(() => {
-        const figyelo = () => setGorgetett(window.scrollY > 12);
+        const figyelo = () => {
+            setGorgetett(window.scrollY > 12);
+        };
         figyelo();
         window.addEventListener('scroll', figyelo, { passive: true });
         return () => window.removeEventListener('scroll', figyelo);
     }, []);
 
-    const handleLogout = async () => {
+    const kilepes = async () => {
         setHiba('');
         try {
-            // Előbb a főoldalra lépünk: ha védett oldalról (pl. Fiók) jelentkezik ki, az különben
-            // a kijelentkezés pillanatában a belépő oldalra irányítana.
+            // előbb a főoldalra megyünk, mert ha pl. a Fiók oldalon van,
+            // akkor kijelentkezés után a belépés oldalra dobná
             navigate('/');
             await kijelentkezes();
         } catch (error) {
@@ -40,11 +43,32 @@ const Nav = () => {
         }
     };
 
-    const monogram = (felhasznalo?.nev || felhasznalo?.email || '?').trim().charAt(0).toUpperCase();
-    const kedvencekSzama = felhasznalo?.kedvencek?.length || 0;
+    // a név első betűje az avatarba
+    let monogram = '?';
+    let kedvencekSzama = 0;
+    if (felhasznalo) {
+        const nev = (felhasznalo.nev || felhasznalo.email || '?').trim();
+        monogram = nev.charAt(0).toUpperCase();
+        if (felhasznalo.kedvencek) {
+            kedvencekSzama = felhasznalo.kedvencek.length;
+        }
+    }
+
+    let kosarFelirat = 'Kosár';
+    if (kosarDarab) {
+        kosarFelirat = 'Kosár (' + kosarDarab + ' termék)';
+    }
+
+    let fejlecOsztaly = 'nav-fejlec';
+    if (gorgetett) {
+        fejlecOsztaly += ' nav-gorgetett';
+    }
+    if (nyitva) {
+        fejlecOsztaly += ' nav-nyitva';
+    }
 
     return (
-        <header className={`nav-fejlec ${gorgetett ? 'nav-gorgetett' : ''} ${nyitva ? 'nav-nyitva' : ''}`}>
+        <header className={fejlecOsztaly}>
             <nav className="nav-kontener" aria-label="Fő navigáció">
                 <Link className="nav-logo" to="/" aria-label="Veltrix – főoldal">
                     <span className="nav-emblema" aria-hidden="true">V</span>
@@ -71,7 +95,7 @@ const Nav = () => {
                         {munkatars && <NavLink to="/admin">Admin</NavLink>}
                     </div>
                     <div className="nav-fiok">
-                        <Link className="nav-kosar ikon-gomb" to="/kosar" aria-label={`Kosár${kosarDarab ? ` (${kosarDarab} termék)` : ''}`} title="Kosár">
+                        <Link className="nav-kosar ikon-gomb" to="/kosar" aria-label={kosarFelirat} title="Kosár">
                             <Ikon nev="kosar" meret={19} />
                             {kosarDarab > 0 && <span className="nav-jelveny">{kosarDarab > 99 ? '99+' : kosarDarab}</span>}
                         </Link>
@@ -84,7 +108,7 @@ const Nav = () => {
                                     </span>
                                     <span className="nav-felhasznalo-nev">{felhasznalo.nev || felhasznalo.email}</span>
                                 </Link>
-                                <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={handleLogout}>
+                                <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={kilepes}>
                                     <Ikon nev="kilep" meret={15} /> Kilépés
                                 </button>
                                 {jog('hirdetesSzerkesztes') && (

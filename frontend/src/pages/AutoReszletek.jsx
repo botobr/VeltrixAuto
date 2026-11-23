@@ -25,100 +25,165 @@ const ELERHETOSEG = {
     elkelt: 'https://schema.org/SoldOut',
 };
 
-const strukturaltAdat = (auto) => ({
-    '@context': 'https://schema.org',
-    '@type': 'Car',
-    name: `${autoNev(auto)} (${auto.evjarat})`,
-    brand: { '@type': 'Brand', name: auto.marka },
-    model: auto.modell,
-    vehicleModelDate: String(auto.evjarat),
-    itemCondition: 'https://schema.org/UsedCondition',
-    bodyType: auto.kivitel,
-    color: auto.szin,
-    fuelType: auto.uzemanyag,
-    vehicleTransmission: auto.valto || undefined,
-    driveWheelConfiguration: auto.hajtas || undefined,
-    numberOfDoors: auto.ajtok_szama || undefined,
-    seatingCapacity: auto.ulesek_szama || undefined,
-    numberOfPreviousOwners: auto.tulajdonosok_szama ?? undefined,
-    dateVehicleFirstRegistered: auto.elso_forgalomba_helyezes?.slice(0, 10),
-    mileageFromOdometer: { '@type': 'QuantitativeValue', value: auto.kmora_allas, unitCode: 'KMT' },
-    vehicleEngine: {
-        '@type': 'EngineSpecification',
-        enginePower: { '@type': 'QuantitativeValue', value: auto.teljesitmeny, unitCode: 'BHP' },
-        engineDisplacement: auto.hengerur_tartalom ? { '@type': 'QuantitativeValue', value: auto.hengerur_tartalom, unitCode: 'CMQ' } : undefined,
-    },
-    image: auto.kepek.map((kep) => kep.url),
-    description: auto.leiras || undefined,
-    url: `${window.location.origin}/autok/${auto.slug}`,
-    offers: {
-        '@type': 'Offer',
-        price: auto.vetel_ar,
-        priceCurrency: 'HUF',
-        availability: ELERHETOSEG[auto.statusz] || ELERHETOSEG.elerheto,
-        url: `${window.location.origin}/autok/${auto.slug}`,
-        seller: {
-            '@type': 'AutoDealer',
-            name: auto.telephely?.nev ? `${CEG.nev} – ${auto.telephely.nev}` : CEG.nev,
-            telephone: auto.telephely?.telefon || undefined,
-            address: auto.telephely ? {
-                '@type': 'PostalAddress',
-                streetAddress: auto.telephely.cim,
-                addressLocality: auto.telephely.varos,
-                postalCode: auto.telephely.iranyitoszam || undefined,
-                addressRegion: auto.telephely.megye,
-                addressCountry: 'HU',
-            } : undefined,
-        },
-    },
-});
+// Strukturált adat a Google-nek (schema.org Car), hogy a keresőben szebben jelenjen meg.
+// Az undefined mezők kimaradnak a JSON-ból.
+const strukturaltAdat = (auto) => {
+    const url = window.location.origin + '/autok/' + auto.slug;
+    const telephely = auto.telephely;
 
+    let eladoNeve = CEG.nev;
+    let eladoTelefon;
+    let cim;
+    if (telephely) {
+        if (telephely.nev) {
+            eladoNeve = CEG.nev + ' – ' + telephely.nev;
+        }
+        eladoTelefon = telephely.telefon || undefined;
+        cim = {
+            '@type': 'PostalAddress',
+            streetAddress: telephely.cim,
+            addressLocality: telephely.varos,
+            postalCode: telephely.iranyitoszam || undefined,
+            addressRegion: telephely.megye,
+            addressCountry: 'HU',
+        };
+    }
+
+    let hengerur;
+    if (auto.hengerur_tartalom) {
+        hengerur = { '@type': 'QuantitativeValue', value: auto.hengerur_tartalom, unitCode: 'CMQ' };
+    }
+
+    let elsoForgalomba;
+    if (auto.elso_forgalomba_helyezes) {
+        elsoForgalomba = auto.elso_forgalomba_helyezes.slice(0, 10);
+    }
+
+    let tulajdonosok;
+    if (auto.tulajdonosok_szama !== null && auto.tulajdonosok_szama !== undefined) {
+        tulajdonosok = auto.tulajdonosok_szama;
+    }
+
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'Car',
+        name: autoNev(auto) + ' (' + auto.evjarat + ')',
+        brand: { '@type': 'Brand', name: auto.marka },
+        model: auto.modell,
+        vehicleModelDate: String(auto.evjarat),
+        itemCondition: 'https://schema.org/UsedCondition',
+        bodyType: auto.kivitel,
+        color: auto.szin,
+        fuelType: auto.uzemanyag,
+        vehicleTransmission: auto.valto || undefined,
+        driveWheelConfiguration: auto.hajtas || undefined,
+        numberOfDoors: auto.ajtok_szama || undefined,
+        seatingCapacity: auto.ulesek_szama || undefined,
+        numberOfPreviousOwners: tulajdonosok,
+        dateVehicleFirstRegistered: elsoForgalomba,
+        mileageFromOdometer: { '@type': 'QuantitativeValue', value: auto.kmora_allas, unitCode: 'KMT' },
+        vehicleEngine: {
+            '@type': 'EngineSpecification',
+            enginePower: { '@type': 'QuantitativeValue', value: auto.teljesitmeny, unitCode: 'BHP' },
+            engineDisplacement: hengerur,
+        },
+        image: auto.kepek.map((kep) => kep.url),
+        description: auto.leiras || undefined,
+        url: url,
+        offers: {
+            '@type': 'Offer',
+            price: auto.vetel_ar,
+            priceCurrency: 'HUF',
+            availability: ELERHETOSEG[auto.statusz] || ELERHETOSEG.elerheto,
+            url: url,
+            seller: {
+                '@type': 'AutoDealer',
+                name: eladoNeve,
+                telephone: eladoTelefon,
+                address: cim,
+            },
+        },
+    };
+};
+
+// A felszereltség csoportosítása (Kényelem, Biztonság, ...).
+// Ami egyik csoportba sem tartozik, az "Egyéb" lesz.
 const felszereltsegCsoportositasa = (lista) => {
     const csoportok = [];
-    const maradek = new Set(lista);
-    for (const [cim, elemek] of Object.entries(FELSZERELTSEG_CSOPORTOK)) {
-        const talalat = elemek.filter((elem) => maradek.has(elem));
-        talalat.forEach((elem) => maradek.delete(elem));
-        if (talalat.length) csoportok.push([cim, talalat]);
+    const besorolt = [];
+
+    for (const cim in FELSZERELTSEG_CSOPORTOK) {
+        const talalat = FELSZERELTSEG_CSOPORTOK[cim].filter((elem) => lista.includes(elem));
+        if (talalat.length > 0) {
+            csoportok.push([cim, talalat]);
+            for (const elem of talalat) {
+                besorolt.push(elem);
+            }
+        }
     }
-    if (maradek.size) csoportok.push(['Egyéb', [...maradek]]);
+
+    const egyeb = [];
+    for (const elem of lista) {
+        if (!besorolt.includes(elem) && !egyeb.includes(elem)) {
+            egyeb.push(elem);
+        }
+    }
+    if (egyeb.length > 0) {
+        csoportok.push(['Egyéb', egyeb]);
+    }
     return csoportok;
 };
 
+// a telefonszám csak kattintásra jelenik meg (így meg tudjuk számolni, hányan nézték meg)
 const TelefonGomb = ({ auto, munkatars }) => {
     const [lathato, setLathato] = useState(false);
-    const telefon = auto.elado_telefonszam || auto.telephely?.telefon;
-    if (!telefon) return null;
+
+    let telefon = auto.elado_telefonszam;
+    if (!telefon && auto.telephely) {
+        telefon = auto.telephely.telefon;
+    }
+    if (!telefon) {
+        return null;
+    }
+
+    const megjelenites = () => {
+        setLathato(true);
+        if (!munkatars) {
+            apiKeres('/autok/' + auto._id + '/esemeny', { method: 'POST', body: { tipus: 'telefon' } }).catch(() => {});
+        }
+    };
 
     if (lathato) {
         return (
-            <a className="gomb gomb-uveg reszletek-telefon" href={`tel:${telefon.replace(/[^\d+]/g, '')}`}>
+            <a className="gomb gomb-uveg reszletek-telefon" href={'tel:' + telefon.replace(/[^\d+]/g, '')}>
                 <Ikon nev="telefon" meret={16} /> {telefon}
             </a>
         );
     }
     return (
-        <button
-            className="gomb gomb-uveg reszletek-telefon"
-            type="button"
-            onClick={() => {
-                setLathato(true);
-                if (!munkatars) apiKeres(`/autok/${auto._id}/esemeny`, { method: 'POST', body: { tipus: 'telefon' } }).catch(() => {});
-            }}
-        >
+        <button className="gomb gomb-uveg reszletek-telefon" type="button" onClick={megjelenites}>
             <Ikon nev="telefon" meret={16} /> Telefonszám megjelenítése
         </button>
     );
 };
 
-/** Az autóhoz illő tuning alkatrészek (a webshopból); ha nincs egy sem, a szekció nem jelenik meg. */
+// Az autóhoz illő tuning alkatrészek a webshopból. Ha nincs ilyen, nem jelenik meg.
 const IlloAlkatreszek = ({ auto }) => {
     const [alkatreszek, setAlkatreszek] = useState([]);
+
     useEffect(() => {
-        apiKeres(`/alkatreszek/autohoz/${auto._id}`).then((data) => setAlkatreszek(data.alkatreszek)).catch(() => setAlkatreszek([]));
+        apiKeres('/alkatreszek/autohoz/' + auto._id)
+            .then((data) => setAlkatreszek(data.alkatreszek))
+            .catch(() => setAlkatreszek([]));
     }, [auto._id]);
-    if (alkatreszek.length === 0) return null;
-    const link = `/alkatreszek?autoMarka=${encodeURIComponent(auto.marka)}&autoModell=${encodeURIComponent(auto.modell)}&autoEvjarat=${auto.evjarat}`;
+
+    if (alkatreszek.length === 0) {
+        return null;
+    }
+
+    const link = '/alkatreszek?autoMarka=' + encodeURIComponent(auto.marka)
+        + '&autoModell=' + encodeURIComponent(auto.modell)
+        + '&autoEvjarat=' + auto.evjarat;
     return (
         <section className="reszletek-blokk nyomtatasban-rejtett" aria-labelledby="tuning-cim">
             <div className="illo-alkatreszek-fej">
@@ -126,38 +191,54 @@ const IlloAlkatreszek = ({ auto }) => {
                 <Link className="szoveg-gomb" to={link}>Összes illő alkatrész →</Link>
             </div>
             <div className="autok-racs">
-                {alkatreszek.map((a, i) => <AlkatreszKartya key={a._id} alkatresz={a} kesleltetes={i} />)}
+                {alkatreszek.map((alkatresz, i) => <AlkatreszKartya key={alkatresz._id} alkatresz={alkatresz} kesleltetes={i} />)}
             </div>
         </section>
     );
 };
 
+// az autó adatlapja
 const Reszletek = ({ auto, hasonlok, munkatars }) => {
     const adatok = useMemo(() => muszakiAdatok(auto), [auto]);
     const felszereltseg = useMemo(() => felszereltsegCsoportositasa(auto.felszereltseg || []), [auto.felszereltseg]);
     const nev = autoNev(auto);
     const elkelt = auto.statusz === 'elkelt';
+    const varos = auto.telephely ? auto.telephely.varos : null;
+
+    // a keresőknek szóló leírás, pl. "BMW 320d eladó: 2019, 85 000 km, Dízel, Automata, 190 LE, Sedan, Budaörs."
+    const leirasReszek = [nev + ' eladó: ' + auto.evjarat + ', ' + formatSzam(auto.kmora_allas) + ' km, ' + auto.uzemanyag];
+    if (auto.valto) {
+        leirasReszek.push(auto.valto);
+    }
+    leirasReszek.push(auto.teljesitmeny + ' LE');
+    if (auto.kivitel) {
+        leirasReszek.push(auto.kivitel);
+    }
+    if (varos) {
+        leirasReszek.push(varos);
+    }
 
     useSeo({
-        cim: `${nev} (${auto.evjarat}) – ${formatAr(auto.vetel_ar)}`,
-        leiras: [
-            `${nev} eladó: ${auto.evjarat}, ${formatSzam(auto.kmora_allas)} km, ${auto.uzemanyag}`,
-            auto.valto, `${auto.teljesitmeny} LE`, auto.kivitel, auto.telephely?.varos,
-        ].filter(Boolean).join(', ') + '.',
+        cim: nev + ' (' + auto.evjarat + ') – ' + formatAr(auto.vetel_ar),
+        leiras: leirasReszek.join(', ') + '.',
         kep: auto.kep,
-        utvonal: `/autok/${auto.slug}`,
+        utvonal: '/autok/' + auto.slug,
         tipus: 'product',
         jsonLd: strukturaltAdat(auto),
     });
 
+    // a legfontosabb adatok a jobb oldali panelen
     const fontos = [
         ['Évjárat', auto.evjarat],
-        ['Futás', `${formatSzam(auto.kmora_allas)} km`],
+        ['Futás', formatSzam(auto.kmora_allas) + ' km'],
         ['Üzemanyag', auto.uzemanyag],
         ['Váltó', auto.valto || '—'],
-        ['Teljesítmény', `${formatSzam(auto.teljesitmeny)} LE`],
+        ['Teljesítmény', formatSzam(auto.teljesitmeny) + ' LE'],
         ['Hajtás', auto.hajtas || '—'],
     ];
+
+    const alcim = [auto.evjarat, auto.kivitel, auto.szin].filter((resz) => resz).join(' · ');
+    const markaLink = '/autok?marka=' + encodeURIComponent(auto.marka);
 
     return (
         <main className="oldal reszletek">
@@ -166,14 +247,14 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
                 <Ikon nev="jobbra" meret={14} />
                 <Link to="/autok">Kínálat</Link>
                 <Ikon nev="jobbra" meret={14} />
-                <Link to={`/autok?marka=${encodeURIComponent(auto.marka)}`}>{auto.marka}</Link>
+                <Link to={markaLink}>{auto.marka}</Link>
                 <Ikon nev="jobbra" meret={14} />
                 <span aria-current="page">{auto.modell}</span>
             </nav>
 
             {elkelt && (
                 <p className="reszletek-elkelt" role="status">
-                    Ez az autó már elkelt. <Link to={`/autok?marka=${encodeURIComponent(auto.marka)}`}>Nézd meg a hasonló kínálatot →</Link>
+                    Ez az autó már elkelt. <Link to={markaLink}>Nézd meg a hasonló kínálatot →</Link>
                 </p>
             )}
 
@@ -184,7 +265,7 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
                     cimkek={(
                         <div className="auto-cimkek">
                             {auto.kiemelt && <span className="auto-cimke auto-cimke-kiemelt"><Ikon nev="csillag" meret={12} kitoltes /> Kiemelt</span>}
-                            {auto.statusz !== 'elerheto' && <span className={`auto-cimke auto-cimke-${auto.statusz}`}>{STATUSZOK[auto.statusz]}</span>}
+                            {auto.statusz !== 'elerheto' && <span className={'auto-cimke auto-cimke-' + auto.statusz}>{STATUSZOK[auto.statusz]}</span>}
                             {auto.uj && auto.statusz === 'elerheto' && <span className="auto-cimke auto-cimke-uj">Új hirdetés</span>}
                         </div>
                     )}
@@ -193,9 +274,7 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
                 <aside className="reszletek-panel uveg">
                     <p className="auto-marka">{auto.marka}</p>
                     <h1>{auto.modell}</h1>
-                    <p className="reszletek-alcim">
-                        {[auto.evjarat, auto.kivitel, auto.szin].filter(Boolean).join(' · ')}
-                    </p>
+                    <p className="reszletek-alcim">{alcim}</p>
 
                     <div className="reszletek-ar">
                         <strong>{formatAr(auto.vetel_ar)}</strong>
@@ -231,7 +310,7 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
                     <Megosztas auto={auto} />
 
                     {munkatars && (
-                        <Link className="gomb gomb-uveg gomb-kicsi reszletek-admin" to={`/admin/autok/${auto._id}`}>
+                        <Link className="gomb gomb-uveg gomb-kicsi reszletek-admin" to={'/admin/autok/' + auto._id}>
                             <Ikon nev="szerkeszt" meret={15} /> Hirdetés szerkesztése
                         </Link>
                     )}
@@ -311,13 +390,14 @@ const Reszletek = ({ auto, hasonlok, munkatars }) => {
 
                 <p className="csak-nyomtatas">
                     {CEG.nev} · {window.location.origin}/autok/{auto.slug}
-                    {auto.telephely?.telefon && ` · ${auto.telephely.telefon}`}
+                    {auto.telephely && auto.telephely.telefon && ' · ' + auto.telephely.telefon}
                 </p>
             </div>
         </main>
     );
 };
 
+// az adatlap betöltése az URL alapján
 const AutoReszletek = () => {
     const { slug } = useParams();
     const navigate = useNavigate();
@@ -326,33 +406,46 @@ const AutoReszletek = () => {
 
     useEffect(() => {
         const controller = new AbortController();
-        apiKeres(`/autok/${encodeURIComponent(slug)}`, { signal: controller.signal }, 'Az autó betöltése nem sikerült.')
+        apiKeres('/autok/' + encodeURIComponent(slug), { signal: controller.signal }, 'Az autó betöltése nem sikerült.')
             .then((data) => {
-                setAdat({ slug, auto: data.auto, hasonlok: data.hasonlok || [], hiba: null });
-                // Régi vagy elírt URL → a kanonikus címre irányítunk.
-                if (data.auto.slug !== slug) navigate(`/autok/${data.auto.slug}`, { replace: true });
+                setAdat({ slug: slug, auto: data.auto, hasonlok: data.hasonlok || [], hiba: null });
+                // ha régi vagy elírt a link, átírjuk a helyesre
+                if (data.auto.slug !== slug) {
+                    navigate('/autok/' + data.auto.slug, { replace: true });
+                }
             })
             .catch((error) => {
-                if (error.name !== 'AbortError') setAdat({ slug, auto: null, hasonlok: [], hiba: error });
+                if (error.name !== 'AbortError') {
+                    setAdat({ slug: slug, auto: null, hasonlok: [], hiba: error });
+                }
             });
         return () => controller.abort();
     }, [slug, navigate]);
 
-    // Megtekintés számlálása munkamenetenként egyszer (munkatársét nem számoljuk).
-    const autoId = adat.auto?._id;
+    // A megtekintést munkamenetenként csak egyszer számoljuk (a munkatársét nem).
+    // A már megnézett autókat a sessionStorage-ban tároljuk.
+    const autoId = adat.auto ? adat.auto._id : null;
     useEffect(() => {
-        if (!autoId || munkatars) return;
-        const lattam = olvas('veltrix-megtekintett', [], 'session');
-        if (lattam.includes(autoId)) return;
-        ir('veltrix-megtekintett', [...lattam, autoId].slice(-200), 'session');
-        apiKeres(`/autok/${autoId}/esemeny`, { method: 'POST', body: { tipus: 'megtekintes' } }).catch(() => {});
+        if (!autoId || munkatars) {
+            return;
+        }
+        const megnezett = olvas('veltrix-megtekintett', [], 'session');
+        if (megnezett.includes(autoId)) {
+            return;
+        }
+        megnezett.push(autoId);
+        ir('veltrix-megtekintett', megnezett.slice(-200), 'session');
+        apiKeres('/autok/' + autoId + '/esemeny', { method: 'POST', body: { tipus: 'megtekintes' } }).catch(() => {});
     }, [autoId, munkatars]);
 
-    const aktualis = adat.slug === slug || adat.auto?.slug === slug;
+    // még a régi autó adatai vannak betöltve
+    const aktualis = adat.slug === slug || (adat.auto && adat.auto.slug === slug);
     if (!aktualis) {
         return <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Adatlap betöltése…</main>;
     }
-    if (adat.hiba?.status === 404) return <NemTalalhato cim="Ez a hirdetés nem található" szoveg="Lehet, hogy az autó már elkelt, vagy a hirdetés lejárt." />;
+    if (adat.hiba && adat.hiba.status === 404) {
+        return <NemTalalhato cim="Ez a hirdetés nem található" szoveg="Lehet, hogy az autó már elkelt, vagy a hirdetés lejárt." />;
+    }
     if (adat.hiba) {
         return (
             <main className="oldal">

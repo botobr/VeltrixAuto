@@ -64,10 +64,15 @@ const Szolgaltatasok = () => {
         utvonal: '/szolgaltatasok',
     });
 
-    // Horgonyra érkezéskor (pl. /szolgaltatasok#finanszirozas) görgessünk a szakaszhoz.
+    // ha a link egy részre mutat (pl. /szolgaltatasok#finanszirozas), odagörgetünk
     useEffect(() => {
-        if (!hash) return;
-        document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!hash) {
+            return;
+        }
+        const elem = document.getElementById(hash.slice(1));
+        if (elem) {
+            elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }, [hash]);
 
     return (
@@ -77,21 +82,21 @@ const Szolgaltatasok = () => {
                 <h1>Minden, ami az <span className="gradiens-szoveg">autóvásárláshoz kell.</span></h1>
                 <p>Garancia, finanszírozás, beszámítás és szerviz egy helyen – hogy a döntés után már csak vezetni kelljen.</p>
                 <nav className="tartalom-ugro" aria-label="Ugrás">
-                    {SZOLGALTATASOK.map((sz) => <a key={sz.id} className="csip" href={`#${sz.id}`}>{sz.cim}</a>)}
+                    {SZOLGALTATASOK.map((sz) => <a key={sz.id} className="csip" href={'#' + sz.id}>{sz.cim}</a>)}
                     <a className="csip" href="#vasarlas">Vásárlás menete</a>
                 </nav>
             </header>
 
             <div className="szolgaltatas-lista">
                 {SZOLGALTATASOK.map((sz) => (
-                    <section className="uveg szolgaltatas" id={sz.id} key={sz.id} aria-labelledby={`${sz.id}-cim`}>
+                    <section className="uveg szolgaltatas" id={sz.id} key={sz.id} aria-labelledby={sz.id + '-cim'}>
                         <span className="ertek-ikon"><Ikon nev={sz.ikon} meret={22} /></span>
                         <div>
-                            <h2 id={`${sz.id}-cim`}>{sz.cim}</h2>
+                            <h2 id={sz.id + '-cim'}>{sz.cim}</h2>
                             {sz.szoveg.map((bekezdes) => <p key={bekezdes}>{bekezdes}</p>)}
                             {sz.id === 'finanszirozas' && <div className="szolgaltatas-kalkulator"><HitelKalkulator szerkesztheto /></div>}
                             {sz.id === 'garancia' && <Link className="szoveg-gomb" to="/autok?garancias=1">Garanciális autók →</Link>}
-                            {sz.id === 'beszamitas' && <a className="szoveg-gomb" href={`mailto:${CEG.email}?subject=${encodeURIComponent('Beszámítás – előzetes ajánlatkérés')}`}>Ajánlatkérés e-mailben →</a>}
+                            {sz.id === 'beszamitas' && <a className="szoveg-gomb" href={'mailto:' + CEG.email + '?subject=' + encodeURIComponent('Beszámítás – előzetes ajánlatkérés')}>Ajánlatkérés e-mailben →</a>}
                         </div>
                     </section>
                 ))}

@@ -1,14 +1,11 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
-/*
- * Biztonsági fejlécek.
- * - A Content-Security-Policy az éles buildbe <meta> címkeként kerül (a fejlesztői szerver inline
- *   szkripttel tölti be a React gyorsfrissítést, ezért ott nem alkalmazzuk).
- * - A keretbe ágyazás tiltását (kattintáseltérítés ellen) a böngésző csak HTTP-fejlécből fogadja el:
- *   ezt a fejlesztői/előnézeti szerver itt adja, élesben a public/_headers fájl (Netlify, Cloudflare
- *   Pages), más tárhelyen ugyanezeket a fejléceket a szerver beállításaiban kell megadni.
- */
+// Biztonsági fejlécek
+// - A CSP (Content-Security-Policy) a buildbe <meta> címkeként kerül bele.
+//   Fejlesztés közben nem használjuk, mert a React gyorsfrissítés inline szkriptet használ.
+// - Az iframe-be ágyazás tiltását a böngésző csak HTTP fejlécből fogadja el:
+//   fejlesztéskor ezt itt adjuk meg, élesben a public/_headers fájl (vagy a szerver beállítása).
 const BIZTONSAGI_FEJLECEK = {
   'X-Frame-Options': 'DENY',
   'Content-Security-Policy': "frame-ancestors 'none'",
@@ -17,38 +14,46 @@ const BIZTONSAGI_FEJLECEK = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
 }
 
-/** Az oldal CSP-je: csak a saját kód és a ténylegesen használt külső szolgáltatások. */
-const cspSzabaly = (apiOrigin) => [
-  "default-src 'self'",
-  "script-src 'self'",
-  // Inline style: a diagramok és sávok méretét React style-attribútum adja meg.
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
-  // Termék- és autóképek (Cloudinary), feltöltés előtti előnézet (data:, blob:), főoldali kép.
-  "img-src 'self' data: blob: https://res.cloudinary.com https://i.pinimg.com",
-  `connect-src 'self' ${apiOrigin}`,
-  // A telephely térképe (csak kattintásra töltődik be).
-  'frame-src https://www.openstreetmap.org',
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ')
+// Az oldal CSP szabálya: csak a saját kód és a külső szolgáltatások, amiket tényleg használunk.
+const cspSzabaly = (apiOrigin) => {
+  const szabalyok = [
+    "default-src 'self'",
+    "script-src 'self'",
+    // a diagramok méretét style attribútummal adjuk meg, ezért kell az unsafe-inline
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    // képek: Cloudinary, feltöltés előtti előnézet (data:, blob:), a főoldali kép
+    "img-src 'self' data: blob: https://res.cloudinary.com https://i.pinimg.com",
+    "connect-src 'self' " + apiOrigin,
+    // a telephely térképe
+    'frame-src https://www.openstreetmap.org',
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ]
+  return szabalyok.join('; ')
+}
 
-const cspMeta = (apiOrigin) => ({
-  name: 'veltrix-csp',
-  apply: 'build',
-  transformIndexHtml: () => [
-    { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: cspSzabaly(apiOrigin) }, injectTo: 'head-prepend' },
-    { tag: 'meta', attrs: { name: 'referrer', content: 'strict-origin-when-cross-origin' }, injectTo: 'head-prepend' },
-  ],
-})
+// saját Vite plugin: build közben beleteszi a CSP-t az index.html-be
+const cspMeta = (apiOrigin) => {
+  return {
+    name: 'veltrix-csp',
+    apply: 'build',
+    transformIndexHtml: () => {
+      return [
+        { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: cspSzabaly(apiOrigin) }, injectTo: 'head-prepend' },
+        { tag: 'meta', attrs: { name: 'referrer', content: 'strict-origin-when-cross-origin' }, injectTo: 'head-prepend' },
+      ]
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, '')
   const apiUrl = env.VITE_API_URL || 'http://localhost:3600/api'
-  // A backend (alapból localhost:3600) szolgálja ki a robots.txt-t, a sitemap.xml-t
-  // és a közösségi megosztó oldalakat. Élesben ugyanezt a reverse proxynak kell továbbítania.
+  // a robots.txt-t, a sitemap.xml-t és a megosztás oldalt a backend adja,
+  // ezért ezeket továbbítjuk neki (élesben a szervernek kell ezt beállítani)
   const backend = apiUrl.replace(/\/api\/?$/, '')
 
   return {

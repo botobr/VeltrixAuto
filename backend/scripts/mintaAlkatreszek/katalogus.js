@@ -1,14 +1,11 @@
-/*
- * Minta tuning-alkatrész katalógus (kb. 250 termék) – determinisztikus generátor:
- * minden futtatás ugyanazokat a termékeket és cikkszámokat adja, így a feltöltés
- * újrafuttatható (cikkszám szerint frissít), és pontosan visszatörölhető.
- *
- * FIGYELEM: mintaadat. A gyártók valósak, de a cikkszámok, árak és készletek
- * kitaláltak – éles értékesítés előtt cseréljétek valós adatokra.
- */
+// Minta tuning alkatrészek (kb. 250 db) generálása a feltöltő scripthez.
+// Mindig ugyanazokat a termékeket adja (ugyanazzal a "véletlen" számmal indul),
+// így a feltöltés újra futtatható és vissza is törölhető.
+//
+// FIGYELEM: ez csak mintaadat! A gyártók valósak, de a cikkszámok, árak és készletek kitaláltak.
 
-// ---------- Platformok (mely autókra illik) ----------
-// A modell a platform rövid neve; az autó részletesebb modellneve („E46 318CI”) is illeszkedik rá.
+// ---------- Platformok (melyik autókra illik) ----------
+// A modell a rövid név, pl. "E46" (így az "E46 318CI" nevű autóra is illik).
 const P = {
     bmwE36: { marka: 'BMW', modell: 'E36', tol: 1990, ig: 2000, nev: 'BMW 3-as (E36)', turbo: false },
     bmwE46: { marka: 'BMW', modell: 'E46', tol: 1998, ig: 2006, nev: 'BMW 3-as (E46)', turbo: false },
@@ -54,17 +51,27 @@ const P = {
 };
 
 const MIND = Object.keys(P);
-// A kereskedésben jelenleg is kapható autók platformjai – ezekhez sablononként előre kerül illő termék.
+// a kereskedésben most kapható autók, ezekhez mindig kerüljön termék
 const KESZLETEN = ['bmwE46', 'bmwE60', 'audiS3', 'astraH', 'civicEK', 'megane3', 'mx5NB', 'swift', 'yarisGR', 'impreza', 'evo', 'rx7', 'nsx', 'p991', 'p992'];
 const PLATFORM_PER_SABLON = 5;
 
-const forgatas = (lista, eltolas) => (lista.length ? [...lista.slice(eltolas % lista.length), ...lista.slice(0, eltolas % lista.length)] : []);
+// a lista elforgatása, pl. forgatas([a, b, c], 1) -> [b, c, a]
+const forgatas = (lista, eltolas) => {
+    if (lista.length === 0) {
+        return [];
+    }
+    const kezdet = eltolas % lista.length;
+    return lista.slice(kezdet).concat(lista.slice(0, kezdet));
+};
 
-/** Sablononként legfeljebb 5 platform: 2 a készleten lévő autókéból, a többi – mindkettő sablononként forgatva, hogy minden típusra jusson. */
+// Egy sablonhoz max 5 autótípust választunk: 2-t a készleten lévő autók közül, a többit a maradékból.
+// A forgatás miatt minden sablonnál más típusok jönnek, így mindegyikre jut termék.
 const platformValasztas = (lista, sablonIndex) => {
-    const elso = forgatas(lista.filter((k) => KESZLETEN.includes(k)), sablonIndex).slice(0, 2);
-    const tobbi = lista.filter((k) => !elso.includes(k));
-    return [...elso, ...forgatas(tobbi, sablonIndex * 3)].slice(0, PLATFORM_PER_SABLON);
+    const keszletenLevok = lista.filter((kulcs) => KESZLETEN.includes(kulcs));
+    const elso = forgatas(keszletenLevok, sablonIndex).slice(0, 2);
+    const tobbi = lista.filter((kulcs) => !elso.includes(kulcs));
+    const valasztott = elso.concat(forgatas(tobbi, sablonIndex * 3));
+    return valasztott.slice(0, PLATFORM_PER_SABLON);
 };
 const TURBO = MIND.filter((k) => P[k].turbo);
 const MODERN = MIND.filter((k) => P[k].tol >= 2008);
@@ -264,7 +271,9 @@ const SABLONOK = [
         variansok: [['fehér', 0], ['fekete', 0], ['arany', 500]], rovid: 'Időjárásálló vinyl matricák a Veltrix logóval – 3 méretben.', param: [['Anyag', 'Öntött vinyl']] },
 ];
 
-// ---------- Determinisztikus véletlen ----------
+// ---------- "Véletlen" számok ----------
+// Saját véletlenszám-generátor (mulberry32): ugyanazzal a kezdőértékkel mindig ugyanazt adja.
+// (a Math.random() minden futásnál mást adna)
 const mulberry32 = (mag) => () => {
     let t = (mag += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -272,60 +281,120 @@ const mulberry32 = (mag) => () => {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-const kerekitArat = (ar) => (ar >= 10000 ? Math.round(ar / 1000) * 1000 - 100 : Math.round(ar / 100) * 100 - 100);
+// "szép" ár, pl. 12 345 -> 11 900, 4 567 -> 4 500
+const kerekitArat = (ar) => {
+    if (ar >= 10000) {
+        return Math.round(ar / 1000) * 1000 - 100;
+    }
+    return Math.round(ar / 100) * 100 - 100;
+};
 
-const leirasSzoveg = (s, cel) => [
-    s.rovid,
-    cel ? `Ez a változat a következő típushoz készült: ${cel}. Vásárlás előtt egyeztessük az alvázszám alapján a pontos illeszkedést – írj nekünk, vagy hívj!` : 'Univerzális termék: a legtöbb autóhoz használható; kérdés esetén szívesen segítünk a választásban.',
-    'Beszerelést telephelyünkön is vállalunk, időpontegyeztetés után.',
-].join('\n\n');
+const leirasSzoveg = (s, cel) => {
+    let kozepe;
+    if (cel) {
+        kozepe = 'Ez a változat a következő típushoz készült: ' + cel + '. Vásárlás előtt egyeztessük az alvázszám alapján a pontos illeszkedést – írj nekünk, vagy hívj!';
+    } else {
+        kozepe = 'Univerzális termék: a legtöbb autóhoz használható; kérdés esetén szívesen segítünk a választásban.';
+    }
+    return s.rovid + '\n\n' + kozepe + '\n\n' + 'Beszerelést telephelyünkön is vállalunk, időpontegyeztetés után.';
+};
 
-/** A teljes katalógus (képadatokkal együtt; a kép URL-jét a feltöltő tölti ki). */
+// Az összes minta termék (a kép adataival, a kép URL-jét a feltöltő script tölti ki).
 const katalogus = () => {
     const rnd = mulberry32(20261112);
     const termekek = [];
     const cikkszamok = new Set();
 
+    // egy termék hozzáadása a listához
     const felvesz = (s, { cel, nevVege, arElteres = 0, sorszam }) => {
-        const [kod, szin] = GY[s.gyarto];
-        const cikkszam = `${kod}-${s.cikk + sorszam * 7}`;
-        if (cikkszamok.has(cikkszam)) throw new Error(`Ismétlődő cikkszám: ${cikkszam}`);
+        const kod = GY[s.gyarto][0];
+        const szin = GY[s.gyarto][1];
+        const cikkszam = kod + '-' + (s.cikk + sorszam * 7);
+        if (cikkszamok.has(cikkszam)) {
+            throw new Error('Ismétlődő cikkszám: ' + cikkszam);
+        }
         cikkszamok.add(cikkszam);
 
+        // FONTOS: az rnd() hívások sorrendjét nem szabad megváltoztatni, különben más árak jönnek ki
         const ar = kerekitArat((s.ar + arElteres) * (0.94 + rnd() * 0.14));
         const akcios = rnd() < 0.22;
         const keszletVeletlen = rnd();
-        const keszlet = keszletVeletlen < 0.07 ? 0 : keszletVeletlen < 0.2 ? 1 + Math.floor(rnd() * 2) : 3 + Math.floor(rnd() * 22);
-        termekek.push({
-            nev: `${s.gyarto} ${s.nev}${nevVege ? ` – ${nevVege}` : ''}`,
-            cikkszam,
+        let keszlet;
+        if (keszletVeletlen < 0.07) {
+            keszlet = 0;
+        } else if (keszletVeletlen < 0.2) {
+            keszlet = 1 + Math.floor(rnd() * 2);
+        } else {
+            keszlet = 3 + Math.floor(rnd() * 22);
+        }
+
+        let nev = s.gyarto + ' ' + s.nev;
+        if (nevVege) {
+            nev = nev + ' – ' + nevVege;
+        }
+
+        let akciosAr = null;
+        if (akcios) {
+            akciosAr = kerekitArat(ar * (0.82 + rnd() * 0.1));
+        }
+
+        const parameterek = [];
+        for (const param of s.param) {
+            parameterek.push({ nev: param[0], ertek: param[1] });
+        }
+
+        let kompatibilitas = [];
+        let cimke = nevVege || '';
+        if (cel) {
+            parameterek.push({ nev: 'Típus', ertek: cel.nev });
+            kompatibilitas = [{ marka: cel.marka, modell: cel.modell, evjaratTol: cel.tol, evjaratIg: cel.ig }];
+            cimke = cel.nev;
+        }
+
+        const termek = {
+            nev: nev,
+            cikkszam: cikkszam,
             gyarto: s.gyarto,
             kategoria: s.kat,
             rovidLeiras: s.rovid,
-            leiras: leirasSzoveg(s, cel?.nev),
-            ar,
-            akciosAr: akcios ? kerekitArat(ar * (0.82 + rnd() * 0.1)) : null,
-            keszlet,
-            parameterek: [...s.param.map(([nev, ertek]) => ({ nev, ertek })), ...(cel ? [{ nev: 'Típus', ertek: cel.nev }] : [])],
+            leiras: leirasSzoveg(s, cel ? cel.nev : undefined),
+            ar: ar,
+            akciosAr: akciosAr,
+            keszlet: keszlet,
+            parameterek: parameterek,
             univerzalis: Boolean(s.univerzalis),
-            kompatibilitas: cel ? [{ marka: cel.marka, modell: cel.modell, evjaratTol: cel.tol, evjaratIg: cel.ig }] : [],
+            kompatibilitas: kompatibilitas,
             lathato: true,
             kiemelt: false,
-            kep: { rajz: s.rajz, szin, gyarto: s.gyarto, cimke: cel ? cel.nev : (nevVege || ''), kullok: s.kullok, felniSzin: s.felniSzin },
-        });
-        return termekek.at(-1);
+            kep: { rajz: s.rajz, szin: szin, gyarto: s.gyarto, cimke: cimke, kullok: s.kullok, felniSzin: s.felniSzin },
+        };
+        termekek.push(termek);
+        return termek;
     };
 
-    SABLONOK.forEach((s, sablonIndex) => {
+    for (let sablonIndex = 0; sablonIndex < SABLONOK.length; sablonIndex++) {
+        const s = SABLONOK[sablonIndex];
         const sajat = [];
+
         if (s.univerzalis) {
-            (s.variansok || [[null, 0]]).forEach(([nev, elteres], i) => sajat.push(felvesz(s, { nevVege: nev, arElteres: elteres, sorszam: i })));
+            // univerzális termék: a változatai (pl. méretek)
+            const variansok = s.variansok || [[null, 0]];
+            for (let i = 0; i < variansok.length; i++) {
+                sajat.push(felvesz(s, { nevVege: variansok[i][0], arElteres: variansok[i][1], sorszam: i }));
+            }
         } else {
-            platformValasztas(s.platform, sablonIndex).forEach((kulcs) => sajat.push(felvesz(s, { cel: P[kulcs], nevVege: P[kulcs].nev, sorszam: s.platform.indexOf(kulcs) })));
+            // autóhoz való termék: a kiválasztott autótípusokra
+            for (const kulcs of platformValasztas(s.platform, sablonIndex)) {
+                sajat.push(felvesz(s, { cel: P[kulcs], nevVege: P[kulcs].nev, sorszam: s.platform.indexOf(kulcs) }));
+            }
         }
-        // Kiemelés: a sablonból az első N termék.
-        for (const t of sajat.slice(0, s.kiemelt || 0)) t.kiemelt = true;
-    });
+
+        // a sablon első néhány terméke kiemelt
+        const kiemeltDb = s.kiemelt || 0;
+        for (let i = 0; i < kiemeltDb && i < sajat.length; i++) {
+            sajat[i].kiemelt = true;
+        }
+    }
     return termekek;
 };
 

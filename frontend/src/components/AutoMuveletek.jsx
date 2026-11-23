@@ -4,15 +4,20 @@ import { useFelhasznalo } from '../context/felhasznalo';
 import { MAX_OSSZEHASONLITAS, useOsszehasonlitas } from '../context/osszehasonlitas';
 import Ikon from './Ikon';
 
-/** Kedvencnek jelölés – bejelentkezés nélkül a belépő oldalra visz. */
+// Kedvenc gomb (szív). Ha nincs bejelentkezve, a belépés oldalra visz.
 export const KedvencGomb = ({ auto, cimkevel = false, className = '' }) => {
     const { felhasznalo, kedvencValtas } = useFelhasznalo();
     const navigate = useNavigate();
     const location = useLocation();
     const [hiba, setHiba] = useState('');
-    const kedvenc = Boolean(felhasznalo?.kedvencek?.includes(auto._id));
+
+    let kedvenc = false;
+    if (felhasznalo && felhasznalo.kedvencek) {
+        kedvenc = felhasznalo.kedvencek.includes(auto._id);
+    }
 
     const kattintas = async (event) => {
+        // a gomb a kártyán belül van, ne nyissa meg az autót
         event.preventDefault();
         event.stopPropagation();
         if (!felhasznalo) {
@@ -27,39 +32,63 @@ export const KedvencGomb = ({ auto, cimkevel = false, className = '' }) => {
         }
     };
 
+    let felirat = 'Kedvencekhez';
+    let leiras = 'Mentés a kedvencek közé';
+    let osztaly = 'ikon-gomb kedvenc-gomb ' + className;
+    if (kedvenc) {
+        felirat = 'Kedvenc';
+        leiras = 'Eltávolítás a kedvencek közül';
+        osztaly = 'ikon-gomb kedvenc-gomb aktiv ' + className;
+    }
+
     return (
         <button
             type="button"
-            className={`ikon-gomb kedvenc-gomb ${kedvenc ? 'aktiv' : ''} ${className}`}
+            className={osztaly}
             onClick={kattintas}
             aria-pressed={kedvenc}
-            aria-label={kedvenc ? 'Eltávolítás a kedvencek közül' : 'Mentés a kedvencek közé'}
-            title={hiba || (kedvenc ? 'Kedvenc' : 'Kedvencekhez')}
+            aria-label={leiras}
+            title={hiba || felirat}
         >
             <Ikon nev="sziv" kitoltes={kedvenc} />
-            {cimkevel && <span>{kedvenc ? 'Kedvenc' : 'Kedvencekhez'}</span>}
+            {cimkevel && <span>{felirat}</span>}
         </button>
     );
 };
 
+// Összehasonlítás gomb (max 4 autó választható ki)
 export const OsszehasonlitasGomb = ({ auto, cimkevel = false, className = '' }) => {
     const { benne, valtas, tele } = useOsszehasonlitas();
     const kivalasztva = benne(auto._id);
     const letiltva = !kivalasztva && tele;
 
+    const kattintas = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        valtas(auto);
+    };
+
+    let osztaly = 'ikon-gomb osszehasonlit-gomb ' + className;
+    let leiras = 'Hozzáadás az összehasonlításhoz';
+    if (kivalasztva) {
+        osztaly = 'ikon-gomb osszehasonlit-gomb aktiv ' + className;
+        leiras = 'Eltávolítás az összehasonlításból';
+    }
+
+    let cim = 'Összehasonlítás';
+    if (letiltva) {
+        cim = 'Legfeljebb ' + MAX_OSSZEHASONLITAS + ' autó hasonlítható össze';
+    }
+
     return (
         <button
             type="button"
-            className={`ikon-gomb osszehasonlit-gomb ${kivalasztva ? 'aktiv' : ''} ${className}`}
-            onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                valtas(auto);
-            }}
+            className={osztaly}
+            onClick={kattintas}
             aria-pressed={kivalasztva}
             disabled={letiltva}
-            aria-label={kivalasztva ? 'Eltávolítás az összehasonlításból' : 'Hozzáadás az összehasonlításhoz'}
-            title={letiltva ? `Legfeljebb ${MAX_OSSZEHASONLITAS} autó hasonlítható össze` : 'Összehasonlítás'}
+            aria-label={leiras}
+            title={cim}
         >
             <Ikon nev={kivalasztva ? 'pipa' : 'osszehasonlit'} />
             {cimkevel && <span>{kivalasztva ? 'Összehasonlításban' : 'Összehasonlítás'}</span>}

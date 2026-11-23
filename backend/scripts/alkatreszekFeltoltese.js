@@ -1,23 +1,20 @@
-/**
- * Minta tuning alkatrészek (kb. 275 termék) feltöltése a .env-ben beállított
- * adatbázisba, generált termékképekkel (Cloudinary).
- *
- *   npm run alkatreszek                    – feltöltés; a meglévőket (cikkszám szerint) frissíti
- *   npm run alkatreszek -- --szaraz        – csak ellenőrzés: semmit nem ír, nem tölt fel
- *   npm run alkatreszek -- --kepek-ujra    – a képeket akkor is újra feltölti, ha már megvannak
- *   npm run alkatreszek -- --torles        – pontosan ezeket a termékeket és képeiket törli
- *
- * Újrafuttatáskor a már meglévő termékeknél csak a katalógusadatok (név, leírás,
- * paraméterek, kompatibilitás) frissülnek; az ár, akciós ár, készlet, láthatóság,
- * kiemelés és statisztika marad, ahogy az adminban beállították.
- */
+// Minta tuning alkatrészek (kb. 275 db) feltöltése az adatbázisba, generált képekkel (Cloudinary).
+//
+//   npm run alkatreszek                    – feltöltés (a meglévőket cikkszám alapján frissíti)
+//   npm run alkatreszek -- --szaraz        – csak ellenőrzés, nem ír semmit
+//   npm run alkatreszek -- --kepek-ujra    – a képeket akkor is újra feltölti, ha már megvannak
+//   npm run alkatreszek -- --torles        – ezeket a minta termékeket és a képeiket törli
+//
+// Ha egy termék már megvan, csak a leírás jellegű adatai frissülnek, az ár, készlet,
+// láthatóság stb. marad úgy, ahogy az adminban beállították.
+
 const dotenv = require('dotenv');
 
 dotenv.config({ quiet: true });
 
 const mongoose = require('mongoose');
 const { v2: cloudinary } = require('cloudinary');
-require('../utils/cloudinary');
+require('../utils/cloudinary'); // ez állítja be a Cloudinary-t
 const adatbazisKapcsolodas = require('../utils/adatbazis');
 const AlkatreszModel = require('../models/Alkatresz');
 const { kepekTorlese } = require('../utils/cloudinary');
@@ -27,39 +24,22 @@ const { katalogus } = require('./mintaAlkatreszek/katalogus');
 const { termekKep } = require('./mintaAlkatreszek/kepek');
 
 const MAPPA = 'veltrix/autok';
-const PARHUZAMOS = 6;
+// ezeket a mezőket frissítjük a már meglévő termékeknél
 const KATALOGUS_MEZOK = ['nev', 'gyarto', 'kategoria', 'rovidLeiras', 'leiras', 'parameterek', 'kompatibilitas', 'univerzalis'];
 
-const kapcsolo = (nev) => process.argv.includes(nev);
-const szaraz = kapcsolo('--szaraz');
-const torles = kapcsolo('--torles');
-const kepekUjra = kapcsolo('--kepek-ujra');
+// parancssori kapcsolók
+const szaraz = process.argv.includes('--szaraz');
+const torles = process.argv.includes('--torles');
+const kepekUjra = process.argv.includes('--kepek-ujra');
 
-const kepNev = (cikkszam) => `minta-alkatresz-${slugify(cikkszam)}`;
-const publicIdje = (cikkszam) => `${MAPPA}/${kepNev(cikkszam)}`;
+const kepNev = (cikkszam) => 'minta-alkatresz-' + slugify(cikkszam);
+const kepPublicId = (cikkszam) => MAPPA + '/' + kepNev(cikkszam);
 
-/** Legfeljebb `db` párhuzamos feladat; a hibákat összegyűjti, nem áll le miattuk. */
-const parhuzamosan = async (lista, db, feladat) => {
-    const hibak = [];
-    let kovetkezo = 0;
-    const dolgozo = async () => {
-        while (kovetkezo < lista.length) {
-            const elem = lista[kovetkezo];
-            kovetkezo += 1;
-            try {
-                await feladat(elem);
-            } catch (error) {
-                hibak.push(`${elem.cikkszam}: ${error.message || error}`);
-            }
-        }
-    };
-    await Promise.all(Array.from({ length: db }, dolgozo));
-    return hibak;
-};
-
+// a termék képe (SVG-ből generálva) feltöltése JPG-ként
 const kepFeltoltes = async (termek) => {
     const svg = termekKep(termek.kep);
-    const eredmeny = await cloudinary.uploader.upload(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`, {
+    const base64 = Buffer.from(svg).toString('base64');
+    const eredmeny = await cloudinary.uploader.upload('data:image/svg+xml;base64,' + base64, {
         folder: MAPPA,
         public_id: kepNev(termek.cikkszam),
         overwrite: true,
@@ -69,81 +49,155 @@ const kepFeltoltes = async (termek) => {
     return { url: eredmeny.secure_url, publicId: eredmeny.public_id, tipus: 'kulso', leiras: '' };
 };
 
-const torlesFuttatasa = async (termekek) => {
-    const cikkszamok = termekek.map((t) => t.cikkszam);
-    const meglevok = await AlkatreszModel.find({ cikkszam: { $in: cikkszamok } }).select('cikkszam kepek');
-    console.log(`${meglevok.length} minta-termék található az adatbázisban.`);
-    if (szaraz) return;
-    await AlkatreszModel.deleteMany({ _id: { $in: meglevok.map((t) => t._id) } });
-    // Csak a minta-képeket töröljük (amit az adminban cseréltek, azt nem).
-    const kepek = meglevok.flatMap((t) => t.kepek.map((k) => k.publicId)).filter((id) => id.startsWith(`${MAPPA}/minta-alkatresz-`));
-    await kepekTorlese(kepek);
-    console.log(`Törölve: ${meglevok.length} termék, ${kepek.length} kép.`);
+// van-e már a terméknek minta képe
+const vanMintaKepe = (meglevo, cikkszam) => {
+    if (!meglevo) {
+        return false;
+    }
+    for (const kep of meglevo.kepek) {
+        if (kep.publicId === kepPublicId(cikkszam)) {
+            return true;
+        }
+    }
+    return false;
 };
 
-const feltoltes = async (termekek) => {
-    const meglevok = new Map((await AlkatreszModel.find({ cikkszam: { $in: termekek.map((t) => t.cikkszam) } })).map((t) => [t.cikkszam, t]));
-    const kepKell = termekek.filter((t) => kepekUjra || !meglevok.get(t.cikkszam)?.kepek.some((k) => k.publicId === publicIdje(t.cikkszam)));
-    console.log(`${termekek.length} termék a katalógusban · ${meglevok.size} már megvan · ${kepKell.length} képet kell feltölteni.`);
+// a minta termékek törlése
+const torlesFuttatasa = async (termekek) => {
+    const cikkszamok = termekek.map((termek) => termek.cikkszam);
+    const meglevok = await AlkatreszModel.find({ cikkszam: { $in: cikkszamok } }).select('cikkszam kepek');
+    console.log(meglevok.length + ' minta-termék található az adatbázisban.');
+    if (szaraz) {
+        return;
+    }
 
-    // Ellenőrzés mentés előtt – ugyanazzal a validációval, mint az admin űrlap.
-    const elotag = `https://res.cloudinary.com/${process.env.CLOUDINARY_API_CLOUD_NAME}/image/upload/`;
-    const validacio = termekek.flatMap((t) => {
-        const { hibak } = alkatreszEllenorzese({ ...t, kepek: [{ url: `${elotag}v1/${publicIdje(t.cikkszam)}.jpg`, publicId: publicIdje(t.cikkszam) }] });
-        return hibak.map((h) => `${t.cikkszam}: ${h}`);
-    });
-    if (validacio.length) throw new Error(`Érvénytelen katalógusadat:\n${validacio.slice(0, 10).join('\n')}`);
+    await AlkatreszModel.deleteMany({ _id: { $in: meglevok.map((termek) => termek._id) } });
+
+    // csak a minta képeket töröljük (amit az adminban cseréltek, azt nem)
+    const kepek = [];
+    for (const termek of meglevok) {
+        for (const kep of termek.kepek) {
+            if (kep.publicId.startsWith(MAPPA + '/minta-alkatresz-')) {
+                kepek.push(kep.publicId);
+            }
+        }
+    }
+    await kepekTorlese(kepek);
+    console.log('Törölve: ' + meglevok.length + ' termék, ' + kepek.length + ' kép.');
+};
+
+// feltöltés / frissítés
+const feltoltes = async (termekek) => {
+    const cikkszamok = termekek.map((termek) => termek.cikkszam);
+    const meglevoLista = await AlkatreszModel.find({ cikkszam: { $in: cikkszamok } });
+    const meglevok = {};
+    for (const termek of meglevoLista) {
+        meglevok[termek.cikkszam] = termek;
+    }
+
+    // melyik termékhez kell képet feltölteni
+    const kepKell = [];
+    for (const termek of termekek) {
+        if (kepekUjra || !vanMintaKepe(meglevok[termek.cikkszam], termek.cikkszam)) {
+            kepKell.push(termek);
+        }
+    }
+    console.log(termekek.length + ' termék a katalógusban · ' + meglevoLista.length + ' már megvan · ' + kepKell.length + ' képet kell feltölteni.');
+
+    // ellenőrzés mentés előtt, ugyanúgy, mint az admin űrlapon
+    const elotag = 'https://res.cloudinary.com/' + process.env.CLOUDINARY_API_CLOUD_NAME + '/image/upload/';
+    const validacioHibak = [];
+    for (const termek of termekek) {
+        const probaKep = { url: elotag + 'v1/' + kepPublicId(termek.cikkszam) + '.jpg', publicId: kepPublicId(termek.cikkszam) };
+        const { hibak } = alkatreszEllenorzese({ ...termek, kepek: [probaKep] });
+        for (const hiba of hibak) {
+            validacioHibak.push(termek.cikkszam + ': ' + hiba);
+        }
+    }
+    if (validacioHibak.length > 0) {
+        throw new Error('Érvénytelen katalógusadat:\n' + validacioHibak.slice(0, 10).join('\n'));
+    }
     if (szaraz) {
         console.log('Szárazfuttatás: minden termék érvényes, nem írtunk semmit.');
         return;
     }
 
-    const kepek = new Map();
-    let kesz = 0;
-    const kepHibak = await parhuzamosan(kepKell, PARHUZAMOS, async (t) => {
-        kepek.set(t.cikkszam, await kepFeltoltes(t));
-        kesz += 1;
-        if (kesz % 25 === 0 || kesz === kepKell.length) console.log(`  képek: ${kesz}/${kepKell.length}`);
-    });
+    const hibak = [];
 
+    // 1. képek feltöltése
+    const ujKepek = {};
+    let kesz = 0;
+    for (const termek of kepKell) {
+        try {
+            ujKepek[termek.cikkszam] = await kepFeltoltes(termek);
+        } catch (error) {
+            hibak.push('kép – ' + termek.cikkszam + ': ' + error.message);
+        }
+        kesz++;
+        if (kesz % 25 === 0 || kesz === kepKell.length) {
+            console.log('  képek: ' + kesz + '/' + kepKell.length);
+        }
+    }
+
+    // 2. termékek mentése
     let letrehozva = 0;
     let frissitve = 0;
-    const mentesHibak = await parhuzamosan(termekek, PARHUZAMOS, async (t) => {
-        const ujKep = kepek.get(t.cikkszam);
-        const meglevo = meglevok.get(t.cikkszam);
-        if (meglevo) {
-            for (const mezo of KATALOGUS_MEZOK) meglevo.set(mezo, t[mezo]);
-            if (ujKep && !meglevo.kepek.some((k) => k.publicId === ujKep.publicId)) meglevo.kepek = [ujKep, ...meglevo.kepek];
-            await meglevo.save();
-            frissitve += 1;
-            return;
-        }
-        if (!ujKep) throw new Error('nincs kép (a feltöltés nem sikerült)');
-        const { kep: _kep, ...adatok } = t;
-        await AlkatreszModel.create({ ...adatok, kepek: [ujKep] });
-        letrehozva += 1;
-    });
+    for (const termek of termekek) {
+        try {
+            const ujKep = ujKepek[termek.cikkszam];
+            const meglevo = meglevok[termek.cikkszam];
 
-    console.log(`Kész: ${letrehozva} új, ${frissitve} frissített termék.`);
-    const hibak = [...kepHibak.map((h) => `kép – ${h}`), ...mentesHibak.map((h) => `mentés – ${h}`)];
-    if (hibak.length) {
-        console.error(`${hibak.length} hiba (újrafuttatással pótolható):\n${hibak.slice(0, 20).join('\n')}`);
+            if (meglevo) {
+                for (const mezo of KATALOGUS_MEZOK) {
+                    meglevo.set(mezo, termek[mezo]);
+                }
+                // az új képet az elejére tesszük
+                if (ujKep && !vanMintaKepe(meglevo, termek.cikkszam)) {
+                    meglevo.kepek = [ujKep, ...meglevo.kepek];
+                }
+                await meglevo.save();
+                frissitve++;
+            } else {
+                if (!ujKep) {
+                    throw new Error('nincs kép (a feltöltés nem sikerült)');
+                }
+                const adatok = { ...termek, kepek: [ujKep] };
+                delete adatok.kep; // ez csak a kép generálásához kellett
+                await AlkatreszModel.create(adatok);
+                letrehozva++;
+            }
+        } catch (error) {
+            hibak.push('mentés – ' + termek.cikkszam + ': ' + error.message);
+        }
+    }
+
+    console.log('Kész: ' + letrehozva + ' új, ' + frissitve + ' frissített termék.');
+    if (hibak.length > 0) {
+        console.error(hibak.length + ' hiba (újrafuttatással pótolható):\n' + hibak.slice(0, 20).join('\n'));
         process.exitCode = 1;
     }
 };
 
 const futtatas = async () => {
-    if (!process.env.MONGO_DB) throw new Error('A MONGO_DB nincs beállítva a .env fájlban.');
-    if (!torles && !szaraz && !process.env.CLOUDINARY_API_CLOUD_NAME) throw new Error('A Cloudinary nincs beállítva a .env fájlban.');
+    if (!process.env.MONGO_DB) {
+        throw new Error('A MONGO_DB nincs beállítva a .env fájlban.');
+    }
+    if (!torles && !szaraz && !process.env.CLOUDINARY_API_CLOUD_NAME) {
+        throw new Error('A Cloudinary nincs beállítva a .env fájlban.');
+    }
+
     const termekek = katalogus();
     await adatbazisKapcsolodas();
-    if (torles) await torlesFuttatasa(termekek);
-    else await feltoltes(termekek);
+    if (torles) {
+        await torlesFuttatasa(termekek);
+    } else {
+        await feltoltes(termekek);
+    }
 };
 
 futtatas()
     .catch((error) => {
-        console.error(`Hiba: ${error.message}`);
+        console.error('Hiba: ' + error.message);
         process.exitCode = 1;
     })
     .finally(() => mongoose.disconnect());

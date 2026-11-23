@@ -1,16 +1,15 @@
-/*
- * E2E (Cypress) tesztszerver: a valódi app.js memóriabeli MongoDB-vel, ismert
- * mintaadatokkal. Az éles adatbázishoz, Cloudinary-hoz és Stripe-hoz nem nyúl.
- *
- * Indítás: node tests/e2e/szerver.js   (a frontend `npm run e2e` parancsa magától indítja)
- * Port: E2E_API_PORT (alap 3601), a frontend címe: E2E_FRONTEND_URL (alap http://localhost:5174)
- *
- * Csak tesztre szolgáló végpontok (nem az /api alatt):
- *   POST /__e2e/visszaallitas            – adatbázis ürítése és újratöltése, korlátozók nullázása
- *   GET  /__e2e/rendelesek/utolso        – a legutóbbi rendelés (munkamenet-azonosítóval)
- *   POST /__e2e/fizetes/:munkamenetId    – aláírt Stripe-visszajelzés küldése ({ tipus: 'sikeres' | 'lejart' })
- *   GET  /__e2e/levelek                  – az eddig „elküldött” e-mailek
- */
+// Tesztszerver a Cypress (E2E) tesztekhez.
+// A mi app.js-ünket indítja el, de memóriában futó MongoDB-vel és saját tesztadatokkal.
+// Az igazi adatbázishoz, Cloudinary-hoz és Stripe-hoz nem nyúl.
+//
+// Indítás: node tests/e2e/szerver.js  (a frontendben az `npm run e2e` magától elindítja)
+// Port: 3601, a frontend címe: http://localhost:5174
+//
+// Csak a tesztekhez való végpontok:
+//   POST /__e2e/visszaallitas          – adatbázis ürítése és újratöltése
+//   GET  /__e2e/rendelesek/utolso      – a legutóbbi rendelés
+//   POST /__e2e/fizetes/:munkamenetId  – Stripe visszajelzés küldése ({ tipus: 'sikeres' | 'lejart' })
+//   GET  /__e2e/levelek                – az eddig "elküldött" e-mailek
 const PORT = Number(process.env.E2E_API_PORT) || 3601;
 const FRONTEND = process.env.E2E_FRONTEND_URL || 'http://localhost:5174';
 const WEBHOOK_TITOK = 'whsec_e2e_teszt';
@@ -29,31 +28,41 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const Stripe = require('stripe');
 
-// ---------- Külső szolgáltatások helyettesítése (az app betöltése ELŐTT) ----------
+// ---------- A külső szolgáltatások lecserélése (az app betöltése előtt kell!) ----------
 
 const cloudinary = require('../../utils/cloudinary');
 
 cloudinary.kepekTorlese = async () => {};
-cloudinary.kepFeltoltese = async () => ({ secure_url: 'https://res.cloudinary.com/e2e/image/upload/v1/veltrix/autok/feltoltott.jpg', public_id: 'veltrix/autok/feltoltott' });
+cloudinary.kepFeltoltese = async () => {
+    return {
+        secure_url: 'https://res.cloudinary.com/e2e/image/upload/v1/veltrix/autok/feltoltott.jpg',
+        public_id: 'veltrix/autok/feltoltott',
+    };
+};
 
+// az e-maileket nem küldjük el, csak eltesszük ebbe a tömbbe
 const levelek = [];
 const email = require('../../utils/email');
 
 email.emailKuldes = async ({ cimzett, targy, szoveg }) => {
-    levelek.push({ cimzett: [].concat(cimzett), targy, szoveg, idopont: new Date().toISOString() });
+    let cimzettek = [cimzett];
+    if (Array.isArray(cimzett)) {
+        cimzettek = cimzett;
+    }
+    levelek.push({ cimzett: cimzettek, targy: targy, szoveg: szoveg, idopont: new Date().toISOString() });
     return true;
 };
 
-// Stripe Checkout helyett: a „fizetőoldal” rögtön visszairányít a sikeres fizetés oldalára;
-// a tényleges „fizetve” jelzést a teszt küldi el aláírt webhookként (/__e2e/fizetes/...).
+// A Stripe fizetőoldal helyett rögtön visszaküldjük a vevőt a "sikeres fizetés" oldalra.
+// A "fizetve" jelzést a teszt küldi el (/__e2e/fizetes/...).
 const fizetes = require('../../utils/fizetes');
 
 let munkamenetSorszam = 0;
 fizetes.fizetesInditasa = async (rendeles, kulcs) => {
-    munkamenetSorszam += 1;
+    munkamenetSorszam++;
     return {
-        url: `${FRONTEND}/rendeles/${encodeURIComponent(rendeles.rendelesSzam)}?kulcs=${kulcs}&fizetes=siker`,
-        munkamenetId: `cs_e2e_${munkamenetSorszam}`,
+        url: FRONTEND + '/rendeles/' + encodeURIComponent(rendeles.rendelesSzam) + '?kulcs=' + kulcs + '&fizetes=siker',
+        munkamenetId: 'cs_e2e_' + munkamenetSorszam,
     };
 };
 
@@ -77,21 +86,50 @@ const FELHASZNALOK = [
     { nev: 'Vásárló Vilma', email: 'vasarlo@teszt.hu', statusz: 'felhasznalo' },
 ];
 
-const svg = (felirat, szin) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#f4f1e8"/><circle cx="400" cy="290" r="170" fill="${szin}"/><text x="400" y="540" font-family="Arial" font-size="40" text-anchor="middle" fill="#333">${felirat}</text></svg>`)}`;
-let kepSorszam = 0;
-const kepek = (felirat, szin) => {
-    kepSorszam += 1;
-    return [{ url: svg(felirat, szin), publicId: `veltrix/autok/e2e-${kepSorszam}`, tipus: 'kulso', leiras: '' }];
+// egyszerű kép (egy színes kör felirattal), hogy ne kelljen internetről képet tölteni
+const svg = (felirat, szin) => {
+    const kod = '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">'
+        + '<rect width="800" height="600" fill="#f4f1e8"/>'
+        + '<circle cx="400" cy="290" r="170" fill="' + szin + '"/>'
+        + '<text x="400" y="540" font-family="Arial" font-size="40" text-anchor="middle" fill="#333">' + felirat + '</text>'
+        + '</svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(kod);
 };
 
-const auto = (adatok) => ({
-    szin: 'Fekete', kivitel: 'Coupe', uzemanyag: 'Benzin', szarmazasi_hely: 'Németország',
-    teljesitmeny: 143, hengerur_tartalom: 1995, kmora_allas: 180000, ...adatok,
-});
+let kepSorszam = 0;
+const kepek = (felirat, szin) => {
+    kepSorszam++;
+    return [{ url: svg(felirat, szin), publicId: 'veltrix/autok/e2e-' + kepSorszam, tipus: 'kulso', leiras: '' }];
+};
+
+// egy autó alap adatai, amit a megadott adatok felülírnak
+const auto = (adatok) => {
+    const alap = {
+        szin: 'Fekete',
+        kivitel: 'Coupe',
+        uzemanyag: 'Benzin',
+        szarmazasi_hely: 'Németország',
+        teljesitmeny: 143,
+        hengerur_tartalom: 1995,
+        kmora_allas: 180000,
+    };
+    return { ...alap, ...adatok };
+};
+
+// az mongodb id-k szövegként: { kulcs: 'id' }
+const azonositok = (lista) => {
+    const eredmeny = {};
+    for (const kulcs in lista) {
+        eredmeny[kulcs] = String(lista[kulcs]._id);
+    }
+    return eredmeny;
+};
 
 const adatfeltoltes = async () => {
     kepSorszam = 0;
-    for (const f of FELHASZNALOK) await FelhasznaloModel.create({ ...f, jelszo: JELSZO });
+    for (const felhasznalo of FELHASZNALOK) {
+        await FelhasznaloModel.create({ ...felhasznalo, jelszo: JELSZO });
+    }
     const telephely = await TelephelyModel.create({
         nev: 'Veltrix Budaörs', iranyitoszam: '2040', varos: 'Budaörs', cim: 'Szabadság út 1.', megye: 'Pest', telefon: '+36 1 234 5678', szelesseg: 47.4613, hosszusag: 18.9583,
     });
@@ -104,7 +142,9 @@ const adatfeltoltes = async () => {
     };
 
     const e46 = [{ marka: 'BMW', modell: 'E46', evjaratTol: 1998, evjaratIg: 2006 }];
-    const alkatresz = (adatok) => AlkatreszModel.create({ kepek: kepek(adatok.gyarto, '#c99a35'), ...adatok });
+    const alkatresz = (adatok) => {
+        return AlkatreszModel.create({ kepek: kepek(adatok.gyarto, '#c99a35'), ...adatok });
+    };
     const alkatreszek = {
         futomu: await alkatresz({
             nev: 'V3 állítható menetes futómű – BMW 3-as (E46)', cikkszam: 'KW-E2E-1', gyarto: 'KW', kategoria: 'futomu', ar: 649000, akciosAr: 589000, keszlet: 3, kiemelt: true,
@@ -128,21 +168,30 @@ const adatfeltoltes = async () => {
         }),
     };
 
-    const azonositok = (lista) => Object.fromEntries(Object.entries(lista).map(([kulcs, doc]) => [kulcs, String(doc._id)]));
-    return { jelszo: JELSZO, felhasznalok: FELHASZNALOK, autok: azonositok(autok), alkatreszek: azonositok(alkatreszek) };
+    return {
+        jelszo: JELSZO,
+        felhasznalok: FELHASZNALOK,
+        autok: azonositok(autok),
+        alkatreszek: azonositok(alkatreszek),
+    };
 };
 
 // ---------- Indítás ----------
 
-(async () => {
+const inditas = async () => {
     const mongod = await MongoMemoryServer.create();
     await mongoose.connect(mongod.getUri());
-    await Promise.all(mongoose.modelNames().map((nev) => mongoose.model(nev).syncIndexes()));
+    for (const nev of mongoose.modelNames()) {
+        await mongoose.model(nev).syncIndexes();
+    }
 
     const app = appLetrehozasa({ munkamenetTarolo: new session.MemoryStore() });
 
+    // minden teszt előtt: üres adatbázis + tesztadatok, a korlátozók nullázása
     app.post('/__e2e/visszaallitas', async (req, res) => {
-        await Promise.all(Object.values(mongoose.connection.collections).map((gy) => gy.deleteMany({})));
+        for (const gyujtemeny of Object.values(mongoose.connection.collections)) {
+            await gyujtemeny.deleteMany({});
+        }
         korlatokTorlese();
         belepesiProbalkozasokTorlese();
         levelek.length = 0;
@@ -152,25 +201,42 @@ const adatfeltoltes = async () => {
 
     app.get('/__e2e/rendelesek/utolso', async (req, res) => {
         const rendeles = await RendelesModel.findOne().sort({ createdAt: -1 });
-        res.json(rendeles ? { rendelesSzam: rendeles.rendelesSzam, statusz: rendeles.statusz, munkamenetId: rendeles.fizetes.munkamenetId, fizetes: rendeles.fizetes.statusz } : null);
+        if (!rendeles) {
+            return res.json(null);
+        }
+        res.json({
+            rendelesSzam: rendeles.rendelesSzam,
+            statusz: rendeles.statusz,
+            munkamenetId: rendeles.fizetes.munkamenetId,
+            fizetes: rendeles.fizetes.statusz,
+        });
     });
 
-    // A Stripe helyett: aláírt webhook a saját /api/fizetes/webhook végpontunkra (pont úgy, ahogy a Stripe küldené).
+    // A Stripe helyett mi küldjük az aláírt webhookot a saját végpontunkra (ugyanúgy, ahogy a Stripe küldené).
     app.post('/__e2e/fizetes/:munkamenetId', async (req, res) => {
-        const tipus = req.body?.tipus === 'lejart' ? 'checkout.session.expired' : 'checkout.session.completed';
+        let tipus = 'checkout.session.completed';
+        if (req.body && req.body.tipus === 'lejart') {
+            tipus = 'checkout.session.expired';
+        }
         const torzs = JSON.stringify({ id: 'evt_e2e', type: tipus, data: { object: { id: req.params.munkamenetId, payment_status: 'paid' } } });
-        const valasz = await fetch(`http://127.0.0.1:${PORT}/api/fizetes/webhook`, {
+        const alairas = Stripe.webhooks.generateTestHeaderString({ payload: torzs, secret: WEBHOOK_TITOK });
+
+        const valasz = await fetch('http://127.0.0.1:' + PORT + '/api/fizetes/webhook', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Stripe-Signature': Stripe.webhooks.generateTestHeaderString({ payload: torzs, secret: WEBHOOK_TITOK }) },
+            headers: { 'Content-Type': 'application/json', 'Stripe-Signature': alairas },
             body: torzs,
         });
         res.status(valasz.status).json(await valasz.json());
     });
 
-    app.get('/__e2e/levelek', (req, res) => res.json(levelek));
+    app.get('/__e2e/levelek', (req, res) => {
+        res.json(levelek);
+    });
 
     await adatfeltoltes();
-    const server = app.listen(PORT, () => console.log(`E2E tesztszerver kész: http://localhost:${PORT} (frontend: ${FRONTEND})`));
+    const server = app.listen(PORT, () => {
+        console.log('E2E tesztszerver kész: http://localhost:' + PORT + ' (frontend: ' + FRONTEND + ')');
+    });
 
     const leallitas = async () => {
         server.close();
@@ -180,7 +246,9 @@ const adatfeltoltes = async () => {
     };
     process.on('SIGINT', leallitas);
     process.on('SIGTERM', leallitas);
-})().catch((error) => {
+};
+
+inditas().catch((error) => {
     console.error('Az E2E tesztszerver nem indult el:', error);
     process.exit(1);
 });

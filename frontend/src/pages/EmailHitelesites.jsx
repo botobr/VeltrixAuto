@@ -4,27 +4,40 @@ import { apiKeres } from '../lib/api';
 import { useSeo } from '../lib/useSeo';
 import './Belepes.css';
 
+// Az e-mailben kapott link ide mutat (?token=...).
+// Ha nincs token, akkor új megerősítő linket lehet kérni.
 const EmailHitelesites = () => {
     const [params] = useSearchParams();
     const [email, setEmail] = useState(params.get('ujrakuldes') || '');
-    const [allapot, setAllapot] = useState({ tipus: params.get('token') ? 'folyamat' : 'urlap', szoveg: '' });
+    const [allapot, setAllapot] = useState(() => {
+        if (params.get('token')) {
+            return { tipus: 'folyamat', szoveg: '' };
+        }
+        return { tipus: 'urlap', szoveg: '' };
+    });
 
     useSeo({ cim: 'E-mail-cím megerősítése', noindex: true });
 
+    // ha van token, elküldjük a szervernek
     useEffect(() => {
         const token = params.get('token');
-        if (!token) return undefined;
-        apiKeres('/auth/email-megerosites', { method: 'POST', body: { token } }, 'A megerősítés nem sikerült.')
-            .then((data) => setAllapot({ tipus: 'siker', szoveg: data.uzenet }))
-            .catch((error) => setAllapot({ tipus: 'hiba', szoveg: error.message }));
-        return undefined;
+        if (!token) {
+            return;
+        }
+        apiKeres('/auth/email-megerosites', { method: 'POST', body: { token: token } }, 'A megerősítés nem sikerült.')
+            .then((data) => {
+                setAllapot({ tipus: 'siker', szoveg: data.uzenet });
+            })
+            .catch((error) => {
+                setAllapot({ tipus: 'hiba', szoveg: error.message });
+            });
     }, [params]);
 
     const ujrakuldes = async (event) => {
         event.preventDefault();
         setAllapot({ tipus: 'folyamat', szoveg: '' });
         try {
-            const data = await apiKeres('/auth/megerosites-ujrakuldese', { method: 'POST', body: { email } });
+            const data = await apiKeres('/auth/megerosites-ujrakuldese', { method: 'POST', body: { email: email } });
             setAllapot({ tipus: 'siker', szoveg: data.uzenet });
         } catch (error) {
             setAllapot({ tipus: 'hiba', szoveg: error.message });

@@ -6,10 +6,14 @@ import { formatDatum } from '../../lib/auto';
 
 const SZEREPKOROK = { admin: 'Admin', ertekesito: 'Értékesítő', felhasznalo: 'Vásárló' };
 
+// új felhasználó (pl. értékesítő) felvétele
 const UjFelhasznalo = ({ onLetrehozva, onMegse }) => {
     const [adatok, setAdatok] = useState({ nev: '', email: '', jelszo: '', statusz: 'ertekesito' });
     const [hiba, setHiba] = useState('');
-    const beallit = (mezo) => (event) => setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
+
+    const beallit = (mezo) => (event) => {
+        setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
+    };
 
     const kuldes = async (event) => {
         event.preventDefault();
@@ -44,6 +48,7 @@ const UjFelhasznalo = ({ onLetrehozva, onMegse }) => {
     );
 };
 
+// felhasználók kezelése (csak admin)
 const AdminFelhasznalok = () => {
     const { felhasznalo } = useFelhasznalo();
     const [felhasznalok, setFelhasznalok] = useState(null);
@@ -52,46 +57,79 @@ const AdminFelhasznalok = () => {
     const [hiba, setHiba] = useState('');
 
     useEffect(() => {
-        apiKeres('/felhasznalok').then((data) => setFelhasznalok(data.felhasznalok)).catch((error) => setHiba(error.message));
+        apiKeres('/felhasznalok')
+            .then((data) => setFelhasznalok(data.felhasznalok))
+            .catch((error) => setHiba(error.message));
     }, []);
 
-    const szerepkorValtas = async (felhasznalo, statusz) => {
+    const szerepkorValtas = async (valasztott, statusz) => {
         setHiba('');
         try {
-            const data = await apiKeres(`/felhasznalok/${felhasznalo._id}`, {
-                method: 'PUT',
-                body: { nev: felhasznalo.nev, email: felhasznalo.email, statusz },
-            }, 'A módosítás nem sikerült.');
-            setFelhasznalok((elozo) => elozo.map((f) => (f._id === felhasznalo._id ? data.felhasznalo : f)));
+            const torzs = { nev: valasztott.nev, email: valasztott.email, statusz: statusz };
+            const data = await apiKeres('/felhasznalok/' + valasztott._id, { method: 'PUT', body: torzs }, 'A módosítás nem sikerült.');
+            setFelhasznalok((elozo) => elozo.map((elem) => {
+                if (elem._id === valasztott._id) {
+                    return data.felhasznalo;
+                }
+                return elem;
+            }));
         } catch (error) {
             setHiba(error.message);
         }
     };
 
-    const torles = async (felhasznalo) => {
-        if (!window.confirm(`Törlöd ${felhasznalo.nev} (${felhasznalo.email}) fiókját?`)) return;
+    const torles = async (valasztott) => {
+        if (!window.confirm('Törlöd ' + valasztott.nev + ' (' + valasztott.email + ') fiókját?')) {
+            return;
+        }
         try {
-            await apiKeres(`/felhasznalok/${felhasznalo._id}`, { method: 'DELETE' }, 'A törlés nem sikerült.');
-            setFelhasznalok((elozo) => elozo.filter((f) => f._id !== felhasznalo._id));
+            await apiKeres('/felhasznalok/' + valasztott._id, { method: 'DELETE' }, 'A törlés nem sikerült.');
+            setFelhasznalok((elozo) => elozo.filter((elem) => elem._id !== valasztott._id));
         } catch (error) {
             setHiba(error.message);
         }
     };
 
-    if (!felhasznalok) return hiba ? <p className="uzenet uzenet-hiba">{hiba}</p> : <div className="betoltes"><span className="porgo" /></div>;
-    const lathato = felhasznalok.filter((f) => !szuro || f.statusz === szuro);
+    const letrehozva = (ujFelhasznalo) => {
+        setFelhasznalok((elozo) => [ujFelhasznalo, ...elozo]);
+        setUj(false);
+    };
+
+    if (!felhasznalok) {
+        if (hiba) {
+            return <p className="uzenet uzenet-hiba">{hiba}</p>;
+        }
+        return <div className="betoltes"><span className="porgo" /></div>;
+    }
+
+    // szerepkör szerinti szűrés
+    let lathato = felhasznalok;
+    if (szuro) {
+        lathato = felhasznalok.filter((elem) => elem.statusz === szuro);
+    }
+
+    // hány felhasználó van egy szerepkörben
+    const darab = (szerepkor) => {
+        let db = 0;
+        for (const elem of felhasznalok) {
+            if (elem.statusz === szerepkor) {
+                db++;
+            }
+        }
+        return db;
+    };
 
     return (
         <div className="admin-lista">
             {uj ? (
-                <UjFelhasznalo onLetrehozva={(f) => { setFelhasznalok((elozo) => [f, ...elozo]); setUj(false); }} onMegse={() => setUj(false)} />
+                <UjFelhasznalo onLetrehozva={letrehozva} onMegse={() => setUj(false)} />
             ) : (
                 <div className="admin-eszkoztar">
                     <div className="szuro-csipek">
-                        <button type="button" className={`csip ${!szuro ? 'aktiv' : ''}`} onClick={() => setSzuro('')}>Mind ({felhasznalok.length})</button>
+                        <button type="button" className={!szuro ? 'csip aktiv' : 'csip'} onClick={() => setSzuro('')}>Mind ({felhasznalok.length})</button>
                         {Object.entries(SZEREPKOROK).map(([ertek, cimke]) => (
-                            <button key={ertek} type="button" className={`csip ${szuro === ertek ? 'aktiv' : ''}`} onClick={() => setSzuro(ertek)}>
-                                {cimke} ({felhasznalok.filter((f) => f.statusz === ertek).length})
+                            <button key={ertek} type="button" className={szuro === ertek ? 'csip aktiv' : 'csip'} onClick={() => setSzuro(ertek)}>
+                                {cimke} ({darab(ertek)})
                             </button>
                         ))}
                     </div>
@@ -111,18 +149,18 @@ const AdminFelhasznalok = () => {
                             return (
                                 <tr key={f._id}>
                                     <td><strong>{f.nev}</strong>{sajat && <small className="halvany"> (te)</small>}</td>
-                                    <td><a href={`mailto:${f.email}`}>{f.email}</a></td>
+                                    <td><a href={'mailto:' + f.email}>{f.email}</a></td>
                                     <td>{formatDatum(f.createdAt)}</td>
-                                    <td>{f.kedvencek?.length || 0}</td>
+                                    <td>{f.kedvencek ? f.kedvencek.length : 0}</td>
                                     <td>
-                                        <select className="bemenet" aria-label={`${f.nev} szerepköre`} value={f.statusz} disabled={sajat}
+                                        <select className="bemenet" aria-label={f.nev + ' szerepköre'} value={f.statusz} disabled={sajat}
                                             onChange={(event) => szerepkorValtas(f, event.target.value)}>
                                             {Object.entries(SZEREPKOROK).map(([ertek, cimke]) => <option key={ertek} value={ertek}>{cimke}</option>)}
                                         </select>
                                     </td>
                                     <td>
                                         {!sajat && (
-                                            <button className="ikon-gomb" type="button" onClick={() => torles(f)} aria-label={`${f.nev} törlése`}><Ikon nev="kuka" /></button>
+                                            <button className="ikon-gomb" type="button" onClick={() => torles(f)} aria-label={f.nev + ' törlése'}><Ikon nev="kuka" /></button>
                                         )}
                                     </td>
                                 </tr>

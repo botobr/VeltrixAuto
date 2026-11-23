@@ -4,15 +4,45 @@ import { KedvencGomb, OsszehasonlitasGomb } from './AutoMuveletek';
 import Ikon from './Ikon';
 import './AutoKartya.css';
 
+// egy autó kártyája a listákban
 const AutoKartya = ({ auto, kesleltetes = 0, muveletek = true, link = true, lablec = null }) => {
-    const Cim = link && auto._id ? Link : 'span';
-    const kep = auto.kep || auto.kepek?.[0]?.url;
+    let kep = auto.kep;
+    if (!kep && auto.kepek && auto.kepek.length > 0) {
+        kep = auto.kepek[0].url;
+    }
+
+    let osztaly = 'auto-kartya beuszas';
+    if (auto.kiemelt) {
+        osztaly += ' auto-kartya-kiemelt';
+    }
+    if (auto.statusz === 'elkelt') {
+        osztaly += ' auto-kartya-elkelt';
+    }
+
+    // a kártyák egymás után úsznak be (max 8 kártyáig késleltetünk)
+    const kesleltetesMs = Math.min(kesleltetes, 8) * 60;
+
+    let futas = '—';
+    if (auto.kmora_allas !== null && auto.kmora_allas !== undefined) {
+        futas = formatSzam(auto.kmora_allas) + ' km';
+    }
+    let teljesitmeny = '—';
+    if (auto.teljesitmeny !== null && auto.teljesitmeny !== undefined) {
+        teljesitmeny = formatSzam(auto.teljesitmeny) + ' LE';
+    }
+
+    // a modell neve link legyen (az előnézetben nem az)
+    let cim = auto.modell || 'Modell nincs megadva';
+    if (link && auto._id) {
+        cim = <Link to={autoUrl(auto)} className="auto-link">{cim}</Link>;
+    } else {
+        cim = <span>{cim}</span>;
+    }
+
+    const varos = auto.telephely ? auto.telephely.varos : null;
 
     return (
-        <article
-            className={`auto-kartya beuszas ${auto.kiemelt ? 'auto-kartya-kiemelt' : ''} ${auto.statusz === 'elkelt' ? 'auto-kartya-elkelt' : ''}`}
-            style={{ animationDelay: `${Math.min(kesleltetes, 8) * 60}ms` }}
-        >
+        <article className={osztaly} style={{ animationDelay: kesleltetesMs + 'ms' }}>
             <div className="auto-kep-tarto">
                 {kep ? (
                     <img
@@ -28,7 +58,7 @@ const AutoKartya = ({ auto, kesleltetes = 0, muveletek = true, link = true, labl
                 <div className="auto-cimkek">
                     {auto.kiemelt && <span className="auto-cimke auto-cimke-kiemelt"><Ikon nev="csillag" meret={12} kitoltes /> Kiemelt</span>}
                     {auto.statusz && auto.statusz !== 'elerheto' && (
-                        <span className={`auto-cimke auto-cimke-${auto.statusz}`}>{STATUSZOK[auto.statusz]}</span>
+                        <span className={'auto-cimke auto-cimke-' + auto.statusz}>{STATUSZOK[auto.statusz]}</span>
                     )}
                     {auto.uj && auto.statusz === 'elerheto' && <span className="auto-cimke auto-cimke-uj">Új</span>}
                     {auto.evjarat && <span className="auto-cimke">{auto.evjarat}</span>}
@@ -44,20 +74,16 @@ const AutoKartya = ({ auto, kesleltetes = 0, muveletek = true, link = true, labl
 
             <div className="auto-kartya-tartalom">
                 <p className="auto-marka">{auto.marka || 'Autó'}</p>
-                <h3 className="auto-nev">
-                    <Cim {...(Cim === Link ? { to: autoUrl(auto), className: 'auto-link' } : {})}>
-                        {auto.modell || 'Modell nincs megadva'}
-                    </Cim>
-                </h3>
+                <h3 className="auto-nev">{cim}</h3>
 
                 <dl className="auto-adatok">
                     <div>
                         <dt>Futás</dt>
-                        <dd>{auto.kmora_allas != null ? `${formatSzam(auto.kmora_allas)} km` : '—'}</dd>
+                        <dd>{futas}</dd>
                     </div>
                     <div>
                         <dt>Teljesítmény</dt>
-                        <dd>{auto.teljesitmeny != null ? `${formatSzam(auto.teljesitmeny)} LE` : '—'}</dd>
+                        <dd>{teljesitmeny}</dd>
                     </div>
                     <div>
                         <dt>Üzemanyag</dt>
@@ -73,10 +99,10 @@ const AutoKartya = ({ auto, kesleltetes = 0, muveletek = true, link = true, labl
 
                 <div className="auto-kitolto" />
 
-                {(auto.telephely?.varos || lablec) && (
+                {(varos || lablec) && (
                     <div className="auto-kartya-lablec">
-                        {auto.telephely?.varos && (
-                            <span className="auto-telephely"><Ikon nev="terkep" meret={14} /> {auto.telephely.varos}</span>
+                        {varos && (
+                            <span className="auto-telephely"><Ikon nev="terkep" meret={14} /> {varos}</span>
                         )}
                         {lablec}
                     </div>

@@ -12,6 +12,7 @@ import { JelszoMezo } from './Belepes';
 import './Fiok.css';
 import './Webshop.css';
 
+// a fiók oldal fülei: [kulcs, felirat, ikon]
 const LAPOK = [
     ['kedvencek', 'Kedvencek', 'sziv'],
     ['rendelesek', 'Rendeléseim', 'kosar'],
@@ -19,16 +20,23 @@ const LAPOK = [
     ['profil', 'Profil', 'felhasznalo'],
 ];
 
+// a webshop rendeléseim
 const Rendelesek = () => {
     const [rendelesek, setRendelesek] = useState(null);
     const [hiba, setHiba] = useState('');
 
     useEffect(() => {
-        apiKeres('/fiok/rendelesek').then((data) => setRendelesek(data.rendelesek)).catch((error) => setHiba(error.message));
+        apiKeres('/fiok/rendelesek')
+            .then((data) => setRendelesek(data.rendelesek))
+            .catch((error) => setHiba(error.message));
     }, []);
 
-    if (hiba) return <p className="uzenet uzenet-hiba">{hiba}</p>;
-    if (!rendelesek) return <div className="betoltes"><span className="porgo" aria-hidden="true" /></div>;
+    if (hiba) {
+        return <p className="uzenet uzenet-hiba">{hiba}</p>;
+    }
+    if (!rendelesek) {
+        return <div className="betoltes"><span className="porgo" aria-hidden="true" /></div>;
+    }
     if (rendelesek.length === 0) {
         return (
             <div className="allapot-doboz uveg">
@@ -46,13 +54,13 @@ const Rendelesek = () => {
                     <tr><th scope="col">Rendelés</th><th scope="col">Dátum</th><th scope="col">Tételek</th><th scope="col">Összeg</th><th scope="col">Állapot</th></tr>
                 </thead>
                 <tbody>
-                    {rendelesek.map((r) => (
-                        <tr key={r.rendelesSzam}>
-                            <td><Link to={`/rendeles/${encodeURIComponent(r.rendelesSzam)}`}><strong>{r.rendelesSzam}</strong></Link></td>
-                            <td>{formatDatumIdo(r.createdAt)}</td>
-                            <td>{r.tetelek.map((t) => `${t.mennyiseg} × ${t.nev}`).join(', ')}</td>
-                            <td>{ft(r.osszegek.vegosszeg)}</td>
-                            <td><span className={`rendeles-statusz rendeles-statusz-${r.statusz}`}>{r.statuszNev}</span></td>
+                    {rendelesek.map((rendeles) => (
+                        <tr key={rendeles.rendelesSzam}>
+                            <td><Link to={'/rendeles/' + encodeURIComponent(rendeles.rendelesSzam)}><strong>{rendeles.rendelesSzam}</strong></Link></td>
+                            <td>{formatDatumIdo(rendeles.createdAt)}</td>
+                            <td>{rendeles.tetelek.map((tetel) => tetel.mennyiseg + ' × ' + tetel.nev).join(', ')}</td>
+                            <td>{ft(rendeles.osszegek.vegosszeg)}</td>
+                            <td><span className={'rendeles-statusz rendeles-statusz-' + rendeles.statusz}>{rendeles.statuszNev}</span></td>
                         </tr>
                     ))}
                 </tbody>
@@ -61,20 +69,31 @@ const Rendelesek = () => {
     );
 };
 
+// a kedvenc autók
 const Kedvencek = () => {
     const { felhasznalo } = useFelhasznalo();
     const [autok, setAutok] = useState(null);
     const [hiba, setHiba] = useState('');
-    const szam = felhasznalo?.kedvencek?.length || 0;
+
+    let kedvencIdk = [];
+    if (felhasznalo && felhasznalo.kedvencek) {
+        kedvencIdk = felhasznalo.kedvencek;
+    }
 
     useEffect(() => {
-        apiKeres('/fiok/kedvencek').then((data) => setAutok(data.autok)).catch((error) => setHiba(error.message));
+        apiKeres('/fiok/kedvencek')
+            .then((data) => setAutok(data.autok))
+            .catch((error) => setHiba(error.message));
     }, []);
 
-    if (hiba) return <p className="uzenet uzenet-hiba">{hiba}</p>;
-    if (!autok) return <div className="autok-racs">{[0, 1, 2].map((i) => <AutoKartyaVaz key={i} />)}</div>;
-    // A szívre kattintva a kártya azonnal eltűnik a listából.
-    const lathato = autok.filter((auto) => felhasznalo?.kedvencek?.includes(auto._id));
+    if (hiba) {
+        return <p className="uzenet uzenet-hiba">{hiba}</p>;
+    }
+    if (!autok) {
+        return <div className="autok-racs">{[0, 1, 2].map((i) => <AutoKartyaVaz key={i} />)}</div>;
+    }
+    // ha a szívre kattint, a kártya rögtön eltűnik a listából
+    const lathato = autok.filter((auto) => kedvencIdk.includes(auto._id));
     if (lathato.length === 0) {
         return (
             <div className="allapot-doboz uveg">
@@ -87,7 +106,7 @@ const Kedvencek = () => {
     }
     return (
         <>
-            {szam > lathato.length && <p className="fiok-megjegyzes">Néhány kedvenced már nem elérhető (elkelt vagy lejárt a hirdetés).</p>}
+            {kedvencIdk.length > lathato.length && <p className="fiok-megjegyzes">Néhány kedvenced már nem elérhető (elkelt vagy lejárt a hirdetés).</p>}
             <div className="autok-racs">
                 {lathato.map((auto, i) => <AutoKartya key={auto._id} auto={auto} kesleltetes={i} />)}
             </div>
@@ -95,19 +114,27 @@ const Kedvencek = () => {
     );
 };
 
+// a mentett keresések
 const Keresesek = () => {
     const navigate = useNavigate();
     const [keresesek, setKeresesek] = useState(null);
     const [hiba, setHiba] = useState('');
 
     useEffect(() => {
-        apiKeres('/fiok/keresesek').then((data) => setKeresesek(data.keresesek)).catch((error) => setHiba(error.message));
+        apiKeres('/fiok/keresesek')
+            .then((data) => setKeresesek(data.keresesek))
+            .catch((error) => setHiba(error.message));
     }, []);
 
     const modositas = async (id, adatok) => {
         try {
-            const data = await apiKeres(`/fiok/keresesek/${id}`, { method: 'PATCH', body: adatok });
-            setKeresesek((elozo) => elozo.map((k) => (k._id === id ? data.kereses : k)));
+            const data = await apiKeres('/fiok/keresesek/' + id, { method: 'PATCH', body: adatok });
+            setKeresesek((elozo) => elozo.map((kereses) => {
+                if (kereses._id === id) {
+                    return data.kereses;
+                }
+                return kereses;
+            }));
             return data.kereses;
         } catch (error) {
             setHiba(error.message);
@@ -115,22 +142,31 @@ const Keresesek = () => {
         }
     };
 
+    // a keresés megnyitása az autók oldalon (és megjelöljük megnézettnek)
     const megnyitas = async (kereses) => {
         await modositas(kereses._id, { megtekintve: true });
-        navigate(`/autok?${new URLSearchParams(kereses.parameterek)}`);
+        const parameterek = new URLSearchParams(kereses.parameterek);
+        navigate('/autok?' + parameterek.toString());
     };
 
     const torles = async (kereses) => {
-        if (!window.confirm(`Törlöd a(z) „${kereses.nev}” keresést?`)) return;
+        if (!window.confirm('Törlöd a(z) „' + kereses.nev + '” keresést?')) {
+            return;
+        }
         try {
-            await apiKeres(`/fiok/keresesek/${kereses._id}`, { method: 'DELETE' });
-            setKeresesek((elozo) => elozo.filter((k) => k._id !== kereses._id));
+            await apiKeres('/fiok/keresesek/' + kereses._id, { method: 'DELETE' });
+            setKeresesek((elozo) => elozo.filter((elem) => elem._id !== kereses._id));
         } catch (error) {
             setHiba(error.message);
         }
     };
 
-    if (!keresesek) return hiba ? <p className="uzenet uzenet-hiba">{hiba}</p> : <div className="betoltes"><span className="porgo" /></div>;
+    if (!keresesek) {
+        if (hiba) {
+            return <p className="uzenet uzenet-hiba">{hiba}</p>;
+        }
+        return <div className="betoltes"><span className="porgo" /></div>;
+    }
     if (keresesek.length === 0) {
         return (
             <div className="allapot-doboz uveg">
@@ -162,7 +198,7 @@ const Keresesek = () => {
                             <span>E-mail értesítés</span>
                         </label>
                         <div className="kereses-gombok">
-                            <button className="ikon-gomb" type="button" onClick={() => torles(kereses)} aria-label={`${kereses.nev} törlése`}><Ikon nev="kuka" /></button>
+                            <button className="ikon-gomb" type="button" onClick={() => torles(kereses)} aria-label={kereses.nev + ' törlése'}><Ikon nev="kuka" /></button>
                             <button className="gomb gomb-fo gomb-kicsi" type="button" onClick={() => megnyitas(kereses)}>Találatok <Ikon nev="jobbra" meret={15} /></button>
                         </div>
                     </div>
@@ -172,6 +208,7 @@ const Keresesek = () => {
     );
 };
 
+// profil adatok módosítása és fiók törlése
 const Profil = () => {
     const { felhasznalo, profilMentese, fiokTorlese } = useFelhasznalo();
     const navigate = useNavigate();
@@ -179,10 +216,15 @@ const Profil = () => {
     const [allapot, setAllapot] = useState(null);
     const [torlesJelszo, setTorlesJelszo] = useState('');
     const [torlesHiba, setTorlesHiba] = useState('');
+
+    // e-mail vagy jelszó csere esetén kell a jelenlegi jelszó is
     const emailValtozik = adatok.email.trim().toLowerCase() !== felhasznalo.email;
     const kellJelszo = emailValtozik || adatok.ujJelszo.length > 0;
+    const allapotTipus = allapot ? allapot.tipus : null;
 
-    const beallit = (mezo) => (event) => setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
+    const beallit = (mezo) => (event) => {
+        setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
+    };
 
     const mentes = async (event) => {
         event.preventDefault();
@@ -198,7 +240,9 @@ const Profil = () => {
 
     const torles = async (event) => {
         event.preventDefault();
-        if (!window.confirm('Biztosan törlöd a fiókodat? A kedvencek és mentett keresések is elvesznek. Ez nem vonható vissza.')) return;
+        if (!window.confirm('Biztosan törlöd a fiókodat? A kedvencek és mentett keresések is elvesznek. Ez nem vonható vissza.')) {
+            return;
+        }
         try {
             await fiokTorlese(torlesJelszo);
             navigate('/', { replace: true });
@@ -227,9 +271,9 @@ const Profil = () => {
                         </div>
                     )}
                 </div>
-                {allapot?.tipus === 'siker' && <p className="uzenet uzenet-siker" role="status">{allapot.szoveg}</p>}
-                {allapot?.tipus === 'hiba' && <p className="uzenet uzenet-hiba" role="alert">{allapot.szoveg}</p>}
-                <button className="gomb gomb-fo" type="submit" disabled={allapot?.tipus === 'folyamat'}>Mentés</button>
+                {allapotTipus === 'siker' && <p className="uzenet uzenet-siker" role="status">{allapot.szoveg}</p>}
+                {allapotTipus === 'hiba' && <p className="uzenet uzenet-hiba" role="alert">{allapot.szoveg}</p>}
+                <button className="gomb gomb-fo" type="submit" disabled={allapotTipus === 'folyamat'}>Mentés</button>
             </form>
 
             <form className="uveg profil-blokk profil-veszely" onSubmit={torles}>
@@ -245,19 +289,44 @@ const Profil = () => {
     );
 };
 
+// a fiók oldal fülekkel
 const Fiok = () => {
     const { felhasznalo, munkatars } = useFelhasznalo();
     const [params, setParams] = useSearchParams();
-    const lap = LAPOK.some(([kulcs]) => kulcs === params.get('lap')) ? params.get('lap') : 'kedvencek';
+
+    // melyik fül van megnyitva (az URL-ben van: ?lap=...)
+    let lap = 'kedvencek';
+    for (const sor of LAPOK) {
+        if (sor[0] === params.get('lap')) {
+            lap = sor[0];
+        }
+    }
 
     useSeo({ cim: 'Fiókom', noindex: true });
+
+    // a köszönéshez a név utolsó része (keresztnév)
+    const nevReszek = felhasznalo.nev.split(' ');
+    const keresztnev = nevReszek[nevReszek.length - 1];
+
+    let kedvencekSzama = 0;
+    if (felhasznalo.kedvencek) {
+        kedvencekSzama = felhasznalo.kedvencek.length;
+    }
+
+    const fulValtas = (kulcs) => {
+        if (kulcs === 'kedvencek') {
+            setParams({}, { replace: true });
+        } else {
+            setParams({ lap: kulcs }, { replace: true });
+        }
+    };
 
     return (
         <main className="oldal fiok">
             <header className="fiok-fejlec beuszas">
                 <div>
                     <p className="felirat">Fiókom</p>
-                    <h1>Szia, <span className="gradiens-szoveg">{felhasznalo.nev.split(' ').at(-1)}!</span></h1>
+                    <h1>Szia, <span className="gradiens-szoveg">{keresztnev}!</span></h1>
                 </div>
                 {munkatars && <Link className="gomb gomb-uveg" to="/admin">Admin felület <Ikon nev="jobbra" meret={15} /></Link>}
             </header>
@@ -269,11 +338,11 @@ const Fiok = () => {
                         type="button"
                         role="tab"
                         aria-selected={lap === kulcs}
-                        className={`ful ${lap === kulcs ? 'aktiv' : ''}`}
-                        onClick={() => setParams(kulcs === 'kedvencek' ? {} : { lap: kulcs }, { replace: true })}
+                        className={lap === kulcs ? 'ful aktiv' : 'ful'}
+                        onClick={() => fulValtas(kulcs)}
                     >
                         <Ikon nev={ikon} meret={16} /> {cimke}
-                        {kulcs === 'kedvencek' && felhasznalo.kedvencek?.length > 0 && <span className="ful-szam">{felhasznalo.kedvencek.length}</span>}
+                        {kulcs === 'kedvencek' && kedvencekSzama > 0 && <span className="ful-szam">{kedvencekSzama}</span>}
                     </button>
                 ))}
             </div>

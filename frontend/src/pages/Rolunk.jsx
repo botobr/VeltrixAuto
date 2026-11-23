@@ -14,34 +14,78 @@ const ERTEKEK = [
     ['szerviz', 'Vásárlás után is', 'Garanciális ügyekben és szervizelésben a vásárlás után is számíthatsz ránk.'],
 ];
 
+// a napok angolul a Google-nek
+const ANGOL_NAPOK = {
+    hetfo: 'Monday',
+    kedd: 'Tuesday',
+    szerda: 'Wednesday',
+    csutortok: 'Thursday',
+    pentek: 'Friday',
+    szombat: 'Saturday',
+    vasarnap: 'Sunday',
+};
+
+// a telephely adatai a Google-nek (schema.org AutoDealer)
+const telephelyStrukturaltAdat = (telephely) => {
+    let geo;
+    if (telephely.szelesseg !== null && telephely.szelesseg !== undefined) {
+        geo = { '@type': 'GeoCoordinates', latitude: telephely.szelesseg, longitude: telephely.hosszusag };
+    }
+
+    // csak a nyitvatartási napok
+    const nyitvatartas = [];
+    for (const nap of telephely.nyitvatartas || []) {
+        if (!nap.zarva) {
+            nyitvatartas.push({
+                '@type': 'OpeningHoursSpecification',
+                dayOfWeek: ANGOL_NAPOK[nap.nap],
+                opens: nap.nyitas,
+                closes: nap.zaras,
+            });
+        }
+    }
+
+    return {
+        '@type': 'AutoDealer',
+        name: CEG.nev + ' – ' + telephely.nev,
+        telephone: telephely.telefon || undefined,
+        email: telephely.email || undefined,
+        address: {
+            '@type': 'PostalAddress',
+            streetAddress: telephely.cim,
+            addressLocality: telephely.varos,
+            postalCode: telephely.iranyitoszam || undefined,
+            addressRegion: telephely.megye,
+            addressCountry: 'HU',
+        },
+        geo: geo,
+        openingHoursSpecification: nyitvatartas,
+    };
+};
+
+// a Rólunk oldal
 const Rolunk = () => {
     const [telephelyek, setTelephelyek] = useState(null);
 
+    let jsonLd;
+    if (telephelyek && telephelyek.length > 0) {
+        jsonLd = {
+            '@context': 'https://schema.org',
+            '@graph': telephelyek.map(telephelyStrukturaltAdat),
+        };
+    }
+
     useSeo({
         cim: 'Rólunk – telephelyek, nyitvatartás, elérhetőség',
-        leiras: `${CEG.nev}: bemutatkozás, telephelyek címe és nyitvatartása, telefonszám, e-mail.`,
+        leiras: CEG.nev + ': bemutatkozás, telephelyek címe és nyitvatartása, telefonszám, e-mail.',
         utvonal: '/rolunk',
-        jsonLd: telephelyek?.length ? {
-            '@context': 'https://schema.org',
-            '@graph': telephelyek.map((t) => ({
-                '@type': 'AutoDealer',
-                name: `${CEG.nev} – ${t.nev}`,
-                telephone: t.telefon || undefined,
-                email: t.email || undefined,
-                address: { '@type': 'PostalAddress', streetAddress: t.cim, addressLocality: t.varos, postalCode: t.iranyitoszam || undefined, addressRegion: t.megye, addressCountry: 'HU' },
-                geo: t.szelesseg != null ? { '@type': 'GeoCoordinates', latitude: t.szelesseg, longitude: t.hosszusag } : undefined,
-                openingHoursSpecification: t.nyitvatartas?.filter((n) => !n.zarva).map((n) => ({
-                    '@type': 'OpeningHoursSpecification',
-                    dayOfWeek: { hetfo: 'Monday', kedd: 'Tuesday', szerda: 'Wednesday', csutortok: 'Thursday', pentek: 'Friday', szombat: 'Saturday', vasarnap: 'Sunday' }[n.nap],
-                    opens: n.nyitas,
-                    closes: n.zaras,
-                })),
-            })),
-        } : undefined,
+        jsonLd: jsonLd,
     });
 
     useEffect(() => {
-        apiKeres('/telephelyek').then((data) => setTelephelyek(data.telephelyek)).catch(() => setTelephelyek([]));
+        apiKeres('/telephelyek')
+            .then((data) => setTelephelyek(data.telephelyek))
+            .catch(() => setTelephelyek([]));
     }, []);
 
     return (
@@ -84,7 +128,7 @@ const Rolunk = () => {
                         {telephelyek.map((t) => (
                             <article className="uveg telephely-kartya" key={t._id}>
                                 <TelephelyInfo telephely={t} />
-                                <Link className="szoveg-gomb" to={`/autok?telephely=${t._id}`}>Az itt megtekinthető autók →</Link>
+                                <Link className="szoveg-gomb" to={'/autok?telephely=' + t._id}>Az itt megtekinthető autók →</Link>
                             </article>
                         ))}
                     </div>
@@ -98,8 +142,8 @@ const Rolunk = () => {
                         <p>Hívj minket nyitvatartási időben, vagy írj e-mailt – egy munkanapon belül válaszolunk.</p>
                     </div>
                     <div className="kapcsolat-gombok">
-                        <a className="gomb gomb-fo" href={`tel:${CEG.telefon.replace(/[^\d+]/g, '')}`}><Ikon nev="telefon" meret={16} /> {CEG.telefon}</a>
-                        <a className="gomb gomb-uveg" href={`mailto:${CEG.email}`}><Ikon nev="level" meret={16} /> {CEG.email}</a>
+                        <a className="gomb gomb-fo" href={'tel:' + CEG.telefon.replace(/[^\d+]/g, '')}><Ikon nev="telefon" meret={16} /> {CEG.telefon}</a>
+                        <a className="gomb gomb-uveg" href={'mailto:' + CEG.email}><Ikon nev="level" meret={16} /> {CEG.email}</a>
                     </div>
                 </div>
                 <dl className="cegadatok">

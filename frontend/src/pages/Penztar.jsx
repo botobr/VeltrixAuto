@@ -9,30 +9,33 @@ import { ft } from '../lib/webshop';
 import { Osszesito } from './Kosar';
 import './Webshop.css';
 
+// egy mező felirattal
 const Mezo = ({ cimke, children, szeles = false }) => (
-    <label className={`mezo ${szeles ? 'mezo-szeles' : ''}`}>
+    <label className={szeles ? 'mezo mezo-szeles' : 'mezo'}>
         <span>{cimke}</span>
         {children}
     </label>
 );
 
+// irányítószám, település, utca (szállítási és számlázási címhez is)
 const CimMezok = ({ cim, beallit, elotag }) => (
     <>
         <Mezo cimke="Irányítószám">
-            <input className="bemenet" required inputMode="numeric" pattern="\d{4}" maxLength={4} autoComplete={`${elotag} postal-code`}
+            <input className="bemenet" required inputMode="numeric" pattern="\d{4}" maxLength={4} autoComplete={elotag + ' postal-code'}
                 value={cim.iranyitoszam} onChange={(e) => beallit('iranyitoszam', e.target.value)} />
         </Mezo>
         <Mezo cimke="Település">
-            <input className="bemenet" required maxLength={60} autoComplete={`${elotag} address-level2`} value={cim.varos} onChange={(e) => beallit('varos', e.target.value)} />
+            <input className="bemenet" required maxLength={60} autoComplete={elotag + ' address-level2'} value={cim.varos} onChange={(e) => beallit('varos', e.target.value)} />
         </Mezo>
         <Mezo cimke="Utca, házszám" szeles>
-            <input className="bemenet" required maxLength={160} autoComplete={`${elotag} street-address`} value={cim.cim} onChange={(e) => beallit('cim', e.target.value)} />
+            <input className="bemenet" required maxLength={160} autoComplete={elotag + ' street-address'} value={cim.cim} onChange={(e) => beallit('cim', e.target.value)} />
         </Mezo>
     </>
 );
 
+// választható lehetőség (rádiógomb), pl. szállítási mód
 const Valasztas = ({ nev, ertek, aktualis, onValaszt, cim, leiras, jobb }) => (
-    <label className={`valasztas ${aktualis === ertek ? 'aktiv' : ''}`}>
+    <label className={aktualis === ertek ? 'valasztas aktiv' : 'valasztas'}>
         <input type="radio" name={nev} value={ertek} checked={aktualis === ertek} onChange={() => onValaszt(ertek)} required />
         <span className="valasztas-szoveg"><strong>{cim}</strong>{leiras && <small>{leiras}</small>}</span>
         {jobb && <span className="valasztas-jobb">{jobb}</span>}
@@ -41,11 +44,18 @@ const Valasztas = ({ nev, ertek, aktualis, onValaszt, cim, leiras, jobb }) => (
 
 const ures = { iranyitoszam: '', varos: '', cim: '' };
 
+// a pénztár oldal (rendelés leadása)
 const Penztar = () => {
     const { felhasznalo } = useFelhasznalo();
     const { tetelek, urites } = useKosar();
     const navigate = useNavigate();
-    const [vevo, setVevo] = useState({ nev: felhasznalo?.nev || '', email: felhasznalo?.email || '', telefon: '' });
+    // ha be van jelentkezve, kitöltjük a nevét és e-mail címét
+    const [vevo, setVevo] = useState(() => {
+        if (felhasznalo) {
+            return { nev: felhasznalo.nev || '', email: felhasznalo.email || '', telefon: '' };
+        }
+        return { nev: '', email: '', telefon: '' };
+    });
     const [szallitasiMod, setSzallitasiMod] = useState(null);
     const [telephely, setTelephely] = useState('');
     const [szallitasiCim, setSzallitasiCim] = useState(ures);
@@ -61,41 +71,79 @@ const Penztar = () => {
     const { adat, hiba, betolt, ures: uresKosar } = useKosarEllenorzes({ szallitasiMod, fizetesiMod: valasztottFizetes });
     useSeo({ cim: 'Pénztár', noindex: true });
 
-    if (uresKosar && !kuldes) return <Navigate to="/kosar" replace />;
+    // üres kosárral nincs mit itt csinálni
+    if (uresKosar && !kuldes) {
+        return <Navigate to="/kosar" replace />;
+    }
     if (!adat) {
-        return hiba
-            ? <main className="oldal"><p className="uzenet uzenet-hiba" role="alert">{hiba}</p></main>
-            : <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Pénztár betöltése…</main>;
+        if (hiba) {
+            return <main className="oldal"><p className="uzenet uzenet-hiba" role="alert">{hiba}</p></main>;
+        }
+        return <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Pénztár betöltése…</main>;
     }
 
-    const fizetesiMod = adat.fizetesiModok.some((m) => m.kulcs === valasztottFizetes) ? valasztottFizetes : null;
+    // a választott fizetési mód csak akkor jó, ha a szállítási módhoz is választható
+    let fizetesiMod = null;
+    for (const mod of adat.fizetesiModok) {
+        if (mod.kulcs === valasztottFizetes) {
+            fizetesiMod = valasztottFizetes;
+        }
+    }
     const futar = szallitasiMod === 'futar';
+    // külön számlázási cím kell, ha nem futár, vagy ha nem egyezik a szállítási címmel
     const szamlazasKulon = !futar || !szamlazasEgyezik;
-    const beallito = (setter) => (mezo, ertek) => setter((elozo) => ({ ...elozo, [mezo]: ertek }));
+
+    // egy objektum egy mezőjének beállítása (pl. beallito(setVevo)('nev', 'Péter'))
+    const beallito = (setter) => (mezo, ertek) => {
+        setter((elozo) => ({ ...elozo, [mezo]: ertek }));
+    };
 
     const leadas = async (event) => {
         event.preventDefault();
         setHibak([]);
         setKuldes(true);
-        const szamlazas = szamlazasKulon
-            ? { ...szamlazasiCim, nev: szamlazasiCim.nev || vevo.nev, adoszam: ceges ? szamlazasiCim.adoszam : '' }
-            : { ...szallitasiCim, nev: ceges && szamlazasiCim.nev ? szamlazasiCim.nev : vevo.nev, adoszam: ceges ? szamlazasiCim.adoszam : '' };
+
+        // a számlázási cím összeállítása
+        let adoszam = '';
+        if (ceges) {
+            adoszam = szamlazasiCim.adoszam;
+        }
+        let szamlazas;
+        if (szamlazasKulon) {
+            szamlazas = { ...szamlazasiCim, nev: szamlazasiCim.nev || vevo.nev, adoszam: adoszam };
+        } else {
+            let nev = vevo.nev;
+            if (ceges && szamlazasiCim.nev) {
+                nev = szamlazasiCim.nev;
+            }
+            szamlazas = { ...szallitasiCim, nev: nev, adoszam: adoszam };
+        }
+
+        const torzs = {
+            tetelek: tetelek,
+            vevo: vevo,
+            szallitasiMod: szallitasiMod,
+            fizetesiMod: fizetesiMod,
+            megjegyzes: megjegyzes,
+            aszf: aszf,
+            szamlazasiCim: szamlazas,
+        };
+        if (szallitasiMod === 'szemelyes') {
+            torzs.telephely = telephely;
+        }
+        if (futar) {
+            torzs.szallitasiCim = szallitasiCim;
+        }
+
         try {
-            const valasz = await apiKeres('/rendelesek', {
-                method: 'POST',
-                body: {
-                    tetelek, vevo, szallitasiMod, fizetesiMod, megjegyzes, aszf,
-                    telephely: szallitasiMod === 'szemelyes' ? telephely : undefined,
-                    szallitasiCim: futar ? szallitasiCim : undefined,
-                    szamlazasiCim: szamlazas,
-                },
-            }, 'A rendelés leadása nem sikerült.');
+            const valasz = await apiKeres('/rendelesek', { method: 'POST', body: torzs }, 'A rendelés leadása nem sikerült.');
             urites();
+            // kártyás fizetésnél átmegyünk a Stripe oldalára
             if (valasz.fizetesUrl) {
                 window.location.assign(valasz.fizetesUrl);
                 return;
             }
-            navigate(`/rendeles/${encodeURIComponent(valasz.rendelesSzam)}?kulcs=${valasz.kulcs}&uj=1`, { replace: true });
+            navigate('/rendeles/' + encodeURIComponent(valasz.rendelesSzam) + '?kulcs=' + valasz.kulcs + '&uj=1', { replace: true });
         } catch (error) {
             setHibak([error.message]);
             setKuldes(false);
@@ -130,10 +178,10 @@ const Penztar = () => {
                     <fieldset className="uveg penztar-blokk">
                         <legend><span>2</span> Szállítás</legend>
                         <div className="valasztasok">
-                            {adat.szallitasiModok.map((m) => (
-                                <Valasztas key={m.kulcs} nev="szallitas" ertek={m.kulcs} aktualis={szallitasiMod} onValaszt={setSzallitasiMod} cim={m.nev}
-                                    leiras={m.ingyenesHatar ? `${ft(m.ingyenesHatar)} felett ingyenes` : null}
-                                    jobb={m.dij ? ft(m.dij) : 'Ingyenes'} />
+                            {adat.szallitasiModok.map((mod) => (
+                                <Valasztas key={mod.kulcs} nev="szallitas" ertek={mod.kulcs} aktualis={szallitasiMod} onValaszt={setSzallitasiMod} cim={mod.nev}
+                                    leiras={mod.ingyenesHatar ? ft(mod.ingyenesHatar) + ' felett ingyenes' : null}
+                                    jobb={mod.dij ? ft(mod.dij) : 'Ingyenes'} />
                             ))}
                         </div>
                         {futar && (
@@ -145,7 +193,7 @@ const Penztar = () => {
                             <Mezo cimke="Átvételi hely">
                                 <select className="bemenet" required value={telephely} onChange={(e) => setTelephely(e.target.value)}>
                                     <option value="">Válassz telephelyet…</option>
-                                    {adat.telephelyek.map((t) => <option key={t._id} value={t._id}>{t.nev} – {t.iranyitoszam} {t.varos}, {t.cim}</option>)}
+                                    {adat.telephelyek.map((hely) => <option key={hely._id} value={hely._id}>{hely.nev} – {hely.iranyitoszam} {hely.varos}, {hely.cim}</option>)}
                                 </select>
                             </Mezo>
                         )}
@@ -155,10 +203,10 @@ const Penztar = () => {
                         <legend><span>3</span> Fizetés</legend>
                         {!szallitasiMod ? <p className="penztar-sugo">Előbb válassz szállítási módot.</p> : (
                             <div className="valasztasok">
-                                {adat.fizetesiModok.map((m) => (
-                                    <Valasztas key={m.kulcs} nev="fizetes" ertek={m.kulcs} aktualis={fizetesiMod} onValaszt={setValasztottFizetes} cim={m.nev}
-                                        leiras={m.online ? 'A Stripe biztonságos fizetőoldalán – a kártyaadataid hozzánk nem jutnak el.' : null}
-                                        jobb={m.dij ? `+${ft(m.dij)}` : null} />
+                                {adat.fizetesiModok.map((mod) => (
+                                    <Valasztas key={mod.kulcs} nev="fizetes" ertek={mod.kulcs} aktualis={fizetesiMod} onValaszt={setValasztottFizetes} cim={mod.nev}
+                                        leiras={mod.online ? 'A Stripe biztonságos fizetőoldalán – a kártyaadataid hozzánk nem jutnak el.' : null}
+                                        jobb={mod.dij ? '+' + ft(mod.dij) : null} />
                                 ))}
                             </div>
                         )}
@@ -198,7 +246,7 @@ const Penztar = () => {
                     </fieldset>
                 </div>
 
-                <aside className={`uveg webshop-oldalsav ${betolt ? 'webshop-tolt' : ''}`}>
+                <aside className={betolt ? 'uveg webshop-oldalsav webshop-tolt' : 'uveg webshop-oldalsav'}>
                     <h2>Rendelésed</h2>
                     <ul className="penztar-tetelek">
                         {adat.tetelek.map((t) => (
@@ -212,7 +260,8 @@ const Penztar = () => {
                     </label>
                     {(hibak.length > 0 || !adat.rendelheto) && (
                         <div className="uzenet uzenet-hiba" role="alert">
-                            {!adat.rendelheto ? <>A kosárban készlethiány van. <Link to="/kosar">Vissza a kosárhoz</Link></> : hibak.map((h) => <p key={h}>{h}</p>)}
+                            {!adat.rendelheto && <>A kosárban készlethiány van. <Link to="/kosar">Vissza a kosárhoz</Link></>}
+                            {adat.rendelheto && hibak.map((uzenet) => <p key={uzenet}>{uzenet}</p>)}
                         </div>
                     )}
                     <button className="gomb gomb-fo" type="submit" disabled={kuldes || betolt || !adat.rendelheto || !fizetesiMod}>

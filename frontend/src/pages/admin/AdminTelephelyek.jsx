@@ -9,44 +9,96 @@ const NAPOK = [
     ['pentek', 'Péntek'], ['szombat', 'Szombat'], ['vasarnap', 'Vasárnap'],
 ];
 
-const uresTelephely = () => ({
-    nev: '', iranyitoszam: '', varos: '', cim: '', megye: 'Budapest', telefon: '', email: '', szelesseg: '', hosszusag: '',
-    nyitvatartas: NAPOK.map(([nap]) => ({
-        nap,
-        zarva: nap === 'vasarnap',
-        nyitas: '09:00',
-        zaras: nap === 'szombat' ? '13:00' : '18:00',
-    })),
-});
+// üres telephely űrlap (alap nyitvatartással: hétköznap 9-18, szombat 9-13, vasárnap zárva)
+const uresTelephely = () => {
+    const nyitvatartas = [];
+    for (const nap of NAPOK) {
+        let zaras = '18:00';
+        if (nap[0] === 'szombat') {
+            zaras = '13:00';
+        }
+        nyitvatartas.push({ nap: nap[0], zarva: nap[0] === 'vasarnap', nyitas: '09:00', zaras: zaras });
+    }
 
-const urlapbol = (t) => ({
-    ...uresTelephely(),
-    ...t,
-    szelesseg: t.szelesseg ?? '',
-    hosszusag: t.hosszusag ?? '',
-    nyitvatartas: NAPOK.map(([nap]) => t.nyitvatartas?.find((sor) => sor.nap === nap) || { nap, zarva: true, nyitas: '09:00', zaras: '17:00' }),
-});
+    return {
+        nev: '',
+        iranyitoszam: '',
+        varos: '',
+        cim: '',
+        megye: 'Budapest',
+        telefon: '',
+        email: '',
+        szelesseg: '',
+        hosszusag: '',
+        nyitvatartas: nyitvatartas,
+    };
+};
 
+// egy meglévő telephelyből űrlap adatok
+const urlapbol = (telephely) => {
+    // minden napra kell egy sor, ha valamelyik hiányzik, akkor aznap zárva
+    const nyitvatartas = [];
+    for (const nap of NAPOK) {
+        let sor;
+        if (telephely.nyitvatartas) {
+            sor = telephely.nyitvatartas.find((elem) => elem.nap === nap[0]);
+        }
+        if (!sor) {
+            sor = { nap: nap[0], zarva: true, nyitas: '09:00', zaras: '17:00' };
+        }
+        nyitvatartas.push(sor);
+    }
+
+    let szelesseg = telephely.szelesseg;
+    if (szelesseg === null || szelesseg === undefined) {
+        szelesseg = '';
+    }
+    let hosszusag = telephely.hosszusag;
+    if (hosszusag === null || hosszusag === undefined) {
+        hosszusag = '';
+    }
+
+    return { ...uresTelephely(), ...telephely, szelesseg: szelesseg, hosszusag: hosszusag, nyitvatartas: nyitvatartas };
+};
+
+// telephely felvétele / szerkesztése
 const TelephelyUrlap = ({ kezdo, onMentve, onMegse }) => {
     const [adatok, setAdatok] = useState(() => urlapbol(kezdo || {}));
     const [hiba, setHiba] = useState('');
     const [mentes, setMentes] = useState(false);
+    const szerkesztes = Boolean(kezdo && kezdo._id);
 
-    const beallit = (mezo) => (event) => setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
-    const napBeallit = (index, mezo, ertek) => setAdatok((elozo) => ({
-        ...elozo,
-        nyitvatartas: elozo.nyitvatartas.map((sor, i) => (i === index ? { ...sor, [mezo]: ertek } : sor)),
-    }));
+    const beallit = (mezo) => (event) => {
+        setAdatok((elozo) => ({ ...elozo, [mezo]: event.target.value }));
+    };
+
+    // egy nap nyitvatartásának módosítása
+    const napBeallit = (index, mezo, ertek) => {
+        setAdatok((elozo) => {
+            const nyitvatartas = elozo.nyitvatartas.map((sor, i) => {
+                if (i === index) {
+                    return { ...sor, [mezo]: ertek };
+                }
+                return sor;
+            });
+            return { ...elozo, nyitvatartas: nyitvatartas };
+        });
+    };
 
     const kuldes = async (event) => {
         event.preventDefault();
         setMentes(true);
         setHiba('');
+
+        let url = '/telephelyek';
+        let metodus = 'POST';
+        if (szerkesztes) {
+            url = '/telephelyek/' + kezdo._id;
+            metodus = 'PUT';
+        }
+
         try {
-            const data = await apiKeres(kezdo?._id ? `/telephelyek/${kezdo._id}` : '/telephelyek', {
-                method: kezdo?._id ? 'PUT' : 'POST',
-                body: adatok,
-            }, 'A telephely mentése nem sikerült.');
+            const data = await apiKeres(url, { method: metodus, body: adatok }, 'A telephely mentése nem sikerült.');
             onMentve(data.telephely);
         } catch (error) {
             setHiba(error.message);
@@ -56,7 +108,7 @@ const TelephelyUrlap = ({ kezdo, onMentve, onMegse }) => {
 
     return (
         <form className="uveg admin-urlap" onSubmit={kuldes}>
-            <h3>{kezdo?._id ? 'Telephely szerkesztése' : 'Új telephely'}</h3>
+            <h3>{szerkesztes ? 'Telephely szerkesztése' : 'Új telephely'}</h3>
             <div className="admin-urlap-racs">
                 <label className="mezo"><span>Név</span><input className="bemenet" required maxLength={80} placeholder="pl. Budaörsi bemutatóterem" value={adatok.nev} onChange={beallit('nev')} /></label>
                 <label className="mezo"><span>Megye</span>
@@ -83,8 +135,8 @@ const TelephelyUrlap = ({ kezdo, onMentve, onMegse }) => {
                             <input type="checkbox" checked={!sor.zarva} onChange={(event) => napBeallit(i, 'zarva', !event.target.checked)} />
                             <span className="kapcsolo" aria-hidden="true" /> {sor.zarva ? 'Zárva' : 'Nyitva'}
                         </label>
-                        <input className="bemenet" type="time" aria-label={`${NAPOK[i][1]} nyitás`} disabled={sor.zarva} value={sor.nyitas} onChange={(event) => napBeallit(i, 'nyitas', event.target.value)} />
-                        <input className="bemenet" type="time" aria-label={`${NAPOK[i][1]} zárás`} disabled={sor.zarva} value={sor.zaras} onChange={(event) => napBeallit(i, 'zaras', event.target.value)} />
+                        <input className="bemenet" type="time" aria-label={NAPOK[i][1] + ' nyitás'} disabled={sor.zarva} value={sor.nyitas} onChange={(event) => napBeallit(i, 'nyitas', event.target.value)} />
+                        <input className="bemenet" type="time" aria-label={NAPOK[i][1] + ' zárás'} disabled={sor.zarva} value={sor.zaras} onChange={(event) => napBeallit(i, 'zaras', event.target.value)} />
                     </div>
                 ))}
             </fieldset>
@@ -98,33 +150,48 @@ const TelephelyUrlap = ({ kezdo, onMentve, onMegse }) => {
     );
 };
 
+// telephelyek kezelése (csak admin)
 const AdminTelephelyek = () => {
     const [telephelyek, setTelephelyek] = useState(null);
     const [szerkesztett, setSzerkesztett] = useState(null);
     const [hiba, setHiba] = useState('');
 
     useEffect(() => {
-        apiKeres('/telephelyek').then((data) => setTelephelyek(data.telephelyek)).catch((error) => setHiba(error.message));
+        apiKeres('/telephelyek')
+            .then((data) => setTelephelyek(data.telephelyek))
+            .catch((error) => setHiba(error.message));
     }, []);
 
+    // mentés után: ha már volt ilyen, kicseréljük, ha új, hozzáadjuk
     const mentve = (telephely) => {
-        setTelephelyek((elozo) => (elozo.some((t) => t._id === telephely._id)
-            ? elozo.map((t) => (t._id === telephely._id ? telephely : t))
-            : [...elozo, telephely]));
+        setTelephelyek((elozo) => {
+            const vanMar = elozo.some((elem) => elem._id === telephely._id);
+            if (vanMar) {
+                return elozo.map((elem) => (elem._id === telephely._id ? telephely : elem));
+            }
+            return [...elozo, telephely];
+        });
         setSzerkesztett(null);
     };
 
     const torles = async (telephely) => {
-        if (!window.confirm(`Törlöd a(z) ${telephely.nev} telephelyet?`)) return;
+        if (!window.confirm('Törlöd a(z) ' + telephely.nev + ' telephelyet?')) {
+            return;
+        }
         try {
-            await apiKeres(`/telephelyek/${telephely._id}`, { method: 'DELETE' }, 'A törlés nem sikerült.');
-            setTelephelyek((elozo) => elozo.filter((t) => t._id !== telephely._id));
+            await apiKeres('/telephelyek/' + telephely._id, { method: 'DELETE' }, 'A törlés nem sikerült.');
+            setTelephelyek((elozo) => elozo.filter((elem) => elem._id !== telephely._id));
         } catch (error) {
             setHiba(error.message);
         }
     };
 
-    if (!telephelyek) return hiba ? <p className="uzenet uzenet-hiba">{hiba}</p> : <div className="betoltes"><span className="porgo" /></div>;
+    if (!telephelyek) {
+        if (hiba) {
+            return <p className="uzenet uzenet-hiba">{hiba}</p>;
+        }
+        return <div className="betoltes"><span className="porgo" /></div>;
+    }
 
     return (
         <div className="admin-lista">
@@ -145,7 +212,7 @@ const AdminTelephelyek = () => {
                     <TelephelyInfo telephely={telephely} />
                     <div className="admin-hirdetes-muveletek">
                         <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={() => setSzerkesztett(telephely)}><Ikon nev="szerkeszt" meret={15} /> Szerkesztés</button>
-                        <button className="ikon-gomb" type="button" onClick={() => torles(telephely)} aria-label={`${telephely.nev} törlése`}><Ikon nev="kuka" /></button>
+                        <button className="ikon-gomb" type="button" onClick={() => torles(telephely)} aria-label={telephely.nev + ' törlése'}><Ikon nev="kuka" /></button>
                     </div>
                 </article>
             ))}

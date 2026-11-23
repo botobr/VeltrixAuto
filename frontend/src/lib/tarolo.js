@@ -1,11 +1,20 @@
-/*
- * Biztonságos böngészőtároló-elérés: privát módban, letiltott sütiknél vagy
- * beágyazott nézetben a localStorage hibát dobhat – ilyenkor csendben kihagyjuk.
- */
+// localStorage / sessionStorage olvasása és írása.
+// Privát módban vagy letiltott sütiknél hibát dobhat, ezért try-catch-be tesszük.
+
+const valasztottTarolo = (tarolo) => {
+    if (tarolo === 'session') {
+        return sessionStorage;
+    }
+    return localStorage;
+};
+
 export const olvas = (kulcs, alap, tarolo = 'local') => {
     try {
-        const nyers = (tarolo === 'session' ? sessionStorage : localStorage).getItem(kulcs);
-        return nyers === null ? alap : JSON.parse(nyers);
+        const nyers = valasztottTarolo(tarolo).getItem(kulcs);
+        if (nyers === null) {
+            return alap;
+        }
+        return JSON.parse(nyers);
     } catch {
         return alap;
     }
@@ -13,8 +22,8 @@ export const olvas = (kulcs, alap, tarolo = 'local') => {
 
 export const ir = (kulcs, ertek, tarolo = 'local') => {
     try {
-        (tarolo === 'session' ? sessionStorage : localStorage).setItem(kulcs, JSON.stringify(ertek));
+        valasztottTarolo(tarolo).setItem(kulcs, JSON.stringify(ertek));
     } catch {
-        // A tároló nem elérhető – a funkció ettől még működik, csak nem marad meg.
+        // nem baj, ha nem sikerül, csak nem marad meg az adat
     }
 };

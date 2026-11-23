@@ -2,31 +2,31 @@ import { useState } from 'react';
 import { CEG } from '../lib/ceg';
 import Ikon from './Ikon';
 
+// telefonról nézik-e
 const mobil = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-/**
- * Megosztás Facebookon, Messengerben, natív megosztással vagy linkmásolással.
- * A közösségi oldalaknak a backend /megosztas oldalát adjuk át, mert csak az
- * tartalmaz szerveroldali Open Graph címkéket (kép, cím, ár).
- */
+// Megosztás gombok: Facebook, Messenger, a telefon saját megosztása, link másolása, nyomtatás.
+// A Facebooknak a backend /megosztas oldalát adjuk meg, mert azon vannak rajta a kép, cím, ár adatok.
 const Megosztas = ({ auto }) => {
     const [masolva, setMasolva] = useState(false);
-    const oldalUrl = `${window.location.origin}/autok/${auto.slug}`;
-    const megosztoUrl = `${window.location.origin}/megosztas/autok/${auto.slug}`;
-    const cim = `${auto.marka} ${auto.modell} (${auto.evjarat})`;
+    const oldalUrl = window.location.origin + '/autok/' + auto.slug;
+    const megosztoUrl = window.location.origin + '/megosztas/autok/' + auto.slug;
+    const cim = auto.marka + ' ' + auto.modell + ' (' + auto.evjarat + ')';
     const kodolt = encodeURIComponent(megosztoUrl);
 
-    const messengerUrl = mobil()
-        ? `fb-messenger://share/?link=${kodolt}`
-        : CEG.facebookAppId
-            ? `https://www.facebook.com/dialog/send?app_id=${CEG.facebookAppId}&link=${kodolt}&redirect_uri=${encodeURIComponent(oldalUrl)}`
-            : null;
+    // Messenger: telefonon az alkalmazás, gépen csak akkor, ha van Facebook app azonosító
+    let messengerUrl = null;
+    if (mobil()) {
+        messengerUrl = 'fb-messenger://share/?link=' + kodolt;
+    } else if (CEG.facebookAppId) {
+        messengerUrl = 'https://www.facebook.com/dialog/send?app_id=' + CEG.facebookAppId + '&link=' + kodolt + '&redirect_uri=' + encodeURIComponent(oldalUrl);
+    }
 
     const nativ = async () => {
         try {
             await navigator.share({ title: cim, url: megosztoUrl });
         } catch {
-            // A felhasználó megszakította a megosztást.
+            // a felhasználó bezárta a megosztást
         }
     };
 
@@ -47,7 +47,7 @@ const Megosztas = ({ auto }) => {
                     <Ikon nev="megosztas" /> <span>Megosztás</span>
                 </button>
             )}
-            <a className="ikon-gomb" href={`https://www.facebook.com/sharer/sharer.php?u=${kodolt}`} target="_blank" rel="noopener noreferrer" title="Megosztás Facebookon">
+            <a className="ikon-gomb" href={'https://www.facebook.com/sharer/sharer.php?u=' + kodolt} target="_blank" rel="noopener noreferrer" title="Megosztás Facebookon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M14 8.5V6.8c0-.8.2-1.3 1.4-1.3H17V2.2c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v2.2H7.7v3.7h2.7V22h3.6v-9.8h2.8l.4-3.7z" />
                 </svg>

@@ -9,10 +9,8 @@ beforeEach(k.uritas);
 
 const NEM_LETEZO = '0123456789abcdef01234567';
 
-/*
- * Jogosultsági mátrix: [metódus, útvonal, törzs, mely szerepkörök férhetnek hozzá].
- * „Hozzáfér” = nem 401/403 (a hamis azonosító miatt lehet 400/404 – az már nem jogosultsági kérdés).
- */
+// Jogosultsági táblázat: [metódus, útvonal, küldött adat, kik férhetnek hozzá]
+// Hozzáfér = nem 401 vagy 403 a válasz (a nem létező id miatt lehet 400/404, az most nem számít).
 const MATRIX = [
     ['get', '/admin/dashboard', undefined, ['ertekesito', 'admin']],
     ['get', '/admin/autok', undefined, ['ertekesito', 'admin']],
@@ -47,13 +45,25 @@ test('jogosultsági mátrix: vendég, vásárló, értékesítő, admin', async 
         ertekesito: await k.bejelentkezve('ertekesito'),
         admin: await k.bejelentkezve('admin'),
     };
+    // minden útvonalat kipróbálunk mind a 4 szerepkörrel, a hibákat összegyűjtjük
     const hibak = [];
-    for (const [metodus, utvonal, body, engedett] of MATRIX) {
-        for (const [szerepkor, kl] of Object.entries(kliensek)) {
-            const { status } = await kl[metodus](utvonal, body);
-            const tiltott = status === 401 || status === 403;
-            const elvart = engedett.includes(szerepkor);
-            if (tiltott === elvart) hibak.push(`${metodus.toUpperCase()} ${utvonal} – ${szerepkor}: ${status} (${elvart ? 'engedni' : 'tiltani'} kellene)`);
+    for (const sor of MATRIX) {
+        const metodus = sor[0];
+        const utvonal = sor[1];
+        const torzs = sor[2];
+        const engedett = sor[3];
+
+        for (const szerepkor in kliensek) {
+            const valasz = await kliensek[szerepkor][metodus](utvonal, torzs);
+            const tiltott = valasz.status === 401 || valasz.status === 403;
+            const szabad = engedett.includes(szerepkor);
+
+            if (tiltott && szabad) {
+                hibak.push(metodus.toUpperCase() + ' ' + utvonal + ' – ' + szerepkor + ': ' + valasz.status + ' (engedni kellene)');
+            }
+            if (!tiltott && !szabad) {
+                hibak.push(metodus.toUpperCase() + ' ' + utvonal + ' – ' + szerepkor + ': ' + valasz.status + ' (tiltani kellene)');
+            }
         }
     }
     assert.deepEqual(hibak, []);
@@ -64,15 +74,19 @@ test('/auth/profil: a jogok listája a szerepkörhöz igazodik', async () => {
     const admin = await k.bejelentkezve('admin');
     const vasarlo = await k.bejelentkezve('felhasznalo');
 
-    const { adat: e } = await ertekesito.get('/auth/profil');
-    assert.ok(e.felhasznalo.jogok.includes('kezelofelulet'));
-    assert.ok(e.felhasznalo.jogok.includes('hirdetesSzerkesztes'));
-    assert.ok(!e.felhasznalo.jogok.includes('hirdetesTorles'));
-    assert.ok(!e.felhasznalo.jogok.includes('penzugy'));
-    assert.equal(e.felhasznalo.jelszo, undefined);
+    const ertekesitoProfil = await ertekesito.get('/auth/profil');
+    const ertekesitoJogai = ertekesitoProfil.adat.felhasznalo.jogok;
+    assert.ok(ertekesitoJogai.includes('kezelofelulet'));
+    assert.ok(ertekesitoJogai.includes('hirdetesSzerkesztes'));
+    assert.ok(!ertekesitoJogai.includes('hirdetesTorles'));
+    assert.ok(!ertekesitoJogai.includes('penzugy'));
+    assert.equal(ertekesitoProfil.adat.felhasznalo.jelszo, undefined);
 
-    assert.ok((await admin.get('/auth/profil')).adat.felhasznalo.jogok.includes('penzugy'));
-    assert.deepEqual((await vasarlo.get('/auth/profil')).adat.felhasznalo.jogok, []);
+    const adminProfil = await admin.get('/auth/profil');
+    assert.ok(adminProfil.adat.felhasznalo.jogok.includes('penzugy'));
+
+    const vasarloProfil = await vasarlo.get('/auth/profil');
+    assert.deepEqual(vasarloProfil.adat.felhasznalo.jogok, []);
 });
 
 test('admin értékesítőt hoz létre; ismeretlen szerepkör elutasítva', async () => {
@@ -84,20 +98,27 @@ test('admin értékesítőt hoz létre; ismeretlen szerepkör elutasítva', asyn
     const rossz = await admin.post('/felhasznalok', { nev: 'X', email: 'x@teszt.hu', jelszo: 'jelszo12345', statusz: 'fonok' });
     assert.equal(rossz.status, 400);
 
+    // az új értékesítő be tud lépni és látja a dashboardot
     const belepes = k.kliens();
-    assert.equal((await belepes.post('/auth/bejelentkezes', { email: 'uj@teszt.hu', jelszo: 'jelszo12345' })).status, 200);
-    assert.equal((await belepes.get('/admin/dashboard')).status, 200);
+    const bejelentkezes = await belepes.post('/auth/bejelentkezes', { email: 'uj@teszt.hu', jelszo: 'jelszo12345' });
+    assert.equal(bejelentkezes.status, 200);
+    const dashboard = await belepes.get('/admin/dashboard');
+    assert.equal(dashboard.status, 200);
 });
 
 test('lefokozás azonnal érvényes, a munkamenet nem őrzi meg a régi jogot', async () => {
     const admin = await k.bejelentkezve('admin');
     const ertekesito = await k.bejelentkezve('ertekesito');
-    assert.equal((await ertekesito.get('/admin/autok')).status, 200);
+    const elotte = await ertekesito.get('/admin/autok');
+    assert.equal(elotte.status, 200);
 
-    const { user } = ertekesito;
+    const user = ertekesito.user;
     const modositas = await admin.put(`/felhasznalok/${user._id}`, { nev: user.nev, email: user.email, statusz: 'felhasznalo' });
     assert.equal(modositas.status, 200);
-    assert.equal((await ertekesito.get('/admin/autok')).status, 403);
+
+    // ugyanazzal a munkamenettel már nem fér hozzá
+    const utana = await ertekesito.get('/admin/autok');
+    assert.equal(utana.status, 403);
 });
 
 test('a nyilvános regisztráció nem adhat munkatársi szerepkört', async () => {
@@ -105,7 +126,8 @@ test('a nyilvános regisztráció nem adhat munkatársi szerepkört', async () =
     const valasz = await kl.post('/auth/regisztracio', { nev: 'Ügyes Béla', email: 'bela@teszt.hu', jelszo: 'jelszo12345', adatkezeles: true, statusz: 'admin' });
     assert.equal(valasz.status, 201);
     assert.equal(valasz.adat.felhasznalo.statusz, 'felhasznalo');
-    assert.equal((await kl.get('/admin/dashboard')).status, 403);
+    const dashboard = await kl.get('/admin/dashboard');
+    assert.equal(dashboard.status, 403);
 });
 
 test('az új regisztráció e-mail-megerősítésig nem léptethető be', async () => {
@@ -117,7 +139,9 @@ test('az új regisztráció e-mail-megerősítésig nem léptethető be', async 
     const user = await FelhasznaloModel.findOne({ email: 'hiteles@teszt.hu' }).select('+emailHitelesitoTokenHash +emailHitelesitoLejarat');
     assert.ok(user.emailHitelesitoTokenHash);
     assert.ok(user.emailHitelesitoLejarat > new Date());
-    assert.equal((await kl.post('/auth/bejelentkezes', { email: 'hiteles@teszt.hu', jelszo: 'jelszo12345' })).status, 403);
+
+    const bejelentkezes = await kl.post('/auth/bejelentkezes', { email: 'hiteles@teszt.hu', jelszo: 'jelszo12345' });
+    assert.equal(bejelentkezes.status, 403);
 });
 
 test('a jelszó-visszaállítás nem árulja el, létezik-e az e-mail-cím', async () => {
@@ -130,6 +154,8 @@ test('a jelszó-visszaállítás nem árulja el, létezik-e az e-mail-cím', asy
 
 test('érvénytelen vagy lejárt tokennel nem módosítható e-mail vagy jelszó', async () => {
     const kl = k.kliens();
-    assert.equal((await kl.post('/auth/email-megerosites', { token: 'a'.repeat(64) })).status, 400);
-    assert.equal((await kl.post('/auth/jelszo-visszaallitas', { token: 'b'.repeat(64), jelszo: 'ujjelszo123' })).status, 400);
+    const megerosites = await kl.post('/auth/email-megerosites', { token: 'a'.repeat(64) });
+    assert.equal(megerosites.status, 400);
+    const visszaallitas = await kl.post('/auth/jelszo-visszaallitas', { token: 'b'.repeat(64), jelszo: 'ujjelszo123' });
+    assert.equal(visszaallitas.status, 400);
 });

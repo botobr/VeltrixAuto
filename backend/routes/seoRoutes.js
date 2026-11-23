@@ -10,12 +10,22 @@ const router = express.Router();
 
 const STATIKUS_OLDALAK = ['/', '/autok', '/alkatreszek', '/rolunk', '/szolgaltatasok', '/aszf', '/adatkezeles', '/cookie'];
 
-const htmlEscape = (szoveg) => String(szoveg ?? '').replace(/[&<>"']/g, (karakter) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[karakter]));
+// a HTML-be írt szövegben a speciális karaktereket le kell cserélni (XSS ellen)
+const htmlEscape = (szoveg) => {
+    if (szoveg === null || szoveg === undefined) {
+        return '';
+    }
+    return String(szoveg)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
 
 const arFormatum = new Intl.NumberFormat('hu-HU');
 
+// robots.txt a keresőknek (mit ne indexeljenek)
 router.get('/robots.txt', (req, res) => {
     res.type('text/plain').send([
         'User-agent: *',
@@ -30,62 +40,88 @@ router.get('/robots.txt', (req, res) => {
         'Disallow: /rendeles/',
         'Disallow: /megosztas/',
         '',
-        `Sitemap: ${oldalUrl()}/sitemap.xml`,
+        'Sitemap: ' + oldalUrl() + '/sitemap.xml',
         '',
     ].join('\n'));
 });
 
+// egy oldal a sitemap-ben
+const sitemapBejegyzes = (utvonal, modositva, prioritas) => {
+    const sorok = [];
+    sorok.push('  <url>');
+    sorok.push('    <loc>' + htmlEscape(oldalUrl() + utvonal) + '</loc>');
+    if (modositva) {
+        sorok.push('    <lastmod>' + new Date(modositva).toISOString() + '</lastmod>');
+    }
+    sorok.push('    <priority>' + prioritas + '</priority>');
+    sorok.push('  </url>');
+    return sorok.join('\n');
+};
+
+// sitemap.xml a keresőknek: a fix oldalak, az autók és az alkatrészek
 router.get('/sitemap.xml', async (req, res) => {
     const autok = await AutoModel.find({ $and: [...publikusFeltetelek(), { statusz: { $ne: 'elkelt' } }] })
         .select('marka modell evjarat updatedAt')
         .sort({ updatedAt: -1 })
         .limit(45000);
-    const alkatreszek = await AlkatreszModel.find({ lathato: true }).select('nev gyarto updatedAt').sort({ updatedAt: -1 }).limit(4000);
+    const alkatreszek = await AlkatreszModel.find({ lathato: true })
+        .select('nev gyarto updatedAt')
+        .sort({ updatedAt: -1 })
+        .limit(4000);
 
-    const bejegyzes = (utvonal, modositva, prioritas) => [
-        '  <url>',
-        `    <loc>${htmlEscape(oldalUrl() + utvonal)}</loc>`,
-        modositva ? `    <lastmod>${new Date(modositva).toISOString()}</lastmod>` : null,
-        `    <priority>${prioritas}</priority>`,
-        '  </url>',
-    ].filter(Boolean).join('\n');
-
-    const xml = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-        ...STATIKUS_OLDALAK.map((utvonal) => bejegyzes(utvonal, null, ['/', '/autok', '/alkatreszek'].includes(utvonal) ? '1.0' : '0.5')),
-        ...autok.map((auto) => bejegyzes(`/autok/${autoSlug(auto)}`, auto.updatedAt, '0.8')),
-        ...alkatreszek.map((a) => bejegyzes(`/alkatreszek/${alkatreszSlug(a)}`, a.updatedAt, '0.7')),
-        '</urlset>',
-    ].join('\n');
+    const sorok = [];
+    sorok.push('<?xml version="1.0" encoding="UTF-8"?>');
+    sorok.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+    for (const utvonal of STATIKUS_OLDALAK) {
+        let prioritas = '0.5';
+        if (utvonal === '/' || utvonal === '/autok' || utvonal === '/alkatreszek') {
+            prioritas = '1.0';
+        }
+        sorok.push(sitemapBejegyzes(utvonal, null, prioritas));
+    }
+    for (const auto of autok) {
+        sorok.push(sitemapBejegyzes('/autok/' + autoSlug(auto), auto.updatedAt, '0.8'));
+    }
+    for (const alkatresz of alkatreszek) {
+        sorok.push(sitemapBejegyzes('/alkatreszek/' + alkatreszSlug(alkatresz), alkatresz.updatedAt, '0.7'));
+    }
+    sorok.push('</urlset>');
+    const xml = sorok.join('\n');
 
     res.set('Cache-Control', 'public, max-age=3600').type('application/xml').send(xml);
 });
 
-/**
- * Megosztási oldal közösségi oldalakhoz. A Facebook/Messenger robotja nem futtat
- * JavaScriptet, ezért az Open Graph adatokat szerveroldalon adjuk ki, a látogatót
- * pedig azonnal továbbirányítjuk a valódi adatlapra.
- */
+// Megosztás oldal Facebookhoz / Messengerhez.
+// A Facebook nem futtat JavaScriptet, ezért itt a szerveren rakjuk bele az oldal adatait (og: címkék),
+// a látogatót pedig rögtön átirányítjuk az autó oldalára.
 router.get('/megosztas/autok/:slug', async (req, res) => {
     const id = idSlugbol(req.params.slug);
-    const auto = id ? await AutoModel.findOne({ $and: [{ _id: id }, ...publikusFeltetelek()] }) : null;
+    let auto = null;
+    if (id) {
+        auto = await AutoModel.findOne({ $and: [{ _id: id }, ...publikusFeltetelek()] });
+    }
     if (!auto) {
-        return res.redirect(302, `${oldalUrl()}/autok`);
+        return res.redirect(302, oldalUrl() + '/autok');
     }
 
-    const cel = `${oldalUrl()}/autok/${autoSlug(auto)}`;
-    const cim = `${auto.marka} ${auto.modell} (${auto.evjarat}) – ${arFormatum.format(auto.vetel_ar)} Ft | Veltrix Autók`;
-    const leiras = [
-        `${arFormatum.format(auto.kmora_allas)} km`,
-        auto.uzemanyag,
-        `${auto.teljesitmeny} LE`,
-        auto.valto,
-        auto.kivitel,
-    ].filter(Boolean).join(' · ');
-    const kep = auto.kepek[0]?.url || auto.kep || '';
+    const cel = oldalUrl() + '/autok/' + autoSlug(auto);
+    const cim = auto.marka + ' ' + auto.modell + ' (' + auto.evjarat + ') – ' + arFormatum.format(auto.vetel_ar) + ' Ft | Veltrix Autók';
 
-    // Ez az egyetlen HTML-oldal a backendben: az átirányító szkript kérésenként egyedi nonce-szal futhat.
+    const leirasReszek = [arFormatum.format(auto.kmora_allas) + ' km', auto.uzemanyag, auto.teljesitmeny + ' LE'];
+    if (auto.valto) {
+        leirasReszek.push(auto.valto);
+    }
+    if (auto.kivitel) {
+        leirasReszek.push(auto.kivitel);
+    }
+    const leiras = leirasReszek.filter((resz) => resz).join(' · ');
+
+    let kep = auto.kep || '';
+    if (auto.kepek.length > 0) {
+        kep = auto.kepek[0].url;
+    }
+
+    // ez a backend egyetlen HTML oldala, a szkript csak a nonce-szal futhat (CSP)
     const nonce = crypto.randomBytes(16).toString('base64');
     res.set('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; img-src https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`);
     res.set('Cache-Control', 'public, max-age=600').type('html').send(`<!doctype html>

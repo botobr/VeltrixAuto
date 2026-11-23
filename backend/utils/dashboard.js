@@ -7,11 +7,9 @@ const FelhasznaloModel = require('../models/Felhasznalo');
 const { autoValasz } = require('./autoSzuro');
 const { ALACSONY_KESZLET } = require('./webshop');
 
-/*
- * Az admin dashboard adatai. Az adatbázisból betöltjük a szükséges rekordokat,
- * majd minden számítást itt, egyszerű JavaScripttel végzünk el. A frontend csak
- * megjeleníti az eredményt.
- */
+// Az admin dashboard adatai.
+// Betöltjük az adatbázisból, ami kell, és itt számolunk ki mindent.
+// A frontend csak kirajzolja az eredményt.
 
 const NAP_MS = 24 * 60 * 60 * 1000;
 const IDOZONA = 'Europe/Budapest';
@@ -23,7 +21,7 @@ const HAVI_HONAPOK = 12;
 const MAX_KATEGORIA = 6;
 const MAX_MARKA = 10;
 
-/** Árkategóriák: alsó határ (Ft) és felirat. */
+// árkategóriák: [alsó határ forintban, felirat]
 const AR_SAVOK = [
     [0, '5 M Ft alatt'],
     [5e6, '5–10 M Ft'],
@@ -52,7 +50,7 @@ const idoszakFeldolgozasa = (nyers, most = new Date()) => {
 
 const napFormatum = new Intl.DateTimeFormat('en-US', { timeZone: IDOZONA, year: 'numeric', month: '2-digit', day: '2-digit' });
 
-/** A dátum budapesti naptári napja 'ÉÉÉÉ-HH-NN' formában. */
+// a dátum budapesti idő szerint, 'ÉÉÉÉ-HH-NN' formában
 const budapestiNap = (datum) => {
     const reszek = {};
     for (const resz of napFormatum.formatToParts(datum)) {
@@ -61,7 +59,7 @@ const budapestiNap = (datum) => {
     return `${reszek.year}-${reszek.month}-${reszek.day}`;
 };
 
-/** Az utolsó `db` nap kulcsa, a legrégebbivel kezdve (a mai nappal zárva). */
+// az utolsó db nap ('ÉÉÉÉ-HH-NN'), a legrégebbivel kezdve, a mai nap az utolsó
 const utolsoNapok = (db, most = new Date()) => {
     const [ev, ho, nap] = budapestiNap(most).split('-').map(Number);
     const napok = [];
@@ -71,7 +69,7 @@ const utolsoNapok = (db, most = new Date()) => {
     return napok;
 };
 
-/** Az utolsó `db` hónap kulcsa ('ÉÉÉÉ-HH'), a folyó hónappal zárva. */
+// az utolsó db hónap ('ÉÉÉÉ-HH'), az aktuális hónap az utolsó
 const utolsoHonapok = (db, most = new Date()) => {
     const [ev, ho] = budapestiNap(most).split('-').map(Number);
     const honapok = [];
@@ -81,7 +79,7 @@ const utolsoHonapok = (db, most = new Date()) => {
     return honapok;
 };
 
-/** Idősor a megadott kulcsokra: [{ _id, ... }] listából; a hiányzó kulcsok minden mezője 0. */
+// idősor a diagramhoz: minden napra/hónapra kell egy sor, ahol nincs adat, ott 0
 const idosorKitoltese = (kulcsok, lista, mezok) => kulcsok.map((kulcs) => {
     const talalat = lista.find((elem) => elem._id === kulcs);
     const sor = { kulcs };
@@ -91,7 +89,7 @@ const idosorKitoltese = (kulcsok, lista, mezok) => kulcsok.map((kulcs) => {
     return sor;
 });
 
-/** Százalékos változás az előző időszakhoz képest; null, ha nincs mihez viszonyítani. */
+// hány százalékkal változott az előző időszakhoz képest (null, ha az előző 0 volt)
 const valtozas = (jelenlegi, elozo) => {
     if (elozo === null || elozo === undefined || elozo === 0) {
         return null;
@@ -99,7 +97,7 @@ const valtozas = (jelenlegi, elozo) => {
     return Math.round(((jelenlegi - elozo) / elozo) * 1000) / 10;
 };
 
-/** Csökkenő sorrend; ha több kategória van, mint `max`, a végük „Egyéb” néven összevonva. */
+// nagyság szerint csökkenő sorrend, ha túl sok van, a végük "Egyéb" lesz
 const kategoriakOsszevonasa = (lista, max = MAX_KATEGORIA) => {
     const rendezett = lista
         .map((elem) => ({ nev: elem._id || 'Nincs megadva', db: elem.db }))
@@ -114,7 +112,7 @@ const kategoriakOsszevonasa = (lista, max = MAX_KATEGORIA) => {
     return [...rendezett.slice(0, max - 1), { nev: 'Egyéb', db: egyeb }];
 };
 
-/** Az ársávok listája [{ _id: alsó határ, db }] darabszámokból, az üres sávokat 0-val. */
+// az összes ársáv a darabszámmal (ahol nincs autó, ott 0)
 const arSavokKitoltese = (lista) => AR_SAVOK.map(([tol, nev]) => {
     const talalat = lista.find((elem) => elem._id === tol);
     return { nev, tol, db: talalat ? talalat.db : 0 };
@@ -136,7 +134,7 @@ const osszeg = (lista, ertekFv) => {
     return osszesen;
 };
 
-/** Átlag; a null/undefined értékeket kihagyja. Üres listánál null. */
+// átlag (a null értékeket kihagyja), üres listánál null
 const atlag = (lista, ertekFv) => {
     const ertekek = lista.map(ertekFv).filter((ertek) => ertek !== null && ertek !== undefined);
     if (ertekek.length === 0) {
@@ -145,7 +143,7 @@ const atlag = (lista, ertekFv) => {
     return osszeg(ertekek, (ertek) => ertek) / ertekek.length;
 };
 
-/** Darabszám kulcsonként: { kulcs: db }. */
+// megszámolja, melyik értékből mennyi van: { ertek: db }
 const szamolas = (lista, kulcsFv) => {
     const darabok = {};
     for (const elem of lista) {
@@ -157,7 +155,7 @@ const szamolas = (lista, kulcsFv) => {
 
 const datumE = (ertek) => ertek instanceof Date && !Number.isNaN(ertek.getTime());
 
-/** Két dátum között eltelt napok (legalább 0); ha bármelyik hiányzik, null. */
+// két dátum között eltelt napok száma (null, ha valamelyik hiányzik)
 const eltelNapok = (kesobbi, korabbi) => {
     if (!datumE(kesobbi) || !datumE(korabbi)) {
         return null;
@@ -165,7 +163,7 @@ const eltelNapok = (kesobbi, korabbi) => {
     return Math.max(0, (kesobbi - korabbi) / NAP_MS);
 };
 
-/** Benne van-e a dátum a [tol, ig) időszakban (ig nélkül: tol-tól máig). */
+// a dátum a tol és ig között van-e (ha nincs ig, akkor tol-tól máig)
 const idoszakban = (datum, tol, ig = null) => {
     if (!datumE(datum)) {
         return false;
@@ -175,16 +173,14 @@ const idoszakban = (datum, tol, ig = null) => {
 
 // ---------- Részszámítások ----------
 
-/**
- * Az eladott autók egyszerűsített listája. Régi, eladási dátum/ár nélküli rekordnál
- * az utolsó módosítás dátuma és a vételár a becslés.
- */
+// Az eladott autók listája dátummal és árral.
+// Régi autóknál, ahol nincs eladási dátum / ár, az utolsó módosítást és a vételárat vesszük.
 const eladasokListaja = (autok) => autok
     .filter((auto) => auto.statusz === 'elkelt')
     .map((auto) => ({
         auto,
         datum: auto.eladas_datum || auto.updatedAt || null,
-        ar: auto.eladasi_ar ?? auto.vetel_ar,
+        ar: auto.eladasi_ar !== null && auto.eladasi_ar !== undefined ? auto.eladasi_ar : auto.vetel_ar,
     }));
 
 const bevetelSzamitas = (eladasok, { tol, elozoTol }) => {
@@ -226,16 +222,34 @@ const haviBevetel = (eladasok, most) => {
     return idosorKitoltese(utolsoHonapok(HAVI_HONAPOK, most), Object.values(honaponkent), ['bevetel', 'db']);
 };
 
-const legutobbEladottak = (eladasok) => [...eladasok]
-    // Legújabb elöl; dátum nélküli eladás a lista végére.
-    .sort((a, b) => (b.datum ? b.datum.getTime() : -Infinity) - (a.datum ? a.datum.getTime() : -Infinity)
-        || String(b.auto._id).localeCompare(String(a.auto._id)))
-    .slice(0, 6)
-    .map((e) => ({
-        ...autoValasz(e.auto, { admin: true, penzugy: true }),
-        eladas_datum: e.datum,
-        eladasi_ar: e.ar,
-    }));
+// a 6 legutóbb eladott autó
+const legutobbEladottak = (eladasok) => {
+    const rendezett = [...eladasok];
+    rendezett.sort((a, b) => {
+        // a legújabb elöl, a dátum nélküliek a végére
+        let aIdo = -Infinity;
+        let bIdo = -Infinity;
+        if (a.datum) {
+            aIdo = a.datum.getTime();
+        }
+        if (b.datum) {
+            bIdo = b.datum.getTime();
+        }
+        if (aIdo !== bIdo) {
+            return bIdo - aIdo;
+        }
+        return String(b.auto._id).localeCompare(String(a.auto._id));
+    });
+
+    const lista = [];
+    for (const eladas of rendezett.slice(0, 6)) {
+        const adat = autoValasz(eladas.auto, { admin: true, penzugy: true });
+        adat.eladas_datum = eladas.datum;
+        adat.eladasi_ar = eladas.ar;
+        lista.push(adat);
+    }
+    return lista;
+};
 
 const arSav = (ar) => {
     let sav = AR_SAVOK[0][0];
@@ -250,8 +264,32 @@ const keszletSzamitas = (autok, most) => {
     const regiHatar = new Date(most.getTime() - REGI_KESZLET_NAP * NAP_MS);
     const statuszok = szamolas(autok, (auto) => auto.statusz);
 
-    const darabLista = (kulcsFv) => Object.entries(szamolas(keszlet, kulcsFv)).map(([kulcs, db]) => ({ _id: kulcs === 'undefined' ? null : kulcs, db }));
-    const arSavDarabok = szamolas(keszlet, (auto) => arSav(auto.vetel_ar));
+    // egy mező értékei darabszámmal, pl. [{ _id: 'Benzin', db: 5 }]
+    const darabLista = (mezo) => {
+        const lista = [];
+        for (const auto of keszlet) {
+            const ertek = auto[mezo] || null;
+            const elem = lista.find((sor) => sor._id === ertek);
+            if (elem) {
+                elem.db++;
+            } else {
+                lista.push({ _id: ertek, db: 1 });
+            }
+        }
+        return lista;
+    };
+
+    // ársávonként hány autó van
+    const arSavLista = [];
+    for (const auto of keszlet) {
+        const sav = arSav(auto.vetel_ar);
+        const elem = arSavLista.find((sor) => sor._id === sav);
+        if (elem) {
+            elem.db++;
+        } else {
+            arSavLista.push({ _id: sav, db: 1 });
+        }
+    }
 
     return {
         db: keszlet.length,
@@ -264,13 +302,13 @@ const keszletSzamitas = (autok, most) => {
         rejtett: keszlet.filter((auto) => auto.lathato === false).length,
         lejart: keszlet.filter((auto) => datumE(auto.lejarat) && auto.lejarat <= most).length,
         kiemelt: keszlet.filter((auto) => auto.kiemelt).length,
-        uzemanyag: kategoriakOsszevonasa(darabLista((auto) => auto.uzemanyag)),
-        kivitel: kategoriakOsszevonasa(darabLista((auto) => auto.kivitel)),
-        arSavok: arSavokKitoltese(Object.entries(arSavDarabok).map(([tol, db]) => ({ _id: Number(tol), db }))),
+        uzemanyag: kategoriakOsszevonasa(darabLista('uzemanyag')),
+        kivitel: kategoriakOsszevonasa(darabLista('kivitel')),
+        arSavok: arSavokKitoltese(arSavLista),
     };
 };
 
-/** Márkánként: készlet (most) és eladás/bevétel (az időszakban), a legnagyobb bevétel elöl. */
+// márkánként: hány autó van készleten és mennyit adtak el az időszakban
 const markakSzamitas = (autok, idoszakiEladasok) => {
     const markak = {};
     const marka = (nev) => {
@@ -291,7 +329,7 @@ const markakSzamitas = (autok, idoszakiEladasok) => {
         .slice(0, MAX_MARKA);
 };
 
-/** Telephelyenként ugyanez; a telephely nélküli autók külön sorban. */
+// telephelyenként ugyanez, a telephely nélküli autók külön sorban
 const telephelyekSzamitas = (telephelyek, autok, idoszakiEladasok) => {
     const sorok = {};
     for (const telephely of telephelyek) {
@@ -335,7 +373,7 @@ const erdeklodesSzamitas = (erdeklodesek, { tol, elozoTol }, most) => {
     };
 };
 
-/** Webshop: rendelések és bevétel (lemondott nélkül), teendők, készletjelzés, legkelendőbb termékek. */
+// webshop: rendelések, bevétel (a lemondottak nélkül), teendők, fogyó készlet, legjobban fogyó termékek
 const webshopSzamitas = (rendelesek, alkatreszek, { tol, elozoTol }) => {
     const ervenyes = rendelesek.filter((r) => r.statusz !== 'lemondva');
     const idoszakiRendelesek = tol ? ervenyes.filter((r) => idoszakban(r.createdAt, tol)) : ervenyes;
@@ -378,10 +416,8 @@ const webshopSzamitas = (rendelesek, alkatreszek, { tol, elozoTol }) => {
     };
 };
 
-/**
- * Pénzügyi jog nélkül (értékesítő) a bevételi adatok ki sem kerülnek a válaszból:
- * a bevétel-blokk, a havi idősor, és minden ár/bevétel mező a listákban.
- */
+// Az értékesítő (pénzügyi jog nélkül) nem láthatja a bevételt,
+// ezért ezeket kivesszük a válaszból.
 const penzugyNelkul = (adat) => {
     const bevetelNelkul = (elem) => {
         const masolat = { ...elem };
@@ -418,10 +454,8 @@ const penzugyNelkul = (adat) => {
 
 // ---------- A teljes dashboard ----------
 
-/**
- * A dashboard összes adata.
- * @param {{ idoszak?: string, most?: Date, penzugy?: boolean }} opciok
- */
+// A dashboard összes adata.
+// idoszak: '30', '90', '365' vagy 'osszes'; penzugy: látszódjon-e a bevétel
 const dashboardAdatok = async ({ idoszak: nyersIdoszak, most = new Date(), penzugy = false } = {}) => {
     const idoszak = idoszakFeldolgozasa(nyersIdoszak, most);
 

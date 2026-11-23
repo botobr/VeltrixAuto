@@ -11,10 +11,10 @@ adatbazisKapcsolodas()
         console.log('Sikeres adatbázis csatlakozás!');
 
         app.listen(PORT, () => {
-            console.log(`http://localhost:${PORT}/api`);
+            console.log('http://localhost:' + PORT + '/api');
         });
     })
     .catch((error) => {
-        console.error(`Hiba: ${error.message}`);
+        console.error('Hiba: ' + error.message);
         process.exit(1);
     });

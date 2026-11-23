@@ -5,6 +5,9 @@ import { useSeo } from '../lib/useSeo';
 import { JelszoMezo } from './Belepes';
 import './Belepes.css';
 
+// Két oldal egyben:
+// - token nélkül: elfelejtett jelszó (e-mail cím megadása)
+// - tokennel (az e-mailben kapott linkről): új jelszó beállítása
 const JelszoVisszaallitas = () => {
     const [params] = useSearchParams();
     const token = params.get('token');
@@ -18,9 +21,12 @@ const JelszoVisszaallitas = () => {
         event.preventDefault();
         setAllapot({ tipus: 'folyamat', szoveg: '' });
         try {
-            const data = token
-                ? await apiKeres('/auth/jelszo-visszaallitas', { method: 'POST', body: { token, jelszo } }, 'A jelszó frissítése nem sikerült.')
-                : await apiKeres('/auth/elfelejtett-jelszo', { method: 'POST', body: { email } });
+            let data;
+            if (token) {
+                data = await apiKeres('/auth/jelszo-visszaallitas', { method: 'POST', body: { token: token, jelszo: jelszo } }, 'A jelszó frissítése nem sikerült.');
+            } else {
+                data = await apiKeres('/auth/elfelejtett-jelszo', { method: 'POST', body: { email: email } });
+            }
             setAllapot({ tipus: 'siker', szoveg: data.uzenet });
         } catch (error) {
             setAllapot({ tipus: 'hiba', szoveg: error.message });

@@ -7,6 +7,7 @@ import './HitelKalkulator.css';
 
 const FUTAMIDOK = [12, 24, 36, 48, 60, 72, 84, 96];
 
+// hitelkalkulátor (az autó adatlapján és a szolgáltatások oldalon)
 const HitelKalkulator = ({ ar: kezdoAr, szerkesztheto = false }) => {
     const id = useId();
     const [ar, setAr] = useState(kezdoAr || 10000000);
@@ -15,9 +16,20 @@ const HitelKalkulator = ({ ar: kezdoAr, szerkesztheto = false }) => {
     const [thm, setThm] = useState(CEG.thm);
 
     const onresz = Math.round(ar * onreszSzazalek / 100);
-    const hitelosszeg = Math.max(ar - onresz, 0);
+    let hitelosszeg = ar - onresz;
+    if (hitelosszeg < 0) {
+        hitelosszeg = 0;
+    }
     const reszlet = haviReszlet(hitelosszeg, futamido, Number(thm) || 0);
     const osszesen = reszlet * futamido;
+
+    const arValtozas = (event) => {
+        let ujAr = Number(event.target.value) || 0;
+        if (ujAr < 0) {
+            ujAr = 0;
+        }
+        setAr(ujAr);
+    };
 
     return (
         <div className="hitel uveg">
@@ -32,7 +44,7 @@ const HitelKalkulator = ({ ar: kezdoAr, szerkesztheto = false }) => {
                             min={100000}
                             step={100000}
                             value={ar}
-                            onChange={(event) => setAr(Math.max(Number(event.target.value) || 0, 0))}
+                            onChange={arValtozas}
                         />
                     </label>
                 )}
@@ -58,7 +70,7 @@ const HitelKalkulator = ({ ar: kezdoAr, szerkesztheto = false }) => {
                                 type="button"
                                 role="radio"
                                 aria-checked={futamido === honap}
-                                className={`csip ${futamido === honap ? 'aktiv' : ''}`}
+                                className={futamido === honap ? 'csip aktiv' : 'csip'}
                                 onClick={() => setFutamido(honap)}
                             >
                                 {honap} hó

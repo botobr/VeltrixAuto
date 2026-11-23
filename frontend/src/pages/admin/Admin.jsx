@@ -11,23 +11,42 @@ import AdminRendelesek from './AdminRendelesek';
 import AdminTelephelyek from './AdminTelephelyek';
 import './Admin.css';
 
-/** [kulcs, felirat, ikon, komponens, szükséges jog] – a fül csak a joggal rendelkezőknek látszik. */
+// az admin felület fülei (egy fül csak akkor látszik, ha megvan hozzá a jog)
 const LAPOK = [
-    ['attekintes', 'Dashboard', 'osszehasonlit', AdminDashboard, 'kezelofelulet'],
-    ['hirdetesek', 'Hirdetések', 'auto', AdminHirdetesek, 'kezelofelulet'],
-    ['rendelesek', 'Rendelések', 'kosar', AdminRendelesek, 'rendelesKezeles'],
-    ['alkatreszek', 'Alkatrészek', 'csomag', AdminAlkatreszek, 'alkatreszSzerkesztes'],
-    ['erdeklodesek', 'Érdeklődések', 'level', AdminErdeklodesek, 'erdeklodesKezeles'],
-    ['telephelyek', 'Telephelyek', 'terkep', AdminTelephelyek, 'telephelyKezeles'],
-    ['felhasznalok', 'Felhasználók', 'felhasznalo', AdminFelhasznalok, 'felhasznaloKezeles'],
+    { kulcs: 'attekintes', felirat: 'Dashboard', ikon: 'osszehasonlit', komponens: AdminDashboard, jog: 'kezelofelulet' },
+    { kulcs: 'hirdetesek', felirat: 'Hirdetések', ikon: 'auto', komponens: AdminHirdetesek, jog: 'kezelofelulet' },
+    { kulcs: 'rendelesek', felirat: 'Rendelések', ikon: 'kosar', komponens: AdminRendelesek, jog: 'rendelesKezeles' },
+    { kulcs: 'alkatreszek', felirat: 'Alkatrészek', ikon: 'csomag', komponens: AdminAlkatreszek, jog: 'alkatreszSzerkesztes' },
+    { kulcs: 'erdeklodesek', felirat: 'Érdeklődések', ikon: 'level', komponens: AdminErdeklodesek, jog: 'erdeklodesKezeles' },
+    { kulcs: 'telephelyek', felirat: 'Telephelyek', ikon: 'terkep', komponens: AdminTelephelyek, jog: 'telephelyKezeles' },
+    { kulcs: 'felhasznalok', felirat: 'Felhasználók', ikon: 'felhasznalo', komponens: AdminFelhasznalok, jog: 'felhasznaloKezeles' },
 ];
 
+// az admin felület (fülekkel)
 const Admin = () => {
     const [params, setParams] = useSearchParams();
     const { jog, admin } = useFelhasznalo();
-    const lapok = LAPOK.filter(([, , , , szuksegesJog]) => jog(szuksegesJog));
-    const aktiv = lapok.find(([kulcs]) => kulcs === params.get('lap')) || lapok[0];
-    const [kulcs, , , Tartalom] = aktiv;
+
+    // csak azok a fülek, amikhez van joga
+    const lapok = LAPOK.filter((lap) => jog(lap.jog));
+
+    // a megnyitott fül az URL-ből (?lap=...), ha nincs, az első
+    let aktiv = lapok[0];
+    for (const lap of lapok) {
+        if (lap.kulcs === params.get('lap')) {
+            aktiv = lap;
+        }
+    }
+    const kulcs = aktiv.kulcs;
+    const Tartalom = aktiv.komponens;
+
+    const fulValtas = (lapKulcs) => {
+        if (lapKulcs === 'attekintes') {
+            setParams({});
+        } else {
+            setParams({ lap: lapKulcs });
+        }
+    };
 
     useSeo({ cim: 'Admin', noindex: true });
 
@@ -42,16 +61,16 @@ const Admin = () => {
             </header>
 
             <div className="fulek" role="tablist" aria-label="Admin menü">
-                {lapok.map(([lapKulcs, cimke, ikon]) => (
+                {lapok.map((lap) => (
                     <button
-                        key={lapKulcs}
+                        key={lap.kulcs}
                         type="button"
                         role="tab"
-                        aria-selected={kulcs === lapKulcs}
-                        className={`ful ${kulcs === lapKulcs ? 'aktiv' : ''}`}
-                        onClick={() => setParams(lapKulcs === 'attekintes' ? {} : { lap: lapKulcs })}
+                        aria-selected={kulcs === lap.kulcs}
+                        className={kulcs === lap.kulcs ? 'ful aktiv' : 'ful'}
+                        onClick={() => fulValtas(lap.kulcs)}
                     >
-                        <Ikon nev={ikon} meret={16} /> {cimke}
+                        <Ikon nev={lap.ikon} meret={16} /> {lap.felirat}
                     </button>
                 ))}
             </div>

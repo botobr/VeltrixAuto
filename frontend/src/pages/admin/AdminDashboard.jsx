@@ -8,11 +8,10 @@ import { olvas, ir } from '../../lib/tarolo';
 import { OszlopDiagram, SavLista, SzegmensSav } from './DashboardDiagramok';
 import './Dashboard.css';
 
-/*
- * Admin dashboard. Minden szám a backendről (/api/admin/dashboard) érkezik
- * készen kiszámolva – itt csak formázás és megjelenítés történik.
- */
+// Admin dashboard. Minden számot a backend számol ki (/api/admin/dashboard),
+// itt csak kiírjuk és kirajzoljuk őket.
 
+// időszakok: [kulcs, gomb felirata, szöveg, mihez viszonyítunk]
 const IDOSZAKOK = [
     ['30', '30 nap', 'utolsó 30 nap', 'az előző 30 naphoz'],
     ['90', '90 nap', 'utolsó 90 nap', 'az előző 90 naphoz'],
@@ -28,23 +27,62 @@ const honapHosszu = new Intl.DateTimeFormat('hu-HU', { year: 'numeric', month: '
 const napFormatum = new Intl.DateTimeFormat('hu-HU', { month: 'short', day: 'numeric' });
 const idoFormatum = new Intl.DateTimeFormat('hu-HU', { hour: '2-digit', minute: '2-digit' });
 
-const ft = (ertek) => `${formatSzam(Math.round(ertek || 0))} Ft`;
-const ftKompakt = (ertek) => (Math.abs(ertek || 0) >= 1e6 ? `${kompakt.format(ertek)} Ft` : ft(ertek));
+const ft = (ertek) => {
+    return formatSzam(Math.round(ertek || 0)) + ' Ft';
+};
+
+// nagy összegek röviden, pl. 12,5 M Ft
+const ftKompakt = (ertek) => {
+    if (Math.abs(ertek || 0) >= 1000000) {
+        return kompakt.format(ertek) + ' Ft';
+    }
+    return ft(ertek);
+};
+
+// 'ÉÉÉÉ-HH' vagy 'ÉÉÉÉ-HH-NN' -> Date
 const helyiDatum = (kulcs) => {
-    const [ev, ho, nap = 1] = kulcs.split('-').map(Number);
+    const reszek = kulcs.split('-');
+    const ev = Number(reszek[0]);
+    const ho = Number(reszek[1]);
+    let nap = 1;
+    if (reszek.length > 2) {
+        nap = Number(reszek[2]);
+    }
     return new Date(ev, ho - 1, nap);
 };
 
+// lista elemeinek összege
+const osszeg = (lista, mezo) => {
+    let osszesen = 0;
+    for (const elem of lista) {
+        osszesen += elem[mezo];
+    }
+    return osszesen;
+};
+
+// változás az előző időszakhoz képest (zöld nyíl fel / piros nyíl le)
 const Valtozas = ({ ertek, viszonyitas }) => {
-    if (!viszonyitas) return null;
+    if (!viszonyitas) {
+        return null;
+    }
     if (ertek === null || ertek === undefined) {
         return <span className="db-valtozas">Az előző időszakban nem volt adat, nincs mihez viszonyítani</span>;
     }
-    const irany = ertek > 0 ? 'fel' : ertek < 0 ? 'le' : 'semleges';
+
+    let irany = 'semleges';
+    let elojel = '';
+    if (ertek > 0) {
+        irany = 'fel';
+        elojel = '+';
+    } else if (ertek < 0) {
+        irany = 'le';
+        elojel = '−';
+    }
+
     return (
-        <span className={`db-valtozas db-valtozas-${irany}`}>
+        <span className={'db-valtozas db-valtozas-' + irany}>
             {irany !== 'semleges' && <Ikon nev={irany} meret={14} />}
-            {ertek > 0 ? '+' : ertek < 0 ? '−' : ''}{formatTizedes(Math.abs(ertek))}% {viszonyitas} képest
+            {elojel}{formatTizedes(Math.abs(ertek))}% {viszonyitas} képest
         </span>
     );
 };
@@ -123,7 +161,17 @@ const EladasKartya = ({ eladasok, idoszakSzoveg, elozoSzoveg }) => (
 /** Webshop: rendelések, bevétel (csak pénzügyi joggal érkezik), teendők, készletjelzés, toplista. */
 const WebshopBlokk = ({ webshop: w, idoszakSzoveg, elozoSzoveg, jog }) => {
     const penzugy = w.bevetel !== undefined;
-    const link = (lap) => (jog(lap === 'rendelesek' ? 'rendelesKezeles' : 'alkatreszSzerkesztes') ? `/admin?lap=${lap}` : undefined);
+    // csak akkor legyen link, ha van joga megnyitni azt a fület
+    const link = (lap) => {
+        let szuksegesJog = 'alkatreszSzerkesztes';
+        if (lap === 'rendelesek') {
+            szuksegesJog = 'rendelesKezeles';
+        }
+        if (jog(szuksegesJog)) {
+            return '/admin?lap=' + lap;
+        }
+        return undefined;
+    };
     return (
         <section className="db-webshop" aria-labelledby="db-webshop-cim">
             <h2 id="db-webshop-cim" className="db-szekcio-cim"><Ikon nev="kosar" meret={17} /> Webshop · {idoszakSzoveg}</h2>
@@ -182,10 +230,10 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
             db: honap.db,
             tengely: honapRovid.format(datum),
             honap: honapHosszu.format(datum),
-            tipp: { ertek: ft(honap.bevetel), reszlet: `${formatSzam(honap.db)} eladott autó`, datum: honapHosszu.format(datum) },
+            tipp: { ertek: ft(honap.bevetel), reszlet: formatSzam(honap.db) + ' eladott autó', datum: honapHosszu.format(datum) },
         };
     });
-    const haviOsszes = haviSor.reduce((osszeg, honap) => osszeg + honap.ertek, 0);
+    const haviOsszes = osszeg(haviSor, 'ertek');
 
     const napiSor = erdeklodesek.napi.map((nap) => {
         const datum = helyiDatum(nap.kulcs);
@@ -194,10 +242,10 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
             ertek: nap.db,
             tengely: napFormatum.format(datum),
             datum,
-            tipp: { ertek: `${nap.db} érdeklődés`, datum: napFormatum.format(datum) },
+            tipp: { ertek: nap.db + ' érdeklődés', datum: napFormatum.format(datum) },
         };
     });
-    const napiOsszes = napiSor.reduce((osszeg, nap) => osszeg + nap.ertek, 0);
+    const napiOsszes = osszeg(napiSor, 'ertek');
 
     const napiDiagram = (
         <OszlopDiagram
@@ -408,22 +456,33 @@ const Dashboard = ({ adat, idoszakSzoveg, elozoSzoveg, jog }) => {
     );
 };
 
+// a dashboard fül (időszak választás, betöltés)
 const AdminDashboard = () => {
     const { jog } = useFelhasznalo();
+    // az utoljára választott időszakot megjegyezzük
     const [idoszak, setIdoszak] = useState(() => {
         const mentett = olvas(TAROLO_KULCS, '30');
-        return IDOSZAKOK.some(([kulcs]) => kulcs === mentett) ? mentett : '30';
+        for (const sor of IDOSZAKOK) {
+            if (sor[0] === mentett) {
+                return mentett;
+            }
+        }
+        return '30';
     });
     const [frissites, setFrissites] = useState(0);
     const [eredmeny, setEredmeny] = useState({ kulcs: null, adat: null, hiba: '' });
-    const kulcs = `${idoszak}:${frissites}`;
+    const kulcs = idoszak + ':' + frissites;
 
     useEffect(() => {
         const vezerlo = new AbortController();
-        apiKeres(`/admin/dashboard?idoszak=${idoszak}`, { signal: vezerlo.signal }, 'A dashboard betöltése nem sikerült.')
-            .then((adat) => setEredmeny({ kulcs, adat, hiba: '' }))
+        apiKeres('/admin/dashboard?idoszak=' + idoszak, { signal: vezerlo.signal }, 'A dashboard betöltése nem sikerült.')
+            .then((adat) => {
+                setEredmeny({ kulcs: kulcs, adat: adat, hiba: '' });
+            })
             .catch((error) => {
-                if (error.name !== 'AbortError') setEredmeny((elozo) => ({ ...elozo, kulcs, hiba: error.message }));
+                if (error.name !== 'AbortError') {
+                    setEredmeny((elozo) => ({ ...elozo, kulcs: kulcs, hiba: error.message }));
+                }
             });
         return () => vezerlo.abort();
     }, [idoszak, kulcs]);
@@ -433,23 +492,28 @@ const AdminDashboard = () => {
         ir(TAROLO_KULCS, uj);
     };
 
-    const [, , idoszakSzoveg, elozoSzoveg] = IDOSZAKOK.find(([k]) => k === idoszak);
+    // a kiválasztott időszak szövegei
+    const valasztott = IDOSZAKOK.find((sor) => sor[0] === idoszak);
+    const idoszakSzoveg = valasztott[2];
+    const elozoSzoveg = valasztott[3];
+
     const betolt = eredmeny.kulcs !== kulcs;
-    const { adat, hiba } = eredmeny;
+    const adat = eredmeny.adat;
+    const hiba = eredmeny.hiba;
 
     return (
         <div className="dashboard" aria-busy={betolt}>
             <div className="db-eszkoztar">
                 <div className="db-idoszak" role="group" aria-label="Időszak">
                     {IDOSZAKOK.map(([ertek, felirat]) => (
-                        <button key={ertek} type="button" className={`csip ${idoszak === ertek ? 'aktiv' : ''}`} aria-pressed={idoszak === ertek} onClick={() => valaszt(ertek)}>
+                        <button key={ertek} type="button" className={idoszak === ertek ? 'csip aktiv' : 'csip'} aria-pressed={idoszak === ertek} onClick={() => valaszt(ertek)}>
                             {felirat}
                         </button>
                     ))}
                 </div>
                 <div className="db-frissites">
                     {adat && <span>Frissítve {idoFormatum.format(new Date(adat.generalva))}</span>}
-                    <button className="szoveg-gomb" type="button" onClick={() => setFrissites((n) => n + 1)} disabled={betolt}>
+                    <button className="szoveg-gomb" type="button" onClick={() => setFrissites((szam) => szam + 1)} disabled={betolt}>
                         {betolt && adat ? 'Frissítés…' : 'Frissítés'}
                     </button>
                 </div>
@@ -457,10 +521,10 @@ const AdminDashboard = () => {
 
             {hiba && <p className="uzenet uzenet-hiba" role="alert">{hiba}</p>}
 
-            {!adat ? (
-                !hiba && <div className="betoltes"><span className="porgo" aria-hidden="true" />Dashboard betöltése…</div>
-            ) : (
-                <div className={`db-tartalom ${betolt ? 'db-tolt' : ''}`}>
+            {!adat && !hiba && <div className="betoltes"><span className="porgo" aria-hidden="true" />Dashboard betöltése…</div>}
+
+            {adat && (
+                <div className={betolt ? 'db-tartalom db-tolt' : 'db-tartalom'}>
                     <Dashboard adat={adat} idoszakSzoveg={idoszakSzoveg} elozoSzoveg={elozoSzoveg} jog={jog} />
                 </div>
             )}

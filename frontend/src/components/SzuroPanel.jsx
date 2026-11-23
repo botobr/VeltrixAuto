@@ -6,20 +6,41 @@ import './SzuroPanel.css';
 
 const aktualisEv = new Date().getFullYear();
 
-/** Szám-intervallum: gépelés közben nem frissít, csak Enterre vagy a mező elhagyásakor. */
+// Tól-ig mezők (pl. ár). Gépelés közben még nem szűr, csak Enterre vagy ha kilép a mezőből.
 const Tartomany = ({ cim, tolKulcs, igKulcs, szurok, onValtozas, egyseg, lepes = 1, placeholderTol = 'min.', placeholderIg = 'max.' }) => {
+    // a még be nem írt (gépelés alatti) értékek
     const [vazlat, setVazlat] = useState({});
-    const ertek = (kulcs) => vazlat[kulcs] ?? szurok[kulcs] ?? '';
+
+    const ertek = (kulcs) => {
+        if (vazlat[kulcs] !== undefined) {
+            return vazlat[kulcs];
+        }
+        if (szurok[kulcs] !== undefined) {
+            return szurok[kulcs];
+        }
+        return '';
+    };
 
     const veglegesit = (kulcs) => {
-        if (vazlat[kulcs] === undefined) return;
+        if (vazlat[kulcs] === undefined) {
+            return;
+        }
+        // a szóközöket kivesszük (pl. "1 000 000")
         const tiszta = String(vazlat[kulcs]).replace(/\s/g, '');
         setVazlat((elozo) => {
             const uj = { ...elozo };
             delete uj[kulcs];
             return uj;
         });
-        if ((szurok[kulcs] || '') !== tiszta) onValtozas({ [kulcs]: tiszta || null });
+        if ((szurok[kulcs] || '') !== tiszta) {
+            onValtozas({ [kulcs]: tiszta || null });
+        }
+    };
+
+    const enterre = (event, kulcs) => {
+        if (event.key === 'Enter') {
+            veglegesit(kulcs);
+        }
     };
 
     const mezo = (kulcs, placeholder, cimke) => (
@@ -34,7 +55,7 @@ const Tartomany = ({ cim, tolKulcs, igKulcs, szurok, onValtozas, egyseg, lepes =
             value={ertek(kulcs)}
             onChange={(event) => setVazlat((elozo) => ({ ...elozo, [kulcs]: event.target.value }))}
             onBlur={() => veglegesit(kulcs)}
-            onKeyDown={(event) => { if (event.key === 'Enter') veglegesit(kulcs); }}
+            onKeyDown={(event) => enterre(event, kulcs)}
         />
     );
 
@@ -42,19 +63,30 @@ const Tartomany = ({ cim, tolKulcs, igKulcs, szurok, onValtozas, egyseg, lepes =
         <fieldset className="szuro-csoport">
             <legend>{cim}{egyseg && <small> ({egyseg})</small>}</legend>
             <div className="szuro-tartomany">
-                {mezo(tolKulcs, placeholderTol, `${cim} minimum`)}
+                {mezo(tolKulcs, placeholderTol, cim + ' minimum')}
                 <span aria-hidden="true">–</span>
-                {mezo(igKulcs, placeholderIg, `${cim} maximum`)}
+                {mezo(igKulcs, placeholderIg, cim + ' maximum')}
             </div>
         </fieldset>
     );
 };
 
+// több választható gomb (pl. üzemanyag: Benzin, Dízel, ...)
 const Csipek = ({ cim, kulcs, ertekek, szurok, onValtozas }) => {
     const kivalasztott = lista(szurok[kulcs]);
+
     const valtas = (ertek) => {
-        const uj = kivalasztott.includes(ertek) ? kivalasztott.filter((elem) => elem !== ertek) : [...kivalasztott, ertek];
-        onValtozas({ [kulcs]: uj.length ? uj.join(',') : null });
+        let uj;
+        if (kivalasztott.includes(ertek)) {
+            uj = kivalasztott.filter((elem) => elem !== ertek);
+        } else {
+            uj = [...kivalasztott, ertek];
+        }
+        if (uj.length > 0) {
+            onValtozas({ [kulcs]: uj.join(',') });
+        } else {
+            onValtozas({ [kulcs]: null });
+        }
     };
     return (
         <fieldset className="szuro-csoport">
@@ -64,7 +96,7 @@ const Csipek = ({ cim, kulcs, ertekek, szurok, onValtozas }) => {
                     <button
                         key={ertek}
                         type="button"
-                        className={`csip ${kivalasztott.includes(ertek) ? 'aktiv' : ''}`}
+                        className={kivalasztott.includes(ertek) ? 'csip aktiv' : 'csip'}
                         aria-pressed={kivalasztott.includes(ertek)}
                         onClick={() => valtas(ertek)}
                     >
@@ -76,27 +108,66 @@ const Csipek = ({ cim, kulcs, ertekek, szurok, onValtozas }) => {
     );
 };
 
+// be/ki kapcsoló (pl. csak garanciális autók)
 const Kapcsolo = ({ cimke, kulcs, szurok, onValtozas, ikon }) => (
     <label className="szuro-kapcsolo">
         <input
             type="checkbox"
             checked={szurok[kulcs] === '1'}
-            onChange={(event) => onValtozas({ [kulcs]: event.target.checked ? '1' : null })}
+            onChange={(event) => {
+                if (event.target.checked) {
+                    onValtozas({ [kulcs]: '1' });
+                } else {
+                    onValtozas({ [kulcs]: null });
+                }
+            }}
         />
         <span className="kapcsolo" aria-hidden="true" />
         <span>{ikon && <Ikon nev={ikon} meret={15} />} {cimke}</span>
     </label>
 );
 
+// a szűrő panel az autók oldalán
 const SzuroPanel = ({ szurok, adatok, onValtozas, onTorles, aktivSzam, nyitva, onBezaras }) => {
-    const markak = adatok?.markak || [];
-    const modellek = markak.find((m) => m.marka.toLowerCase() === (szurok.marka || '').toLowerCase())?.modellek || [];
-    const megyek = adatok?.megyek?.length ? adatok.megyek : MEGYEK;
-    const minEv = Math.min(adatok?.tartomanyok?.minEv || 1990, aktualisEv - 30);
-    const evek = Array.from({ length: aktualisEv + 1 - minEv + 1 }, (_, i) => aktualisEv + 1 - i);
+    let markak = [];
+    let megyek = MEGYEK;
+    let telephelyek = [];
+    let legregebbiEv = 1990;
+    if (adatok) {
+        markak = adatok.markak || [];
+        if (adatok.megyek && adatok.megyek.length > 0) {
+            megyek = adatok.megyek;
+        }
+        telephelyek = adatok.telephelyek || [];
+        if (adatok.tartomanyok && adatok.tartomanyok.minEv) {
+            legregebbiEv = adatok.tartomanyok.minEv;
+        }
+    }
+
+    // a kiválasztott márka modelljei
+    let modellek = [];
+    const valasztottMarka = (szurok.marka || '').toLowerCase();
+    for (const marka of markak) {
+        if (marka.marka.toLowerCase() === valasztottMarka) {
+            modellek = marka.modellek;
+        }
+    }
+
+    // évjáratok a listához: jövő évtől visszafelé (legalább 30 év)
+    const minEv = Math.min(legregebbiEv, aktualisEv - 30);
+    const evek = [];
+    for (let ev = aktualisEv + 1; ev >= minEv; ev--) {
+        evek.push(ev);
+    }
+
+    // a megyében lévő telephelyek
+    let megyeTelephelyei = telephelyek;
+    if (szurok.megye) {
+        megyeTelephelyei = telephelyek.filter((telephely) => telephely.megye === szurok.megye);
+    }
 
     return (
-        <aside className={`szuro-panel uveg ${nyitva ? 'szuro-panel-nyitva' : ''}`} aria-label="Szűrők">
+        <aside className={nyitva ? 'szuro-panel uveg szuro-panel-nyitva' : 'szuro-panel uveg'} aria-label="Szűrők">
             <div className="szuro-fejlec">
                 <h2><Ikon nev="szuro" /> Szűrők {aktivSzam > 0 && <span className="szuro-szam">{aktivSzam}</span>}</h2>
                 {aktivSzam > 0 && <button className="szoveg-gomb" type="button" onClick={onTorles}>Összes törlése</button>}
@@ -163,12 +234,12 @@ const SzuroPanel = ({ szurok, adatok, onValtozas, onTorles, aktivSzam, nyitva, o
                     <option value="">Összes megye</option>
                     {megyek.map((megye) => <option key={megye} value={megye}>{megye}</option>)}
                 </select>
-                {adatok?.telephelyek?.length > 1 && (
+                {telephelyek.length > 1 && (
                     <select className="bemenet" aria-label="Telephely" value={szurok.telephely || ''} onChange={(event) => onValtozas({ telephely: event.target.value || null })}>
                         <option value="">Összes telephely</option>
-                        {adatok.telephelyek
-                            .filter((t) => !szurok.megye || t.megye === szurok.megye)
-                            .map((t) => <option key={t._id} value={t._id}>{t.nev} – {t.varos}</option>)}
+                        {megyeTelephelyei.map((telephely) => (
+                            <option key={telephely._id} value={telephely._id}>{telephely.nev} – {telephely.varos}</option>
+                        ))}
                     </select>
                 )}
             </fieldset>

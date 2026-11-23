@@ -1,3 +1,4 @@
+// az ikonok SVG rajzai (path)
 const UTVONALAK = {
     sziv: 'M12 20.5s-7.5-4.4-9.3-9.1C1.4 7.9 3.7 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.4 0 5.7 3.4 4.4 6.9-1.8 4.7-9.3 9.1-9.3 9.1z',
     osszehasonlit: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
@@ -38,9 +39,10 @@ const UTVONALAK = {
     minusz: 'M5 12h14',
 };
 
+// egy ikon, pl. <Ikon nev="kosar" meret={16} />
 const Ikon = ({ nev, meret = 18, kitoltes = false, className = '', ...tobbi }) => (
     <svg
-        className={`ikon ${className}`}
+        className={'ikon ' + className}
         width={meret}
         height={meret}
         viewBox="0 0 24 24"

@@ -4,24 +4,38 @@ import { useFelhasznalo } from '../context/felhasznalo';
 import { apiKeres } from '../lib/api';
 import Ikon from './Ikon';
 
+// érdeklődés küldése egy autóról (az autó adatlapján)
 const ErdeklodesUrlap = ({ auto }) => {
     const id = useId();
     const { felhasznalo } = useFelhasznalo();
-    // A kitöltés kezdete: a túl gyorsan (robot által) beküldött űrlapot a szerver eldobja.
+    // mikor kezdte kitölteni (ha túl gyorsan küldik be, az robot, és a szerver eldobja)
     const [kezdes] = useState(() => Date.now());
-    const [adatok, setAdatok] = useState({
-        nev: felhasznalo?.nev || '',
-        email: felhasznalo?.email || '',
-        telefon: '',
-        uzenet: `Érdeklődnék a(z) ${auto.marka} ${auto.modell} (${auto.evjarat}) iránt. Kérem, vegyék fel velem a kapcsolatot.`,
-        adatkezeles: false,
-        weboldal: '',
+    const [adatok, setAdatok] = useState(() => {
+        let nev = '';
+        let email = '';
+        // ha be van jelentkezve, kitöltjük a nevét és e-mail címét
+        if (felhasznalo) {
+            nev = felhasznalo.nev || '';
+            email = felhasznalo.email || '';
+        }
+        return {
+            nev: nev,
+            email: email,
+            telefon: '',
+            uzenet: 'Érdeklődnék a(z) ' + auto.marka + ' ' + auto.modell + ' (' + auto.evjarat + ') iránt. Kérem, vegyék fel velem a kapcsolatot.',
+            adatkezeles: false,
+            weboldal: '',
+        };
     });
     const [allapot, setAllapot] = useState({ tipus: null, szoveg: '' });
     const [folyamatban, setFolyamatban] = useState(false);
 
+    // egy mező változásakor frissítjük az adatokat
     const beallit = (mezo) => (event) => {
-        const ertek = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        let ertek = event.target.value;
+        if (event.target.type === 'checkbox') {
+            ertek = event.target.checked;
+        }
         setAdatok((elozo) => ({ ...elozo, [mezo]: ertek }));
     };
 
@@ -30,7 +44,8 @@ const ErdeklodesUrlap = ({ auto }) => {
         setFolyamatban(true);
         setAllapot({ tipus: null, szoveg: '' });
         try {
-            const data = await apiKeres('/erdeklodesek', { method: 'POST', body: { ...adatok, auto: auto._id, kezdes } }, 'Az üzenet elküldése nem sikerült.');
+            const torzs = { ...adatok, auto: auto._id, kezdes: kezdes };
+            const data = await apiKeres('/erdeklodesek', { method: 'POST', body: torzs }, 'Az üzenet elküldése nem sikerült.');
             setAllapot({ tipus: 'siker', szoveg: data.uzenet });
         } catch (error) {
             setAllapot({ tipus: 'hiba', szoveg: error.message });
@@ -74,7 +89,7 @@ const ErdeklodesUrlap = ({ auto }) => {
                     value={adatok.uzenet} onChange={beallit('uzenet')} />
             </label>
 
-            {/* Robotcsapda: emberek nem látják, a robotok kitöltik. */}
+            {/* robotcsapda: ember nem látja ezt a mezőt, csak a robotok töltik ki */}
             <div className="robotcsapda" aria-hidden="true">
                 <label htmlFor={`${id}-weboldal`}>Weboldal</label>
                 <input id={`${id}-weboldal`} tabIndex={-1} autoComplete="off" value={adatok.weboldal} onChange={beallit('weboldal')} />

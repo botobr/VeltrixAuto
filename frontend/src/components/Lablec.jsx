@@ -10,12 +10,29 @@ import './Lablec.css';
 const Lablec = () => {
     const [telephely, setTelephely] = useState(null);
 
+    // az első telephely adatait írjuk ki a láblécben
     useEffect(() => {
-        apiKeres('/telephelyek').then((data) => setTelephely(data.telephelyek?.[0] || null)).catch(() => {});
+        apiKeres('/telephelyek')
+            .then((data) => {
+                if (data.telephelyek && data.telephelyek.length > 0) {
+                    setTelephely(data.telephelyek[0]);
+                }
+            })
+            .catch(() => {
+                // ha nem sikerül, a cég alap adatai maradnak
+            });
     }, []);
 
-    const telefon = telephely?.telefon || CEG.telefon;
-    const email = telephely?.email || CEG.email;
+    let telefon = CEG.telefon;
+    let email = CEG.email;
+    if (telephely && telephely.telefon) {
+        telefon = telephely.telefon;
+    }
+    if (telephely && telephely.email) {
+        email = telephely.email;
+    }
+    // a tel: linkbe csak számok és + kellenek
+    const telefonLink = 'tel:' + telefon.replace(/[^\d+]/g, '');
 
     return (
         <footer className="lablec">
@@ -44,8 +61,8 @@ const Lablec = () => {
                 <div className="lablec-kapcsolat">
                     <h2>Kapcsolat</h2>
                     {telephely && <span><Ikon nev="terkep" meret={15} /> {telephely.iranyitoszam} {telephely.varos}, {telephely.cim}</span>}
-                    <a href={`tel:${telefon.replace(/[^\d+]/g, '')}`}><Ikon nev="telefon" meret={15} /> {telefon}</a>
-                    <a href={`mailto:${email}`}><Ikon nev="level" meret={15} /> {email}</a>
+                    <a href={telefonLink}><Ikon nev="telefon" meret={15} /> {telefon}</a>
+                    <a href={'mailto:' + email}><Ikon nev="level" meret={15} /> {email}</a>
                     <Link to="/rolunk#telephelyek"><Ikon nev="ora" meret={15} /> Nyitvatartás</Link>
                 </div>
             </div>
@@ -63,35 +80,51 @@ const Lablec = () => {
 
 const COOKIE_KULCS = 'veltrix-cookie-tudomasul';
 
-/** Tájékoztató sáv: csak működéshez szükséges sütik vannak, ezért elég a tudomásulvétel. */
+// Süti tájékoztató sáv. Csak a működéshez szükséges sütiket használjuk, ezért elég, ha tudomásul veszi.
 export const CookieSav = () => {
     const [lathato, setLathato] = useState(() => !olvas(COOKIE_KULCS, false));
-    if (!lathato) return null;
+
+    const rendben = () => {
+        ir(COOKIE_KULCS, true);
+        setLathato(false);
+    };
+
+    if (!lathato) {
+        return null;
+    }
     return (
         <div className="cookie-sav uveg" role="region" aria-label="Süti-tájékoztató">
             <p>
                 Az oldal csak a működéséhez szükséges sütiket és böngészőtárolót használ (bejelentkezés, kedvencek,
                 összehasonlítás). Követő vagy reklámcélú sütit nem alkalmazunk. <Link to="/cookie">Részletek</Link>
             </p>
-            <button className="gomb gomb-fo gomb-kicsi" type="button" onClick={() => { ir(COOKIE_KULCS, true); setLathato(false); }}>
+            <button className="gomb gomb-fo gomb-kicsi" type="button" onClick={rendben}>
                 Rendben
             </button>
         </div>
     );
 };
 
-/** Lebegő sáv a kiválasztott összehasonlítandó autókkal. */
+// Az oldal alján lévő sáv az összehasonlításra kiválasztott autókkal.
 export const OsszehasonlitasSav = () => {
     const { autok, eltavolitas, urites } = useOsszehasonlitas();
     const lathato = autok.length > 0;
 
-    // Amíg a sáv látszik, az oldal alján hely marad, hogy ne takarjon ki tartalmat.
+    // amíg a sáv látszik, az oldal alján hagyunk helyet, hogy ne takarjon ki semmit
     useEffect(() => {
-        document.body.classList.toggle('van-also-sav', lathato);
+        if (lathato) {
+            document.body.classList.add('van-also-sav');
+        } else {
+            document.body.classList.remove('van-also-sav');
+        }
         return () => document.body.classList.remove('van-also-sav');
     }, [lathato]);
 
-    if (!lathato) return null;
+    if (!lathato) {
+        return null;
+    }
+
+    const idk = autok.map((auto) => auto.id).join(',');
     return (
         <aside className="osszehasonlitas-sav uveg" aria-label="Összehasonlítás">
             <div className="osszehasonlitas-sav-autok">
@@ -106,7 +139,7 @@ export const OsszehasonlitasSav = () => {
             </div>
             <span className="osszehasonlitas-sav-szoveg">{autok.length} autó kiválasztva</span>
             <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={urites}>Törlés</button>
-            <Link className="gomb gomb-fo gomb-kicsi" to={`/osszehasonlitas?autok=${autok.map((auto) => auto.id).join(',')}`}>
+            <Link className="gomb gomb-fo gomb-kicsi" to={'/osszehasonlitas?autok=' + idk}>
                 Összehasonlítás
             </Link>
         </aside>

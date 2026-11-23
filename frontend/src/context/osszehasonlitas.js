@@ -5,6 +5,8 @@ export const OsszehasonlitasContext = createContext(null);
 
 export const useOsszehasonlitas = () => {
     const context = useContext(OsszehasonlitasContext);
-    if (!context) throw new Error('A useOsszehasonlitas az OsszehasonlitasProvideren belül használható.');
+    if (!context) {
+        throw new Error('A useOsszehasonlitas az OsszehasonlitasProvideren belül használható.');
+    }
     return context;
 };

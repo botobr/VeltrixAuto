@@ -12,6 +12,7 @@ import './Autok.css';
 
 const OLDAL_MERET = 12;
 
+// "Keresés mentése" gomb és űrlap (bejelentkezés kell hozzá)
 const KeresesMentese = ({ szurok }) => {
     const { felhasznalo } = useFelhasznalo();
     const location = useLocation();
@@ -32,7 +33,8 @@ const KeresesMentese = ({ szurok }) => {
         event.preventDefault();
         setAllapot({ tipus: 'folyamat' });
         try {
-            await apiKeres('/fiok/keresesek', { method: 'POST', body: { nev, parameterek: szurok, ertesites } }, 'A keresés mentése nem sikerült.');
+            const torzs = { nev: nev, parameterek: szurok, ertesites: ertesites };
+            await apiKeres('/fiok/keresesek', { method: 'POST', body: torzs }, 'A keresés mentése nem sikerült.');
             setAllapot({ tipus: 'siker' });
             setNyitva(false);
         } catch (error) {
@@ -40,19 +42,22 @@ const KeresesMentese = ({ szurok }) => {
         }
     };
 
-    if (allapot?.tipus === 'siker') {
+    const allapotTipus = allapot ? allapot.tipus : null;
+
+    // megnyitáskor a szűrőkből javaslunk nevet
+    const megnyitas = () => {
+        const feliratok = szuroCimkek(szurok).map((cimke) => cimke[1]);
+        const javaslat = feliratok.join(', ').slice(0, 80);
+        setNev(javaslat || 'Mentett keresés');
+        setNyitva(true);
+    };
+
+    if (allapotTipus === 'siker') {
         return <span className="mentes-siker"><Ikon nev="pipa" meret={15} /> Elmentve – <Link to="/fiok?lap=keresesek">Mentett keresések</Link></span>;
     }
     if (!nyitva) {
         return (
-            <button
-                className="gomb gomb-uveg gomb-kicsi"
-                type="button"
-                onClick={() => {
-                    setNev(szuroCimkek(szurok).map(([, cimke]) => cimke).join(', ').slice(0, 80) || 'Mentett keresés');
-                    setNyitva(true);
-                }}
-            >
+            <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={megnyitas}>
                 <Ikon nev="harang" meret={15} /> Keresés mentése
             </button>
         );
@@ -67,15 +72,16 @@ const KeresesMentese = ({ szurok }) => {
                 <input type="checkbox" checked={ertesites} onChange={(event) => setErtesites(event.target.checked)} />
                 <span>E-mail értesítés új, megfelelő autóról</span>
             </label>
-            {allapot?.tipus === 'hiba' && <p className="uzenet uzenet-hiba">{allapot.szoveg}</p>}
+            {allapotTipus === 'hiba' && <p className="uzenet uzenet-hiba">{allapot.szoveg}</p>}
             <div className="mentes-gombok">
                 <button className="gomb gomb-uveg gomb-kicsi" type="button" onClick={() => setNyitva(false)}>Mégse</button>
-                <button className="gomb gomb-fo gomb-kicsi" type="submit" disabled={allapot?.tipus === 'folyamat'}>Mentés</button>
+                <button className="gomb gomb-fo gomb-kicsi" type="submit" disabled={allapotTipus === 'folyamat'}>Mentés</button>
             </div>
         </form>
     );
 };
 
+// az autók listája szűrőkkel
 const Autok = () => {
     const [params, setParams] = useSearchParams();
     const szurok = useMemo(() => szurokParamsbol(params), [params]);
@@ -86,80 +92,119 @@ const Autok = () => {
     const [elozoQ, setElozoQ] = useState(szurok.q || '');
     const [panelNyitva, setPanelNyitva] = useState(false);
 
-    // Böngésző vissza gomb / külső link: a keresőmező kövesse az URL-t.
-    if ((szurok.q || '') !== elozoQ) {
-        setElozoQ(szurok.q || '');
-        if (kereses.trim() !== (szurok.q || '')) setKereses(szurok.q || '');
+    // ha az URL változik (pl. vissza gomb), a keresőmezőbe is az kerüljön
+    const urlKereses = szurok.q || '';
+    if (urlKereses !== elozoQ) {
+        setElozoQ(urlKereses);
+        if (kereses.trim() !== urlKereses) {
+            setKereses(urlKereses);
+        }
     }
     const [szuroAdatok, setSzuroAdatok] = useState(null);
     const [frissites, setFrissites] = useState(0);
     const [eredmeny, setEredmeny] = useState({ kulcs: null, autok: [], lapozas: { oldal: 1, osszes: 0 }, hiba: '' });
     const [tobbBetoltes, setTobbBetoltes] = useState(false);
 
+    let oldalCim = 'Használt autó kínálat';
+    let oldalUtvonal = '/autok';
+    if (szurok.marka) {
+        oldalCim = 'Eladó ' + szurok.marka + (szurok.modell ? ' ' + szurok.modell : '') + ' autók';
+        oldalUtvonal = '/autok?marka=' + encodeURIComponent(szurok.marka);
+    }
     useSeo({
-        cim: szurok.marka ? `Eladó ${szurok.marka}${szurok.modell ? ` ${szurok.modell}` : ''} autók` : 'Használt autó kínálat',
+        cim: oldalCim,
         leiras: 'Böngészd a Veltrix teljes használtautó-kínálatát: szűrés márka, ár, évjárat, futás, üzemanyag, váltó és telephely szerint.',
-        utvonal: szurok.marka ? `/autok?marka=${encodeURIComponent(szurok.marka)}` : '/autok',
+        utvonal: oldalUtvonal,
     });
 
-    // Az API-kérés paraméterei az URL-ből (a szűrők + rendezés).
+    // a kérés paraméterei (szűrők + rendezés) szövegként
     const keresKulcs = useMemo(() => {
-        const p = new URLSearchParams(szurok);
-        p.set('rendezes', rendezes);
-        return p.toString();
+        const parameterek = new URLSearchParams(szurok);
+        parameterek.set('rendezes', rendezes);
+        return parameterek.toString();
     }, [szurok, rendezes]);
-    const kulcs = `${keresKulcs}#${frissites}`;
+    // ha ez nem egyezik a betöltött eredmény kulcsával, akkor még töltünk
+    const kulcs = keresKulcs + '#' + frissites;
     const betoltes = eredmeny.kulcs !== kulcs;
 
+    // az URL paraméterek módosítása (null értéknél törli)
     const parameterek = (modositas) => {
         const uj = new URLSearchParams(params);
-        for (const [k, v] of Object.entries(modositas)) {
-            if (v === null || v === undefined || v === '') uj.delete(k);
-            else uj.set(k, v);
+        for (const nev in modositas) {
+            const ertek = modositas[nev];
+            if (ertek === null || ertek === undefined || ertek === '') {
+                uj.delete(nev);
+            } else {
+                uj.set(nev, ertek);
+            }
         }
         setParams(uj, { replace: true });
     };
 
-    // Kereső: gépelés közben késleltetve frissíti az URL-t.
+    // a keresőmező: gépelés után kicsit várunk, és csak utána írjuk az URL-be
     useEffect(() => {
         const ertek = kereses.trim();
-        if (ertek === (szurok.q || '')) return undefined;
-        const idozito = setTimeout(() => parameterek({ q: ertek || null }), 350);
+        if (ertek === (szurok.q || '')) {
+            return undefined;
+        }
+        const idozito = setTimeout(() => {
+            parameterek({ q: ertek || null });
+        }, 350);
         return () => clearTimeout(idozito);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [kereses]);
 
+    // a szűrő panel adatai (márkák, megyék...)
     useEffect(() => {
-        apiKeres('/autok/szurok').then(setSzuroAdatok).catch(() => setSzuroAdatok(null));
+        apiKeres('/autok/szurok')
+            .then((data) => setSzuroAdatok(data))
+            .catch(() => setSzuroAdatok(null));
     }, []);
 
+    // az autók betöltése, ha változik a szűrés
     useEffect(() => {
         const controller = new AbortController();
-        const aktKulcs = `${keresKulcs}#${frissites}`;
-        apiKeres(`/autok?${keresKulcs}&limit=${OLDAL_MERET}`, { signal: controller.signal }, 'Az autók betöltése nem sikerült.')
-            .then((data) => setEredmeny({ kulcs: aktKulcs, autok: data.autok || [], lapozas: data.lapozas, hiba: '' }))
+        const aktualisKulcs = keresKulcs + '#' + frissites;
+        const url = '/autok?' + keresKulcs + '&limit=' + OLDAL_MERET;
+
+        apiKeres(url, { signal: controller.signal }, 'Az autók betöltése nem sikerült.')
+            .then((data) => {
+                setEredmeny({ kulcs: aktualisKulcs, autok: data.autok || [], lapozas: data.lapozas, hiba: '' });
+            })
             .catch((error) => {
-                if (error.name === 'AbortError') return;
-                setEredmeny({ kulcs: aktKulcs, autok: [], lapozas: { oldal: 1, osszes: 0 }, hiba: error.message || 'Nem sikerült kapcsolódni a szerverhez.' });
+                if (error.name === 'AbortError') {
+                    return;
+                }
+                const uzenet = error.message || 'Nem sikerült kapcsolódni a szerverhez.';
+                setEredmeny({ kulcs: aktualisKulcs, autok: [], lapozas: { oldal: 1, osszes: 0 }, hiba: uzenet });
             });
+
         return () => controller.abort();
     }, [keresKulcs, frissites]);
 
-    // Mobilon a teljes képernyős szűrőpanel alatt ne görgessen az oldal.
+    // telefonon a teljes képernyős szűrő panel alatt ne görgessen az oldal
     useEffect(() => {
-        if (!panelNyitva) return undefined;
+        if (!panelNyitva) {
+            return undefined;
+        }
         const elozo = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = elozo; };
+        return () => {
+            document.body.style.overflow = elozo;
+        };
     }, [panelNyitva]);
 
+    // a következő oldal hozzáadása a listához
     const tovabbiak = async () => {
         setTobbBetoltes(true);
         try {
-            const data = await apiKeres(`/autok?${keresKulcs}&limit=${OLDAL_MERET}&oldal=${eredmeny.lapozas.oldal + 1}`);
+            const url = '/autok?' + keresKulcs + '&limit=' + OLDAL_MERET + '&oldal=' + (eredmeny.lapozas.oldal + 1);
+            const data = await apiKeres(url);
             setEredmeny((elozo) => {
-                const meglevo = new Set(elozo.autok.map((auto) => auto._id));
-                return { ...elozo, autok: [...elozo.autok, ...data.autok.filter((auto) => !meglevo.has(auto._id))], lapozas: data.lapozas };
+                // ha közben új autó jött, ne legyen kétszer a listában
+                const meglevoIdk = elozo.autok.map((auto) => auto._id);
+                const ujAutok = data.autok.filter((auto) => !meglevoIdk.includes(auto._id));
+                return { ...elozo, autok: [...elozo.autok, ...ujAutok], lapozas: data.lapozas };
             });
         } catch (error) {
             setEredmeny((elozo) => ({ ...elozo, hiba: error.message }));
@@ -168,14 +213,92 @@ const Autok = () => {
         }
     };
 
+    // minden szűrő törlése (a rendezés marad)
     const osszesTorlese = () => {
         setKereses('');
-        setParams(rendezes !== 'ujElol' ? { rendezes } : {}, { replace: true });
+        if (rendezes !== 'ujElol') {
+            setParams({ rendezes: rendezes }, { replace: true });
+        } else {
+            setParams({}, { replace: true });
+        }
     };
 
-    const { autok, lapozas, hiba } = eredmeny;
+    // egy szűrő címke törlése
+    const cimkeTorlese = (kulcs) => {
+        if (kulcs === 'q') {
+            setKereses('');
+        }
+        const torlendo = {};
+        for (const parameter of CIMKE_PARAMETEREK[kulcs]) {
+            torlendo[parameter] = null;
+        }
+        parameterek(torlendo);
+    };
+
+    const rendezesValtozas = (event) => {
+        if (event.target.value === 'ujElol') {
+            parameterek({ rendezes: null });
+        } else {
+            parameterek({ rendezes: event.target.value });
+        }
+    };
+
+    const autok = eredmeny.autok;
+    const lapozas = eredmeny.lapozas;
+    const hiba = eredmeny.hiba;
     const cimkek = szuroCimkek(szurok);
     const vanTobb = !betoltes && autok.length < lapozas.osszes;
+
+    // a találatok része: hiba / betöltés / autók / nincs találat
+    let talalatok;
+    if (hiba && !betoltes) {
+        talalatok = (
+            <div className="allapot-doboz uveg" role="alert">
+                <span className="allapot-ikon" aria-hidden="true">!</span>
+                <h3>Most nem érjük el a kínálatot</h3>
+                <p>{hiba}</p>
+                <button className="gomb gomb-uveg" type="button" onClick={() => setFrissites((szam) => szam + 1)}>Újrapróbálom</button>
+            </div>
+        );
+    } else if (betoltes) {
+        talalatok = (
+            <div className="autok-racs" aria-hidden="true">
+                {[0, 1, 2, 3, 4, 5].map((elem) => <AutoKartyaVaz key={elem} />)}
+            </div>
+        );
+    } else if (autok.length > 0) {
+        talalatok = (
+            <>
+                <div className="autok-racs">
+                    {autok.map((auto, i) => <AutoKartya key={auto._id} auto={auto} kesleltetes={i % OLDAL_MERET} />)}
+                </div>
+                {vanTobb && (
+                    <div className="autok-tobb">
+                        <button className="gomb gomb-uveg" type="button" onClick={tovabbiak} disabled={tobbBetoltes}>
+                            {tobbBetoltes ? 'Betöltés…' : 'Továbbiak betöltése (' + formatSzam(lapozas.osszes - autok.length) + ')'}
+                        </button>
+                    </div>
+                )}
+            </>
+        );
+    } else if (cimkek.length > 0) {
+        talalatok = (
+            <div className="allapot-doboz uveg">
+                <span className="allapot-ikon" aria-hidden="true"><Ikon nev="kereses" meret={22} /></span>
+                <h3>Nincs a szűrőknek megfelelő autó</h3>
+                <p>Lazíts a feltételeken, vagy mentsd el a keresést – e-mailben szólunk, ha érkezik megfelelő autó.</p>
+                <button className="gomb gomb-uveg" type="button" onClick={osszesTorlese}>Szűrők törlése</button>
+            </div>
+        );
+    } else {
+        talalatok = (
+            <div className="allapot-doboz uveg">
+                <span className="allapot-ikon" aria-hidden="true"><Ikon nev="kereses" meret={22} /></span>
+                <h3>Hamarosan érkeznek az autók</h3>
+                <p>Jelenleg még nincs feltöltött autó a kínálatban.</p>
+            </div>
+        );
+    }
 
     return (
         <main className="oldal autok">
@@ -220,8 +343,7 @@ const Autok = () => {
                             </button>
                             <label className="autok-rendezes" htmlFor="auto-rendezes">
                                 <span className="sr-only">Rendezés</span>
-                                <select className="bemenet" id="auto-rendezes" value={rendezes}
-                                    onChange={(event) => parameterek({ rendezes: event.target.value === 'ujElol' ? null : event.target.value })}>
+                                <select className="bemenet" id="auto-rendezes" value={rendezes} onChange={rendezesValtozas}>
                                     {RENDEZESEK.map(([ertek, cimke]) => <option key={ertek} value={ertek}>{cimke}</option>)}
                                 </select>
                             </label>
@@ -235,11 +357,8 @@ const Autok = () => {
                                     key={kulcs}
                                     type="button"
                                     className="aktiv-szuro"
-                                    onClick={() => {
-                                        if (kulcs === 'q') setKereses('');
-                                        parameterek(Object.fromEntries(CIMKE_PARAMETEREK[kulcs].map((p) => [p, null])));
-                                    }}
-                                    aria-label={`Szűrő törlése: ${cimke}`}
+                                    onClick={() => cimkeTorlese(kulcs)}
+                                    aria-label={'Szűrő törlése: ' + cimke}
                                 >
                                     {cimke} <Ikon nev="x" meret={13} />
                                 </button>
@@ -248,42 +367,7 @@ const Autok = () => {
                         </div>
                     )}
 
-                    {hiba && !betoltes ? (
-                        <div className="allapot-doboz uveg" role="alert">
-                            <span className="allapot-ikon" aria-hidden="true">!</span>
-                            <h3>Most nem érjük el a kínálatot</h3>
-                            <p>{hiba}</p>
-                            <button className="gomb gomb-uveg" type="button" onClick={() => setFrissites((n) => n + 1)}>Újrapróbálom</button>
-                        </div>
-                    ) : betoltes ? (
-                        <div className="autok-racs" aria-hidden="true">
-                            {[0, 1, 2, 3, 4, 5].map((elem) => <AutoKartyaVaz key={elem} />)}
-                        </div>
-                    ) : autok.length > 0 ? (
-                        <>
-                            <div className="autok-racs">
-                                {autok.map((auto, i) => <AutoKartya key={auto._id} auto={auto} kesleltetes={i % OLDAL_MERET} />)}
-                            </div>
-                            {vanTobb && (
-                                <div className="autok-tobb">
-                                    <button className="gomb gomb-uveg" type="button" onClick={tovabbiak} disabled={tobbBetoltes}>
-                                        {tobbBetoltes ? 'Betöltés…' : `Továbbiak betöltése (${formatSzam(lapozas.osszes - autok.length)})`}
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="allapot-doboz uveg">
-                            <span className="allapot-ikon" aria-hidden="true"><Ikon nev="kereses" meret={22} /></span>
-                            <h3>{cimkek.length ? 'Nincs a szűrőknek megfelelő autó' : 'Hamarosan érkeznek az autók'}</h3>
-                            <p>
-                                {cimkek.length
-                                    ? 'Lazíts a feltételeken, vagy mentsd el a keresést – e-mailben szólunk, ha érkezik megfelelő autó.'
-                                    : 'Jelenleg még nincs feltöltött autó a kínálatban.'}
-                            </p>
-                            {cimkek.length > 0 && <button className="gomb gomb-uveg" type="button" onClick={osszesTorlese}>Szűrők törlése</button>}
-                        </div>
-                    )}
+                    {talalatok}
                 </section>
             </div>
         </main>

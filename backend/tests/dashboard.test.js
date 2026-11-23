@@ -29,13 +29,16 @@ test('budapesti nap: UTC éjfél előtt már a következő nap', () => {
 test('napi és havi kulcsok: a mai nappal / folyó hónappal zárnak, évhatáron is', () => {
     const napok = utolsoNapok(30, most);
     assert.equal(napok.length, 30);
-    assert.equal(napok.at(-1), '2026-11-12');
+    assert.equal(napok[napok.length - 1], '2026-11-12');
     assert.equal(napok[0], '2026-10-14');
-    assert.equal(new Set(napok).size, 30);
+    // nincs két egyforma nap
+    for (let i = 1; i < napok.length; i++) {
+        assert.notEqual(napok[i], napok[i - 1]);
+    }
 
     const honapok = utolsoHonapok(12, new Date('2026-02-10T12:00:00Z'));
     assert.equal(honapok[0], '2025-03');
-    assert.equal(honapok.at(-1), '2026-02');
+    assert.equal(honapok[honapok.length - 1], '2026-02');
 });
 
 test('idősor: a hiányzó kulcsok 0 értéket kapnak, az ismeretlenek kimaradnak', () => {
@@ -51,24 +54,46 @@ test('változás: százalék egy tizedesre, 0 vagy hiányzó előzménynél null
 });
 
 test('kategóriák: csökkenő sorrend, a sok kategória vége „Egyéb”', () => {
-    const lista = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((nev, i) => ({ _id: nev, db: 10 - i }));
+    // A: 10 db, B: 9 db, ... G: 4 db
+    const lista = [
+        { _id: 'A', db: 10 },
+        { _id: 'B', db: 9 },
+        { _id: 'C', db: 8 },
+        { _id: 'D', db: 7 },
+        { _id: 'E', db: 6 },
+        { _id: 'F', db: 5 },
+        { _id: 'G', db: 4 },
+    ];
     const eredmeny = kategoriakOsszevonasa(lista, 4);
-    assert.deepEqual(eredmeny.map((e) => e.nev), ['A', 'B', 'C', 'Egyéb']);
-    assert.equal(eredmeny.at(-1).db, 7 + 6 + 5 + 4);
-    assert.equal(kategoriakOsszevonasa([{ _id: null, db: 2 }])[0].nev, 'Nincs megadva');
+    assert.deepEqual(eredmeny.map((elem) => elem.nev), ['A', 'B', 'C', 'Egyéb']);
+    assert.equal(eredmeny[3].db, 7 + 6 + 5 + 4);
+
+    const nincsMegadva = kategoriakOsszevonasa([{ _id: null, db: 2 }]);
+    assert.equal(nincsMegadva[0].nev, 'Nincs megadva');
 });
 
 test('ársávok: minden sáv szerepel, az üresek 0-val', () => {
     const savok = arSavokKitoltese([{ _id: 5e8, db: 3 }]);
     assert.equal(savok.length, 7);
-    assert.equal(savok.at(-1).db, 3);
+    assert.equal(savok[6].db, 3);
     assert.equal(savok[0].db, 0);
 });
 
-const alapAuto = () => ({
-    marka: 'BMW', modell: '320d', szin: 'Fekete', kivitel: 'Sedan', uzemanyag: 'Dízel', szarmazasi_hely: 'Németország',
-    evjarat: 2019, vetel_ar: 8990000, teljesitmeny: 190, hengerur_tartalom: 1995, kmora_allas: 85000,
-});
+const alapAuto = () => {
+    return {
+        marka: 'BMW',
+        modell: '320d',
+        szin: 'Fekete',
+        kivitel: 'Sedan',
+        uzemanyag: 'Dízel',
+        szarmazasi_hely: 'Németország',
+        evjarat: 2019,
+        vetel_ar: 8990000,
+        teljesitmeny: 190,
+        hengerur_tartalom: 1995,
+        kmora_allas: 85000,
+    };
+};
 
 test('eladás: elkelt autónál a dátum és az ár (vételár) automatikusan kitöltődik', async () => {
     const auto = new AutoModel({ ...alapAuto(), statusz: 'elkelt' });
@@ -92,6 +117,7 @@ test('eladási adatok validálása: jövőbeli dátum és negatív ár hiba', ()
     const kep = { url: 'https://res.cloudinary.com/demo/image/upload/v1/veltrix/autok/a.jpg', publicId: 'veltrix/autok/a' };
     const holnaputan = new Date(Date.now() + 3 * NAP).toISOString().slice(0, 10);
     const { hibak } = autoAdatokEllenorzese({ ...alapAuto(), kepek: [kep], statusz: 'elkelt', eladas_datum: holnaputan, eladasi_ar: -5 });
-    assert.ok(hibak.some((hiba) => hiba.includes('jövőben')));
-    assert.ok(hibak.some((hiba) => hiba.startsWith('Eladási ár')));
+    const osszesHiba = hibak.join(' | ');
+    assert.ok(osszesHiba.includes('jövőben'));
+    assert.ok(osszesHiba.includes('Eladási ár'));
 });

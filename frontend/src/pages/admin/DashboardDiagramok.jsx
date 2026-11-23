@@ -2,27 +2,58 @@ import { useState } from 'react';
 import { formatSzam } from '../../lib/auto';
 
 const szazalekFormatum = new Intl.NumberFormat('hu-HU', { style: 'percent', maximumFractionDigits: 0 });
-const arany = (resz, egesz) => (egesz > 0 ? szazalekFormatum.format(resz / egesz) : '0%');
 
-/** Kerek skála: kb. 4 rácsköz 1/2/5 × 10^n lépésekkel. */
-const skala = (max, egesz) => {
-    if (max <= 0) return { lepes: 1, teteje: 1, racs: [0] };
-    const nyers = max / 4;
-    const nagysag = 10 ** Math.floor(Math.log10(nyers));
-    const normalt = nyers / nagysag;
-    let lepes = 10 * nagysag;
-    if (normalt <= 1) lepes = nagysag;
-    else if (normalt <= 2) lepes = 2 * nagysag;
-    else if (normalt <= 5) lepes = 5 * nagysag;
-    if (egesz) lepes = Math.max(1, Math.round(lepes));
-    const teteje = Math.ceil(max / lepes) * lepes;
-    return { lepes, teteje, racs: Array.from({ length: Math.round(teteje / lepes) + 1 }, (_, i) => i * lepes) };
+// hány százalék a rész az egészből
+const arany = (resz, egesz) => {
+    if (egesz <= 0) {
+        return '0%';
+    }
+    return szazalekFormatum.format(resz / egesz);
 };
 
-/**
- * Egysorozatos oszlopdiagram rácsvonalakkal, oszloponkénti tooltippel és táblázatnézettel.
- * sor: [{ kulcs, ertek, tengely, tipp: { ertek, reszlet, datum } }]
- */
+// lista elemeinek összege egy mező szerint
+const osszeg = (lista, mezo) => {
+    let osszesen = 0;
+    for (const elem of lista) {
+        osszesen += elem[mezo];
+    }
+    return osszesen;
+};
+
+// A diagram függőleges skálája: kb. 4 vonal, "szép" lépésekkel (1, 2, 5, 10, 20, 50, ...).
+const skala = (max, egesz) => {
+    if (max <= 0) {
+        return { lepes: 1, teteje: 1, racs: [0] };
+    }
+    const nyers = max / 4;
+    // 10 melyik hatványa (pl. 3500 -> 1000)
+    const nagysag = Math.pow(10, Math.floor(Math.log10(nyers)));
+    const normalt = nyers / nagysag;
+
+    let lepes = 10 * nagysag;
+    if (normalt <= 1) {
+        lepes = nagysag;
+    } else if (normalt <= 2) {
+        lepes = 2 * nagysag;
+    } else if (normalt <= 5) {
+        lepes = 5 * nagysag;
+    }
+    // darabszámnál nem lehet tört lépés
+    if (egesz) {
+        lepes = Math.max(1, Math.round(lepes));
+    }
+
+    const teteje = Math.ceil(max / lepes) * lepes;
+    const racs = [];
+    const vonalakSzama = Math.round(teteje / lepes) + 1;
+    for (let i = 0; i < vonalakSzama; i++) {
+        racs.push(i * lepes);
+    }
+    return { lepes: lepes, teteje: teteje, racs: racs };
+};
+
+// Oszlopdiagram rácsvonalakkal és tooltippel, át lehet váltani táblázatra is.
+// sor: [{ kulcs, ertek, tengely, tipp: { ertek, reszlet, datum } }]
 export const OszlopDiagram = ({
     cim, alcim, sor, ariaCimke, uresSzoveg,
     tengelyFormat = formatSzam, tengelyIndexek, szukIndexek, tablaFejlec, tablaSor,
@@ -30,13 +61,29 @@ export const OszlopDiagram = ({
 }) => {
     const [aktiv, setAktiv] = useState(null);
     const [tablazat, setTablazat] = useState(false);
-    const max = Math.max(0, ...sor.map((elem) => elem.ertek));
+    let max = 0;
+    for (const elem of sor) {
+        if (elem.ertek > max) {
+            max = elem.ertek;
+        }
+    }
     const { teteje, racs } = skala(max, egesz);
-    const cimkezett = new Set(tengelyIndexek ?? sor.map((_, i) => i));
-    const mindig = new Set(szukIndexek ?? [...cimkezett]);
+
+    // melyik oszlop alá kerüljön felirat (ha nincs megadva, mindegyik alá)
+    let cimkezettIndexek = tengelyIndexek;
+    if (!cimkezettIndexek) {
+        cimkezettIndexek = sor.map((elem, i) => i);
+    }
+    // keskeny képernyőn csak ezek látszanak
+    let szukonIsLathato = szukIndexek;
+    if (!szukonIsLathato) {
+        szukonIsLathato = cimkezettIndexek;
+    }
+    const cimkezett = new Set(cimkezettIndexek);
+    const mindig = new Set(szukonIsLathato);
 
     return (
-        <figure className={`diagram db-kartya uveg ${className}`}>
+        <figure className={'diagram db-kartya uveg ' + className}>
             <figcaption className="diagram-fej">
                 <div>
                     <h3>{cim}</h3>
@@ -95,10 +142,15 @@ export const OszlopDiagram = ({
     );
 };
 
-/** Vízszintes sávok egy színnel; az érték a sáv végén, szövegszínnel. */
+// vízszintes sávok (pl. üzemanyag szerint)
 export const SavLista = ({ cim, alcim, elemek, egyseg = 'autó' }) => {
-    const max = Math.max(1, ...elemek.map((elem) => elem.db));
-    const osszes = elemek.reduce((osszeg, elem) => osszeg + elem.db, 0);
+    let max = 1;
+    for (const elem of elemek) {
+        if (elem.db > max) {
+            max = elem.db;
+        }
+    }
+    const osszes = osszeg(elemek, 'db');
 
     return (
         <figure className="db-kartya uveg db-savlista">
@@ -111,7 +163,7 @@ export const SavLista = ({ cim, alcim, elemek, egyseg = 'autó' }) => {
             {osszes === 0 ? <p className="db-ures">Nincs készleten lévő autó.</p> : (
                 <ul>
                     {elemek.map((elem) => (
-                        <li key={elem.nev} title={`${elem.nev}: ${formatSzam(elem.db)} ${egyseg} (${arany(elem.db, osszes)})`}>
+                        <li key={elem.nev} title={elem.nev + ': ' + formatSzam(elem.db) + ' ' + egyseg + ' (' + arany(elem.db, osszes) + ')'}>
                             <span className="db-sav-nev">{elem.nev}</span>
                             <span className="db-sav-sin" aria-hidden="true">
                                 {elem.db > 0 && <span className="db-sav" style={{ width: `${(elem.db / max) * 100}%` }} />}
@@ -125,10 +177,10 @@ export const SavLista = ({ cim, alcim, elemek, egyseg = 'autó' }) => {
     );
 };
 
-/** Vékony szegmentált sáv (egy egész részei) jelmagyarázattal. reszek: [{ kulcs, nev, db }] */
+// egy egész részei egy vékony sávban, jelmagyarázattal. reszek: [{ kulcs, nev, db }]
 export const SzegmensSav = ({ reszek, cimke }) => {
-    const osszes = reszek.reduce((osszeg, resz) => osszeg + resz.db, 0);
-    const leiras = reszek.map((resz) => `${resz.nev}: ${resz.db} (${arany(resz.db, osszes)})`).join(', ');
+    const osszes = osszeg(reszek, 'db');
+    const leiras = reszek.map((resz) => resz.nev + ': ' + resz.db + ' (' + arany(resz.db, osszes) + ')').join(', ');
 
     return (
         <div className="db-szegmens">

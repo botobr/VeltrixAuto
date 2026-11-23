@@ -1,13 +1,11 @@
 import { defineConfig } from 'cypress';
 
-/*
- * E2E-tesztek: `npm run e2e` (lásd cypress/inditas.js). A tesztek a külön
- * tesztszerverrel futnak (memóriabeli adatbázis), nem a fejlesztői vagy éles adatokkal.
- */
+// E2E tesztek: npm run e2e (lásd cypress/inditas.js)
+// A tesztek egy külön tesztszerverrel futnak (memóriában lévő adatbázissal), nem az éles adatokkal.
 export default defineConfig({
     e2e: {
         baseUrl: 'http://localhost:5174',
-        // Nem titkos beállítások a tesztek számára (Cypress 16+: Cypress.expose('apiUrl')).
+        // a tesztszerver címe (a tesztekben: Cypress.expose('apiUrl'))
         expose: {
             apiUrl: 'http://localhost:3601',
         },

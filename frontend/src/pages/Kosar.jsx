@@ -7,20 +7,32 @@ import { useSeo } from '../lib/useSeo';
 import { alkatreszUrl, ft } from '../lib/webshop';
 import './Webshop.css';
 
-/** A rendelés összegzése (kosár és pénztár oldalsávja). */
-export const Osszesito = ({ osszegek, szallitasKivalasztva = false, children }) => (
-    <dl className="osszesito">
-        <div><dt>Termékek</dt><dd>{ft(osszegek.termekek)}</dd></div>
-        <div>
-            <dt>Szállítás</dt>
-            <dd>{szallitasKivalasztva ? (osszegek.szallitas ? ft(osszegek.szallitas) : 'Ingyenes') : 'a pénztárban'}</dd>
-        </div>
-        {osszegek.kezelesiDij > 0 && <div><dt>Kezelési díj</dt><dd>{ft(osszegek.kezelesiDij)}</dd></div>}
-        <div className="osszesito-vegosszeg"><dt>Fizetendő</dt><dd>{ft(osszegek.vegosszeg)}</dd></div>
-        {children}
-    </dl>
-);
+// a rendelés összegei (a kosárban és a pénztárban is ezt használjuk)
+export const Osszesito = ({ osszegek, szallitasKivalasztva = false, children }) => {
+    let szallitas = 'a pénztárban';
+    if (szallitasKivalasztva) {
+        if (osszegek.szallitas) {
+            szallitas = ft(osszegek.szallitas);
+        } else {
+            szallitas = 'Ingyenes';
+        }
+    }
 
+    return (
+        <dl className="osszesito">
+            <div><dt>Termékek</dt><dd>{ft(osszegek.termekek)}</dd></div>
+            <div>
+                <dt>Szállítás</dt>
+                <dd>{szallitas}</dd>
+            </div>
+            {osszegek.kezelesiDij > 0 && <div><dt>Kezelési díj</dt><dd>{ft(osszegek.kezelesiDij)}</dd></div>}
+            <div className="osszesito-vegosszeg"><dt>Fizetendő</dt><dd>{ft(osszegek.vegosszeg)}</dd></div>
+            {children}
+        </dl>
+    );
+};
+
+// a kosár oldal
 const Kosar = () => {
     const { mennyisegBeallitas, eltavolitas } = useKosar();
     const { adat, hiba, betolt, ures } = useKosarEllenorzes();
@@ -39,13 +51,18 @@ const Kosar = () => {
         );
     }
     if (!adat) {
-        return hiba
-            ? <main className="oldal"><p className="uzenet uzenet-hiba" role="alert">{hiba}</p></main>
-            : <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Kosár betöltése…</main>;
+        if (hiba) {
+            return <main className="oldal"><p className="uzenet uzenet-hiba" role="alert">{hiba}</p></main>;
+        }
+        return <main className="betoltes" aria-live="polite"><span className="porgo" aria-hidden="true" />Kosár betöltése…</main>;
     }
 
-    const ingyenesHatar = adat.szallitasiModok.find((m) => m.kulcs === 'futar')?.ingyenesHatar;
-    const hianyzikIngyeneshez = ingyenesHatar ? ingyenesHatar - adat.osszegek.termekek : 0;
+    // mennyi hiányzik még az ingyenes szállításhoz
+    let hianyzikIngyeneshez = 0;
+    const futar = adat.szallitasiModok.find((mod) => mod.kulcs === 'futar');
+    if (futar && futar.ingyenesHatar) {
+        hianyzikIngyeneshez = futar.ingyenesHatar - adat.osszegek.termekek;
+    }
 
     return (
         <main className="oldal kosar-oldal">
@@ -54,10 +71,10 @@ const Kosar = () => {
                 <h1>Kosár</h1>
             </header>
 
-            <div className={`webshop-elrendezes ${betolt ? 'webshop-tolt' : ''}`} aria-busy={betolt}>
+            <div className={betolt ? 'webshop-elrendezes webshop-tolt' : 'webshop-elrendezes'} aria-busy={betolt}>
                 <section className="uveg kosar-tetelek" aria-label="Kosár tételei">
                     {adat.tetelek.map((t) => (
-                        <article key={t.id} className={`kosar-tetel ${t.hiba ? 'kosar-tetel-hiba' : ''}`}>
+                        <article key={t.id} className={t.hiba ? 'kosar-tetel kosar-tetel-hiba' : 'kosar-tetel'}>
                             <Link to={alkatreszUrl(t)} className="kosar-kep">
                                 {t.kep ? <img src={kepMeret(t.kep, 200)} alt="" /> : <span>VELTRIX</span>}
                             </Link>
@@ -70,7 +87,7 @@ const Kosar = () => {
                                 {t.hiba && <p className="kosar-hiba" role="alert"><Ikon nev="x" meret={14} /> {t.hiba}</p>}
                             </div>
                             <div className="kosar-tetel-vezerlok">
-                                <div className="mennyiseg" role="group" aria-label={`${t.nev} mennyisége`}>
+                                <div className="mennyiseg" role="group" aria-label={t.nev + ' mennyisége'}>
                                     <button type="button" className="ikon-gomb" aria-label="Eggyel kevesebb" onClick={() => mennyisegBeallitas(t.id, t.mennyiseg - 1)}>
                                         <Ikon nev="minusz" meret={16} />
                                     </button>

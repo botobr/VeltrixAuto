@@ -1,16 +1,21 @@
-/*
- * Generált termékillusztrációk (SVG, 800×600) a minta-alkatrészekhez.
- * Minden rajz egyszerű vektorgrafika; a gyártó színével és nevével.
- * A Cloudinary feltöltéskor PNG-vé alakítja (lásd alkatreszekFeltoltese.js).
- */
+// Képek a minta alkatrészekhez (SVG rajzok, 800×600), a gyártó színével és nevével.
+// A Cloudinary feltöltéskor JPG-vé alakítja (lásd alkatreszekFeltoltese.js).
 
-const esc = (szoveg) => String(szoveg).replace(/[&<>"']/g, (k) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[k]));
+// a speciális karakterek cseréje, hogy ne rontsák el az SVG-t
+const esc = (szoveg) => {
+    return String(szoveg)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
 
 const SOTET = '#23262b';
 const ACEL = '#8d949c';
 const ACEL_V = '#c3c8ce';
 
-/** Fémes függőleges / vízszintes színátmenetek. */
+// színátmenetek a rajzokhoz (fém, a gyártó színe, stb.)
 const defs = (szin) => `
 <defs>
   <radialGradient id="hatter" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ece7da"/></radialGradient>
@@ -298,10 +303,8 @@ const RAJZOK = {
       <text x="400" y="320" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="64" font-weight="900" fill="#fff" text-anchor="middle" transform="rotate(-4 400 300)">VELTRIX</text>`,
 };
 
-/**
- * Egy termék képe SVG-ként.
- * @param {{ rajz: string, szin: string, gyarto: string, cimke: string, felniSzin?: string, kullok?: number }} k
- */
+// Egy termék képe SVG szövegként.
+// k: { rajz, szin, gyarto, cimke, felniSzin, kullok }
 const termekKep = (k) => {
     const rajz = RAJZOK[k.rajz] || RAJZOK.chipbox;
     return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">

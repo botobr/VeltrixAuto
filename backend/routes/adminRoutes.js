@@ -7,42 +7,84 @@ const { autoValasz, rendezesEpitese, szuroEpitese } = require('../utils/autoSzur
 const { dashboardAdatok } = require('../utils/dashboard');
 
 const router = express.Router();
+
+// az összes /admin útvonalhoz kell a kezelőfelület jog
 router.use('/admin', jogSzukseges('kezelofelulet'));
 
-/** Minden hirdetés (rejtett és lejárt is), statisztikával és érdeklődésszámmal. */
+// az összes hirdetés az adminnak (a rejtett és lejárt is), érdeklődések számával
 router.get('/admin/autok', async (req, res) => {
     const feltetelek = [];
     const alap = await szuroEpitese({ q: req.query.q }, { publikus: false });
-    if (alap.$and) feltetelek.push(...alap.$and);
-    if (['elerheto', 'foglalt', 'elkelt'].includes(req.query.statusz)) feltetelek.push({ statusz: req.query.statusz });
-    if (req.query.lathatosag === 'rejtett') feltetelek.push({ lathato: false });
-    if (req.query.lathatosag === 'lejart') feltetelek.push({ lejarat: { $lte: new Date() } });
-    if (req.query.lathatosag === 'kiemelt') feltetelek.push({ kiemelt: true });
-    const szuro = feltetelek.length ? { $and: feltetelek } : {};
+    if (alap.$and) {
+        for (const feltetel of alap.$and) {
+            feltetelek.push(feltetel);
+        }
+    }
+
+    const statusz = req.query.statusz;
+    if (statusz === 'elerheto' || statusz === 'foglalt' || statusz === 'elkelt') {
+        feltetelek.push({ statusz: statusz });
+    }
+    if (req.query.lathatosag === 'rejtett') {
+        feltetelek.push({ lathato: false });
+    }
+    if (req.query.lathatosag === 'lejart') {
+        feltetelek.push({ lejarat: { $lte: new Date() } });
+    }
+    if (req.query.lathatosag === 'kiemelt') {
+        feltetelek.push({ kiemelt: true });
+    }
+
+    let szuro = {};
+    if (feltetelek.length > 0) {
+        szuro = { $and: feltetelek };
+    }
+
+    let rendezes;
+    if (req.query.rendezes === 'megtekintes') {
+        rendezes = { megtekintesek: -1 };
+    } else {
+        rendezes = rendezesEpitese(req.query.rendezes);
+    }
 
     const autok = await AutoModel.find(szuro)
-        .sort(req.query.rendezes === 'megtekintes' ? { megtekintesek: -1 } : rendezesEpitese(req.query.rendezes))
+        .sort(rendezes)
         .limit(500)
         .populate('telephely', 'nev varos');
 
-    const erdeklodesek = await ErdeklodesModel.aggregate([
-        { $match: { auto: { $in: autok.map((auto) => auto._id) } } },
-        { $group: { _id: '$auto', db: { $sum: 1 }, uj: { $sum: { $cond: [{ $eq: ['$statusz', 'uj'] }, 1, 0] } } } },
-    ]);
-    const erdeklodesSzam = new Map(erdeklodesek.map((elem) => [String(elem._id), elem]));
+    // érdeklődések az autókhoz
+    const autoIdk = autok.map((auto) => auto._id);
+    const erdeklodesek = await ErdeklodesModel.find({ auto: { $in: autoIdk } }).select('auto statusz');
 
-    return res.status(200).json({
-        autok: autok.map((auto) => ({
-            ...autoValasz(auto, { admin: true, penzugy: vanJoga(req.session.statusz, 'penzugy') }),
-            erdeklodesek: erdeklodesSzam.get(String(auto._id))?.db || 0,
-            ujErdeklodesek: erdeklodesSzam.get(String(auto._id))?.uj || 0,
-        })),
-    });
+    const penzugy = vanJoga(req.session.statusz, 'penzugy');
+    const valasz = [];
+    for (const auto of autok) {
+        let db = 0;
+        let uj = 0;
+        for (const erdeklodes of erdeklodesek) {
+            if (String(erdeklodes.auto) === String(auto._id)) {
+                db++;
+                if (erdeklodes.statusz === 'uj') {
+                    uj++;
+                }
+            }
+        }
+
+        const adat = autoValasz(auto, { admin: true, penzugy: penzugy });
+        adat.erdeklodesek = db;
+        adat.ujErdeklodesek = uj;
+        valasz.push(adat);
+    }
+
+    return res.status(200).json({ autok: valasz });
 });
 
-/** Dashboard: bevétel, eladások, készlet, érdeklődések – minden számítás a szerveren. */
+// a dashboard adatai (mindent a szerver számol ki)
 router.get('/admin/dashboard', async (req, res) => {
-    const adatok = await dashboardAdatok({ idoszak: req.query.idoszak, penzugy: vanJoga(req.session.statusz, 'penzugy') });
+    const adatok = await dashboardAdatok({
+        idoszak: req.query.idoszak,
+        penzugy: vanJoga(req.session.statusz, 'penzugy'),
+    });
     res.set('Cache-Control', 'no-store');
     return res.status(200).json(adatok);
 });

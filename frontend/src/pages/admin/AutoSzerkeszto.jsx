@@ -9,31 +9,45 @@ import { autoNev, egyediMezokAdatokbol, kuldhetoAdatok, szamMezokElonezethez, ur
 import { useSeo } from '../../lib/useSeo';
 import './Admin.css';
 
+// az autó szerkesztő űrlap élő előnézettel
 const Szerkeszto = ({ auto, telephelyek }) => {
     const { jog } = useFelhasznalo();
     const navigate = useNavigate();
     const uj = !auto;
     const [adatok, setAdatok] = useState(() => {
-        const kezdo = uj ? uresUrlap() : urlapAdatokbol(auto);
-        if (uj && telephelyek.length === 1) kezdo.telephely = telephelyek[0]._id;
+        if (!uj) {
+            return urlapAdatokbol(auto);
+        }
+        const kezdo = uresUrlap();
+        // ha csak egy telephely van, azt kiválasztjuk
+        if (telephelyek.length === 1) {
+            kezdo.telephely = telephelyek[0]._id;
+        }
         return kezdo;
     });
     const [egyediMezok, setEgyediMezok] = useState(() => egyediMezokAdatokbol(adatok));
     const [hibak, setHibak] = useState([]);
     const [mentes, setMentes] = useState(false);
 
-    // Mentés nélkül elhagyott, frissen feltöltött képek takarítása.
-    const ujKepek = useRef(new Set());
+    // Ha feltöltött képeket, de nem mentette el a hirdetést, kilépéskor töröljük a képeket.
+    const ujKepek = useRef([]);
     const mentve = useRef(false);
-    useEffect(() => () => {
-        if (mentve.current || ujKepek.current.size === 0) return;
-        fetch(`${API_URL}/kepek`, {
-            method: 'DELETE',
-            credentials: 'include',
-            keepalive: true,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ publicIds: [...ujKepek.current] }),
-        }).catch(() => {});
+    useEffect(() => {
+        // a tömb ugyanaz marad (csak push-olunk bele), ezért elég egyszer elkérni
+        const kepek = ujKepek.current;
+        return () => {
+            if (mentve.current || kepek.length === 0) {
+                return;
+            }
+            // keepalive: akkor is elküldi, ha közben elhagyja az oldalt
+            fetch(API_URL + '/kepek', {
+                method: 'DELETE',
+                credentials: 'include',
+                keepalive: true,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ publicIds: kepek }),
+            }).catch(() => {});
+        };
     }, []);
 
     const kuldes = async (event) => {
@@ -44,21 +58,43 @@ const Szerkeszto = ({ auto, telephelyek }) => {
             return;
         }
         setMentes(true);
+
+        // új autónál POST, szerkesztésnél PUT
+        let url = '/autok';
+        let metodus = 'POST';
+        if (!uj) {
+            url = '/autok/' + auto._id;
+            metodus = 'PUT';
+        }
+
         try {
-            const data = await apiKeres(uj ? '/autok' : `/autok/${auto._id}`, {
-                method: uj ? 'POST' : 'PUT',
-                body: kuldhetoAdatok(adatok),
-            }, 'A mentés nem sikerült.');
+            const data = await apiKeres(url, { method: metodus, body: kuldhetoAdatok(adatok) }, 'A mentés nem sikerült.');
             mentve.current = true;
-            const mentett = data.auto;
-            navigate(`/autok/${mentett.slug}`, { replace: uj });
+            navigate('/autok/' + data.auto.slug, { replace: uj });
         } catch (error) {
-            setHibak(error.message ? [error.message] : ['A mentés nem sikerült.']);
+            setHibak([error.message || 'A mentés nem sikerült.']);
             setMentes(false);
         }
     };
 
-    const elonezet = { ...adatok, ...szamMezokElonezethez(adatok), kep: adatok.kepek[0]?.url, telephely: telephelyek.find((t) => t._id === adatok.telephely) };
+    // az előnézet kártya adatai
+    let elonezetKep;
+    if (adatok.kepek.length > 0) {
+        elonezetKep = adatok.kepek[0].url;
+    }
+    const elonezet = {
+        ...adatok,
+        ...szamMezokElonezethez(adatok),
+        kep: elonezetKep,
+        telephely: telephelyek.find((telephely) => telephely._id === adatok.telephely),
+    };
+
+    let gombFelirat = 'Változtatások mentése';
+    if (mentes) {
+        gombFelirat = 'Mentés…';
+    } else if (uj) {
+        gombFelirat = 'Hirdetés közzététele';
+    }
 
     return (
         <form className="szerkeszto" onSubmit={kuldes} noValidate={false}>
@@ -70,7 +106,7 @@ const Szerkeszto = ({ auto, telephelyek }) => {
                     egyediMezok={egyediMezok}
                     setEgyediMezok={setEgyediMezok}
                     telephelyek={telephelyek}
-                    onUjKep={(publicId) => ujKepek.current.add(publicId)}
+                    onUjKep={(publicId) => ujKepek.current.push(publicId)}
                 />
                 <aside className="szerkeszto-oldalsav">
                     <p className="szerkeszto-elonezet-cim">Élő előnézet</p>
@@ -80,16 +116,15 @@ const Szerkeszto = ({ auto, telephelyek }) => {
                             {hibak.map((hiba) => <li key={hiba}>{hiba}</li>)}
                         </ul>
                     )}
-                    <button className="gomb gomb-fo" type="submit" disabled={mentes}>
-                        {mentes ? 'Mentés…' : uj ? 'Hirdetés közzététele' : 'Változtatások mentése'}
-                    </button>
-                    <Link className="gomb gomb-uveg" to={uj ? '/admin?lap=hirdetesek' : `/autok/${auto.slug}`}>Mégse</Link>
+                    <button className="gomb gomb-fo" type="submit" disabled={mentes}>{gombFelirat}</button>
+                    <Link className="gomb gomb-uveg" to={uj ? '/admin?lap=hirdetesek' : '/autok/' + auto.slug}>Mégse</Link>
                 </aside>
             </div>
         </form>
     );
 };
 
+// új hirdetés vagy meglévő szerkesztése (az adatok betöltése)
 const AutoSzerkeszto = () => {
     const { id } = useParams();
     const uj = !id;
@@ -99,27 +134,51 @@ const AutoSzerkeszto = () => {
     useSeo({ cim: uj ? 'Új hirdetés' : 'Hirdetés szerkesztése', noindex: true });
 
     useEffect(() => {
-        Promise.all([
-            apiKeres('/telephelyek').then((data) => data.telephelyek).catch(() => []),
-            uj ? Promise.resolve(null) : apiKeres(`/autok/${id}`, {}, 'Az autó betöltése nem sikerült.').then((data) => data.auto),
-        ])
-            .then(([telephelyek, auto]) => setAllapot({ kulcs, auto, telephelyek, hiba: '' }))
-            .catch((error) => setAllapot({ kulcs, auto: null, telephelyek: [], hiba: error.message }));
+        const betoltes = async () => {
+            // a telephelyek a legördülő listához (ha nem sikerül, üres lista)
+            let telephelyek = [];
+            try {
+                const data = await apiKeres('/telephelyek');
+                telephelyek = data.telephelyek;
+            } catch {
+                // nem baj, üres lista marad
+            }
+
+            // szerkesztésnél az autó adatai
+            let auto = null;
+            if (!uj) {
+                try {
+                    const data = await apiKeres('/autok/' + id, {}, 'Az autó betöltése nem sikerült.');
+                    auto = data.auto;
+                } catch (error) {
+                    setAllapot({ kulcs: kulcs, auto: null, telephelyek: [], hiba: error.message });
+                    return;
+                }
+            }
+
+            setAllapot({ kulcs: kulcs, auto: auto, telephelyek: telephelyek, hiba: '' });
+        };
+        betoltes();
     }, [id, uj, kulcs]);
+
+    let cim = 'Hirdetés szerkesztése';
+    if (uj) {
+        cim = 'Új hirdetés';
+    } else if (allapot.auto) {
+        cim = autoNev(allapot.auto);
+    }
 
     return (
         <main className="oldal admin">
             <header className="admin-fejlec">
                 <div>
                     <Link className="vissza-link" to="/admin?lap=hirdetesek"><Ikon nev="balra" meret={15} /> Hirdetések</Link>
-                    <h1>{uj ? 'Új hirdetés' : allapot.auto ? autoNev(allapot.auto) : 'Hirdetés szerkesztése'}</h1>
+                    <h1>{cim}</h1>
                 </div>
             </header>
-            {allapot.kulcs !== kulcs ? (
-                <div className="betoltes"><span className="porgo" aria-hidden="true" />Betöltés…</div>
-            ) : allapot.hiba ? (
-                <p className="uzenet uzenet-hiba" role="alert">{allapot.hiba}</p>
-            ) : (
+            {allapot.kulcs !== kulcs && <div className="betoltes"><span className="porgo" aria-hidden="true" />Betöltés…</div>}
+            {allapot.kulcs === kulcs && allapot.hiba && <p className="uzenet uzenet-hiba" role="alert">{allapot.hiba}</p>}
+            {allapot.kulcs === kulcs && !allapot.hiba && (
                 <Szerkeszto key={kulcs} auto={allapot.auto} telephelyek={allapot.telephelyek} />
             )}
         </main>

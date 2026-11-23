@@ -1,44 +1,65 @@
-/*
- * Saját Cypress-parancsok a Veltrix E2E-tesztekhez.
- * A tesztadatok a backend/tests/e2e/szerver.js fájlban vannak (felhasználók, autók, alkatrészek).
- */
+// Saját Cypress parancsok a tesztekhez.
+// A tesztadatok a backend/tests/e2e/szerver.js fájlban vannak (felhasználók, autók, alkatrészek).
 
-const api = (utvonal) => `${Cypress.expose('apiUrl')}${utvonal}`;
+// a tesztszerver címe
+const api = (utvonal) => {
+    return Cypress.expose('apiUrl') + utvonal;
+};
 
-/** Adatbázis visszaállítása a mintaadatokra; az azonosítókat `@adatok` aliasként adja vissza. */
+// Az adatbázis visszaállítása a tesztadatokra. Az id-kat @adatok néven lehet elérni.
 Cypress.Commands.add('visszaallitas', () => {
     cy.clearCookies();
     cy.clearLocalStorage();
     return cy.request('POST', api('/__e2e/visszaallitas')).its('body').as('adatok');
 });
 
-/** Bejelentkezés felület nélkül (API-n keresztül) – a gyors előkészítéshez. Szerepkör: admin | ertekesito | vasarlo. */
+// a tesztfelhasználók e-mail címei
+const TESZT_EMAILEK = {
+    admin: 'admin@teszt.hu',
+    ertekesito: 'ertekesito@teszt.hu',
+    vasarlo: 'vasarlo@teszt.hu',
+};
+
+// Bejelentkezés a felület nélkül (gyorsabb). Szerepkör: admin, ertekesito vagy vasarlo.
 Cypress.Commands.add('bejelentkezes', (szerep) => {
-    const email = { admin: 'admin@teszt.hu', ertekesito: 'ertekesito@teszt.hu', vasarlo: 'vasarlo@teszt.hu' }[szerep];
-    return cy.request('POST', api('/api/auth/bejelentkezes'), { email, jelszo: 'Teszt1234' });
+    return cy.request('POST', api('/api/auth/bejelentkezes'), { email: TESZT_EMAILEK[szerep], jelszo: 'Teszt1234' });
 });
 
-/** Űrlapmező a címkéje alapján (pl. cy.mezo('Teljes név')). */
-Cypress.Commands.add('mezo', (cimke) => cy.contains('label', cimke).then(($label) => {
-    const id = $label.attr('for');
-    return id ? cy.get(`#${CSS.escape(id)}`) : cy.wrap($label).find('input, select, textarea').first();
-}));
+// Űrlap mező keresése a felirata alapján, pl. cy.mezo('Teljes név')
+Cypress.Commands.add('mezo', (cimke) => {
+    return cy.contains('label', cimke).then(($label) => {
+        const id = $label.attr('for');
+        if (id) {
+            return cy.get('#' + CSS.escape(id));
+        }
+        // ha nincs for, akkor a label-en belül van a mező
+        return cy.wrap($label).find('input, select, textarea').first();
+    });
+});
 
-/** Az utolsó rendelés a tesztszerverről (rendelésszám, státusz, fizetési munkamenet). */
-Cypress.Commands.add('utolsoRendeles', () => cy.request(api('/__e2e/rendelesek/utolso')).its('body'));
+// a legutóbbi rendelés a tesztszerverről
+Cypress.Commands.add('utolsoRendeles', () => {
+    return cy.request(api('/__e2e/rendelesek/utolso')).its('body');
+});
 
-/** A Stripe aláírt visszajelzésének szimulálása (sikeres fizetés vagy lejárat). */
-Cypress.Commands.add('stripeVisszajelzes', (munkamenetId, tipus = 'sikeres') => cy.request('POST', api(`/__e2e/fizetes/${munkamenetId}`), { tipus }));
+// a Stripe visszajelzés (sikeres fizetés vagy lejárat) szimulálása
+Cypress.Commands.add('stripeVisszajelzes', (munkamenetId, tipus = 'sikeres') => {
+    return cy.request('POST', api('/__e2e/fizetes/' + munkamenetId), { tipus: tipus });
+});
 
-/** A tesztszerver által „elküldött” e-mailek. */
-Cypress.Commands.add('levelek', () => cy.request(api('/__e2e/levelek')).its('body'));
+// az e-mailek, amiket a tesztszerver "elküldött"
+Cypress.Commands.add('levelek', () => {
+    return cy.request(api('/__e2e/levelek')).its('body');
+});
 
-/**
- * Szöveg-ellenőrzés szóköz-függetlenül: a magyar számformázás (pl. „2 490 000 Ft”) nem törő
- * keskeny szóközt használ, ezt sima szóközzel is megtalálja. Többet is ellenőrizhet egyszerre.
- *   cy.get('.reszletek-ar').szoveg('2 490 000 Ft')
- */
-Cypress.Commands.add('szoveg', { prevSubject: 'element' }, (elem, ...vartak) => cy.wrap(elem, { log: false }).should(($el) => {
-    const szoveg = $el.text().replace(/\s+/g, ' ');
-    for (const vart of vartak) expect(szoveg).to.include(vart);
-}));
+// Szöveg ellenőrzése úgy, hogy a szóközök fajtája ne számítson.
+// A magyar számformázás (pl. "2 490 000 Ft") speciális szóközt használ, ezért kell.
+// Példa: cy.get('.reszletek-ar').szoveg('2 490 000 Ft')
+Cypress.Commands.add('szoveg', { prevSubject: 'element' }, (elem, ...vartak) => {
+    return cy.wrap(elem, { log: false }).should(($el) => {
+        const szoveg = $el.text().replace(/\s+/g, ' ');
+        for (const vart of vartak) {
+            expect(szoveg).to.include(vart);
+        }
+    });
+});

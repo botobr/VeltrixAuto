@@ -17,9 +17,11 @@ const rendelesRoutes = require('./routes/rendelesRoutes');
 
 const { fizetesWebhook } = rendelesRoutes;
 
-/** Egységes JSON-hibaválasz; az Express 5 az async útvonalak hibáit ide továbbítja. */
+// Hibakezelő: ha valahol hiba történik, ide jut (az Express 5 az async hibákat is ide küldi).
 const hibakezelo = (error, req, res, next) => {
-    if (res.headersSent) return next(error);
+    if (res.headersSent) {
+        return next(error);
+    }
     if (error.type === 'entity.too.large') {
         return res.status(413).json({ hiba: 'A küldött adat túl nagy (a kép legfeljebb 4 MB lehet).' });
     }
@@ -27,7 +29,13 @@ const hibakezelo = (error, req, res, next) => {
         return res.status(400).json({ hiba: 'Érvénytelen kérés.' });
     }
     if (error.name === 'ValidationError') {
-        return res.status(400).json({ hiba: Object.values(error.errors)[0]?.message || 'Érvénytelen adatok.' });
+        // a mongoose validációs hibák közül az elsőt küldjük vissza
+        const elsoHiba = Object.values(error.errors)[0];
+        let uzenet = 'Érvénytelen adatok.';
+        if (elsoHiba && elsoHiba.message) {
+            uzenet = elsoHiba.message;
+        }
+        return res.status(400).json({ hiba: uzenet });
     }
     if (error.name === 'CastError') {
         return res.status(400).json({ hiba: 'Érvénytelen azonosító vagy érték.' });
@@ -36,7 +44,7 @@ const hibakezelo = (error, req, res, next) => {
         return res.status(409).json({ hiba: 'Ez az adat már létezik.' });
     }
     console.error(error);
-    return res.status(500).json({ hiba: `Hiba: ${error.message}` });
+    return res.status(500).json({ hiba: 'Hiba: ' + error.message });
 };
 
 const appLetrehozasa = ({ munkamenetTarolo } = {}) => {
@@ -46,21 +54,20 @@ const appLetrehozasa = ({ munkamenetTarolo } = {}) => {
         app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
     }
 
-    // Biztonsági fejlécek minden válaszra. Az API csak JSON-t ad, ezért a CSP a lehető legszigorúbb:
-    // semmit nem tölthet be, és keretbe (iframe) sem ágyazható. A megosztási HTML-oldal (seoRoutes)
-    // saját, nonce-alapú CSP-t kap.
+    // Biztonsági fejlécek (helmet). Az API csak JSON-t küld, ezért a CSP nagyon szigorú,
+    // és iframe-be sem lehet betenni. A megosztás oldalnak (seoRoutes) saját CSP-je van.
     app.use(helmet({
         contentSecurityPolicy: {
             useDefaults: false,
             directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"], baseUri: ["'none'"], formAction: ["'none'"] },
         },
-        // A frontend másik porton / aldomainen fut: ugyanazon a webhelyen belül olvashassa a válaszokat.
+        // a frontend másik porton fut, ezért same-site kell
         crossOriginResourcePolicy: { policy: 'same-site' },
         referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
         frameguard: { action: 'deny' },
     }));
 
-    // A fizetési szolgáltató aláírását a NYERS törzsön kell ellenőrizni, ezért a JSON-feldolgozás előtt.
+    // A Stripe webhook a JSON feldolgozás előtt kell, mert az aláíráshoz a nyers törzs kell!
     app.post('/api/fizetes/webhook', express.raw({ type: 'application/json', limit: '1mb' }), fizetesWebhook);
     app.use(express.json({ limit: '6mb' }));
     app.use(express.urlencoded({ extended: true }));
@@ -80,7 +87,7 @@ const appLetrehozasa = ({ munkamenetTarolo } = {}) => {
             httpOnly: true,
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
-            maxAge: 1000 * 60 * 60 * 8,
+            maxAge: 1000 * 60 * 60 * 8, // 8 óra
         },
     }));
 
@@ -94,7 +101,10 @@ const appLetrehozasa = ({ munkamenetTarolo } = {}) => {
     app.use('/api', alkatreszRoutes);
     app.use('/api', rendelesRoutes);
     app.use('/api', adminRoutes);
-    app.use('/api', (req, res) => res.status(404).json({ hiba: 'Nem létező végpont.' }));
+    // ha egyik útvonal sem illett rá
+    app.use('/api', (req, res) => {
+        res.status(404).json({ hiba: 'Nem létező végpont.' });
+    });
     app.use('/', seoRoutes);
     app.use(hibakezelo);
 

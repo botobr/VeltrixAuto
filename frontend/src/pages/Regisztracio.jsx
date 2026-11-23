@@ -22,10 +22,20 @@ const Regisztracio = () => {
 
     useSeo({ cim: 'Regisztráció', noindex: true });
 
-    if (felhasznalo && !folyamatban) return <Navigate to={location.state?.from || '/fiok'} replace />;
+    // ha már be van jelentkezve
+    if (felhasznalo && !folyamatban) {
+        let hova = '/fiok';
+        if (location.state && location.state.from) {
+            hova = location.state.from;
+        }
+        return <Navigate to={hova} replace />;
+    }
 
     const beallit = (mezo) => (event) => {
-        const ertek = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        let ertek = event.target.value;
+        if (event.target.type === 'checkbox') {
+            ertek = event.target.checked;
+        }
         setAdatok((elozo) => ({ ...elozo, [mezo]: ertek }));
     };
 
@@ -55,7 +65,7 @@ const Regisztracio = () => {
                     <>
                         <p className="belepes-leiras">Elküldtük a megerősítő linket a(z) <strong>{adatok.email}</strong> címre. A fiókod aktiválásához kattints a linkre.</p>
                         <Link className="gomb gomb-fo belepes-gomb" to="/belepes">Tovább a bejelentkezéshez</Link>
-                        <p className="belepes-vissza">Nem kaptad meg? <Link to={`/email-hitelesites?ujrakuldes=${encodeURIComponent(adatok.email)}`}>Új link kérése</Link></p>
+                        <p className="belepes-vissza">Nem kaptad meg? <Link to={'/email-hitelesites?ujrakuldes=' + encodeURIComponent(adatok.email)}>Új link kérése</Link></p>
                     </>
                 ) : <form className="belepes-urlap" onSubmit={kuldes}>
                     <div className="mezo">
@@ -72,6 +82,7 @@ const Regisztracio = () => {
                         <span><label htmlFor="reg-jelszo">Jelszó</label> <small>(legalább 8 karakter)</small></span>
                         <JelszoMezo id="reg-jelszo" autoComplete="new-password" minLength={8} value={adatok.jelszo} onChange={beallit('jelszo')} />
                     </div>
+                    {/* robotcsapda, ember nem látja */}
                     <div className="robotcsapda" aria-hidden="true">
                         <label htmlFor="reg-weboldal">Weboldal</label>
                         <input id="reg-weboldal" tabIndex={-1} autoComplete="off" value={adatok.weboldal} onChange={beallit('weboldal')} />

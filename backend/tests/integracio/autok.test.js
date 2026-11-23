@@ -60,7 +60,8 @@ test('értékesítő szerkesztése nem írja felül az admin által rögzített 
 test('értékesítő új eladott autónál nem adhat meg eladási árat (a vételár lesz)', async () => {
     const ertekesito = await k.bejelentkezve('ertekesito');
     const { adat } = await ertekesito.post('/autok', k.autoUrlap({ statusz: 'elkelt', eladasi_ar: 100 }));
-    assert.equal((await AutoModel.findById(adat.auto._id)).eladasi_ar, 8990000);
+    const mentett = await AutoModel.findById(adat.auto._id);
+    assert.equal(mentett.eladasi_ar, 8990000);
 });
 
 test('nyilvános nézet: rejtett és eladott autó kimarad, belső adatok nem kerülnek ki', async () => {
@@ -73,15 +74,20 @@ test('nyilvános nézet: rejtett és eladott autó kimarad, belső adatok nem ke
     assert.deepEqual(lista.adat.autok.map((auto) => auto.marka), ['Audi']);
     assert.equal(lista.adat.autok[0].megtekintesek, undefined);
 
-    assert.equal((await vendeg.get(`/autok/${rejtett._id}`)).status, 404);
+    const rejtettAdatlap = await vendeg.get(`/autok/${rejtett._id}`);
+    assert.equal(rejtettAdatlap.status, 404);
+
     const eladottAdatlap = await vendeg.get(`/autok/${eladott._id}`);
     assert.equal(eladottAdatlap.status, 200);
     assert.equal(eladottAdatlap.adat.auto.eladasi_ar, undefined);
     assert.equal(eladottAdatlap.adat.auto.eladas_datum, undefined);
 
+    // a munkatárs a rejtett autót és a statisztikát is látja
     const ertekesito = await k.bejelentkezve('ertekesito');
-    assert.equal((await ertekesito.get(`/autok/${rejtett._id}`)).status, 200);
-    assert.equal((await ertekesito.get(`/autok/${lathato._id}`)).adat.auto.megtekintesek, 0);
+    const rejtettMunkatarsnak = await ertekesito.get(`/autok/${rejtett._id}`);
+    assert.equal(rejtettMunkatarsnak.status, 200);
+    const lathatoMunkatarsnak = await ertekesito.get(`/autok/${lathato._id}`);
+    assert.equal(lathatoMunkatarsnak.adat.auto.megtekintesek, 0);
 });
 
 test('szűrés és rendezés a nyilvános listában', async () => {
@@ -97,24 +103,35 @@ test('szűrés és rendezés a nyilvános listában', async () => {
     assert.equal(sav.adat.lapozas.osszes, 2);
 
     const szurok = await vendeg.get('/autok/szurok');
-    assert.deepEqual(szurok.adat.markak.map((m) => [m.marka, m.db]), [['Audi', 2], ['BMW', 1]]);
+    assert.equal(szurok.adat.markak.length, 2);
+    assert.equal(szurok.adat.markak[0].marka, 'Audi');
+    assert.equal(szurok.adat.markak[0].db, 2);
+    assert.equal(szurok.adat.markak[1].marka, 'BMW');
+    assert.equal(szurok.adat.markak[1].db, 1);
 });
 
 test('törlés: értékesítőnek tiltott; adminnál a képek és a kedvencek is takarítva', async () => {
     const auto = await k.autoMentese();
     const vasarlo = await k.bejelentkezve('felhasznalo');
     await vasarlo.post(`/fiok/kedvencek/${auto._id}`);
-    assert.equal((await FelhasznaloModel.findById(vasarlo.user._id)).kedvencek.length, 1);
+    let vasarloAdatai = await FelhasznaloModel.findById(vasarlo.user._id);
+    assert.equal(vasarloAdatai.kedvencek.length, 1);
 
+    // az értékesítő nem törölhet
     const ertekesito = await k.bejelentkezve('ertekesito');
-    assert.equal((await ertekesito.delete(`/autok/${auto._id}`)).status, 403);
+    const ertekesitoTorles = await ertekesito.delete(`/autok/${auto._id}`);
+    assert.equal(ertekesitoTorles.status, 403);
     assert.ok(await AutoModel.exists({ _id: auto._id }));
 
+    // az admin igen
     const admin = await k.bejelentkezve('admin');
-    assert.equal((await admin.delete(`/autok/${auto._id}`)).status, 200);
+    const adminTorles = await admin.delete(`/autok/${auto._id}`);
+    assert.equal(adminTorles.status, 200);
     assert.equal(await AutoModel.exists({ _id: auto._id }), null);
     assert.deepEqual(k.toroltKepek, [auto.kepek[0].publicId]);
-    assert.equal((await FelhasznaloModel.findById(vasarlo.user._id)).kedvencek.length, 0);
+
+    vasarloAdatai = await FelhasznaloModel.findById(vasarlo.user._id);
+    assert.equal(vasarloAdatai.kedvencek.length, 0);
 });
 
 test('megtekintés számlálása: látogatónál nő, munkatársnál nem', async () => {

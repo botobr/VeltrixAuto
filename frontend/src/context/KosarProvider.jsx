@@ -4,26 +4,40 @@ import { KosarContext, MAX_MENNYISEG } from './kosar';
 
 const KULCS = 'veltrix-kosar';
 
-const tisztitas = (lista) => (Array.isArray(lista) ? lista : [])
-    .filter((t) => typeof t?.id === 'string' && Number.isInteger(t.mennyiseg) && t.mennyiseg > 0)
-    .map((t) => ({ id: t.id, mennyiseg: Math.min(t.mennyiseg, MAX_MENNYISEG) }))
-    .slice(0, 30);
+// a localStorage-ból olvasott kosár ellenőrzése (ha valaki belepiszkált, ne omoljon össze)
+const tisztitas = (lista) => {
+    if (!Array.isArray(lista)) {
+        return [];
+    }
+    const tetelek = [];
+    for (const tetel of lista) {
+        if (!tetel || typeof tetel.id !== 'string') {
+            continue;
+        }
+        if (!Number.isInteger(tetel.mennyiseg) || tetel.mennyiseg <= 0) {
+            continue;
+        }
+        tetelek.push({ id: tetel.id, mennyiseg: Math.min(tetel.mennyiseg, MAX_MENNYISEG) });
+    }
+    return tetelek.slice(0, 30);
+};
 
-/**
- * A kosár a böngészőben (bejelentkezés nélkül is). Csak azonosítót és darabszámot
- * tárol: az ár, a készlet és a végösszeg mindig a szerverről jön.
- */
+// A kosár a böngészőben van tárolva (bejelentkezés nélkül is működik).
+// Csak a termék id-ját és a darabszámot tároljuk, az árat mindig a szervertől kérjük.
 export const KosarProvider = ({ children }) => {
     const [tetelek, setTetelek] = useState(() => tisztitas(olvas(KULCS, [])));
 
+    // minden változásnál elmentjük
     useEffect(() => {
         ir(KULCS, tetelek);
     }, [tetelek]);
 
-    // Másik böngészőfülön módosított kosár kövesse ezt a fület is.
+    // ha egy másik fülön változik a kosár, itt is frissítjük
     useEffect(() => {
         const figyelo = (event) => {
-            if (event.key === KULCS) setTetelek(tisztitas(olvas(KULCS, [])));
+            if (event.key === KULCS) {
+                setTetelek(tisztitas(olvas(KULCS, [])));
+            }
         };
         window.addEventListener('storage', figyelo);
         return () => window.removeEventListener('storage', figyelo);
@@ -31,34 +45,65 @@ export const KosarProvider = ({ children }) => {
 
     const hozzaadas = useCallback((id, mennyiseg = 1) => {
         setTetelek((elozo) => {
-            const meglevo = elozo.find((t) => t.id === id);
-            if (meglevo) return elozo.map((t) => (t.id === id ? { ...t, mennyiseg: Math.min(t.mennyiseg + mennyiseg, MAX_MENNYISEG) } : t));
-            return [...elozo, { id, mennyiseg: Math.min(mennyiseg, MAX_MENNYISEG) }];
+            const meglevo = elozo.find((tetel) => tetel.id === id);
+            if (!meglevo) {
+                return [...elozo, { id: id, mennyiseg: Math.min(mennyiseg, MAX_MENNYISEG) }];
+            }
+            // ha már benne van, növeljük a darabszámot
+            return elozo.map((tetel) => {
+                if (tetel.id !== id) {
+                    return tetel;
+                }
+                return { ...tetel, mennyiseg: Math.min(tetel.mennyiseg + mennyiseg, MAX_MENNYISEG) };
+            });
         });
     }, []);
 
     const mennyisegBeallitas = useCallback((id, mennyiseg) => {
-        setTetelek((elozo) => (mennyiseg <= 0
-            ? elozo.filter((t) => t.id !== id)
-            : elozo.map((t) => (t.id === id ? { ...t, mennyiseg: Math.min(mennyiseg, MAX_MENNYISEG) } : t))));
+        setTetelek((elozo) => {
+            // 0 darabnál kivesszük
+            if (mennyiseg <= 0) {
+                return elozo.filter((tetel) => tetel.id !== id);
+            }
+            return elozo.map((tetel) => {
+                if (tetel.id !== id) {
+                    return tetel;
+                }
+                return { ...tetel, mennyiseg: Math.min(mennyiseg, MAX_MENNYISEG) };
+            });
+        });
     }, []);
 
-    const eltavolitas = useCallback((ids) => {
-        const torlendo = new Set([].concat(ids));
-        setTetelek((elozo) => elozo.filter((t) => !torlendo.has(t.id)));
+    // egy vagy több termék kivétele (id vagy id-k tömbje)
+    const eltavolitas = useCallback((idk) => {
+        let torlendok = [idk];
+        if (Array.isArray(idk)) {
+            torlendok = idk;
+        }
+        setTetelek((elozo) => elozo.filter((tetel) => !torlendok.includes(tetel.id)));
     }, []);
 
-    const urites = useCallback(() => setTetelek([]), []);
+    const urites = useCallback(() => {
+        setTetelek([]);
+    }, []);
 
-    const value = useMemo(() => ({
-        tetelek,
-        darab: tetelek.reduce((osszeg, t) => osszeg + t.mennyiseg, 0),
-        mennyiseg: (id) => tetelek.find((t) => t.id === id)?.mennyiseg || 0,
-        hozzaadas,
-        mennyisegBeallitas,
-        eltavolitas,
-        urites,
-    }), [tetelek, hozzaadas, mennyisegBeallitas, eltavolitas, urites]);
+    const value = useMemo(() => {
+        let darab = 0;
+        for (const tetel of tetelek) {
+            darab += tetel.mennyiseg;
+        }
+
+        // egy termékből hány darab van a kosárban
+        const mennyiseg = (id) => {
+            const tetel = tetelek.find((elem) => elem.id === id);
+            if (tetel) {
+                return tetel.mennyiseg;
+            }
+            return 0;
+        };
+
+        return { tetelek, darab, mennyiseg, hozzaadas, mennyisegBeallitas, eltavolitas, urites };
+    }, [tetelek, hozzaadas, mennyisegBeallitas, eltavolitas, urites]);
 
     return <KosarContext.Provider value={value}>{children}</KosarContext.Provider>;
 };

@@ -4,13 +4,52 @@ import Ikon from './Ikon';
 import KepKezelo from './KepKezelo';
 import './AutoUrlap.css';
 
+// a listában ez az "Egyéb – saját megadás" opció értéke
 const EGYEDI = '__egyedi__';
 const maxEvjarat = new Date().getFullYear() + 1;
 
+// egy mező az autó űrlapon (a típusa szerint más-más input)
 const Mezo = ({ mezo, cimke, tipus, opciok = {}, adatok, beallit, egyediMezok, setEgyediMezok }) => {
-    const id = `auto-${mezo}`;
+    const id = 'auto-' + mezo;
     const ertek = adatok[mezo];
-    const { kotelezo = false, placeholder, egyseg, sugo } = opciok;
+    const kotelezo = opciok.kotelezo || false;
+    const placeholder = opciok.placeholder;
+    const egyseg = opciok.egyseg;
+    const sugo = opciok.sugo;
+
+    // listából választás vagy saját érték
+    const listaValtozas = (event) => {
+        const egyedi = event.target.value === EGYEDI;
+        setEgyediMezok((elozo) => ({ ...elozo, [mezo]: egyedi }));
+        if (egyedi) {
+            beallit(mezo, '');
+        } else {
+            beallit(mezo, event.target.value);
+        }
+    };
+
+    // sima input változása (az alvázszám nagybetűs)
+    const inputValtozas = (event) => {
+        if (opciok.nagybetu) {
+            beallit(mezo, event.target.value.toUpperCase());
+        } else {
+            beallit(mezo, event.target.value);
+        }
+    };
+
+    // szám mezőnél: tizedes vagy egész
+    let inputMode;
+    let min;
+    let step;
+    if (tipus === 'number') {
+        inputMode = opciok.tort ? 'decimal' : 'numeric';
+        min = opciok.min !== undefined ? opciok.min : 0;
+        step = opciok.tort ? 0.1 : 1;
+    }
+    let max = opciok.max;
+    if (mezo === 'evjarat') {
+        max = maxEvjarat;
+    }
 
     let bemenet;
     if (tipus === 'textarea') {
@@ -23,19 +62,15 @@ const Mezo = ({ mezo, cimke, tipus, opciok = {}, adatok, beallit, egyediMezok, s
                     id={id}
                     required={kotelezo}
                     value={egyediMezok[mezo] ? EGYEDI : ertek}
-                    onChange={(event) => {
-                        const egyedi = event.target.value === EGYEDI;
-                        setEgyediMezok((elozo) => ({ ...elozo, [mezo]: egyedi }));
-                        beallit(mezo, egyedi ? '' : event.target.value);
-                    }}
+                    onChange={listaValtozas}
                 >
                     <option value="" disabled>Válassz…</option>
                     {autoValasztasiLehetosegek[mezo].map((lehetoseg) => <option key={lehetoseg} value={lehetoseg}>{lehetoseg}</option>)}
                     <option value={EGYEDI}>Egyéb – saját megadás</option>
                 </select>
                 {egyediMezok[mezo] && (
-                    <input className="bemenet" aria-label={`${cimke} – saját érték`} required={kotelezo} autoFocus
-                        placeholder={`Írd be: ${cimke.toLocaleLowerCase('hu')}`} value={ertek} onChange={(e) => beallit(mezo, e.target.value)} />
+                    <input className="bemenet" aria-label={cimke + ' – saját érték'} required={kotelezo} autoFocus
+                        placeholder={'Írd be: ' + cimke.toLocaleLowerCase('hu')} value={ertek} onChange={(e) => beallit(mezo, e.target.value)} />
                 )}
             </>
         );
@@ -48,9 +83,9 @@ const Mezo = ({ mezo, cimke, tipus, opciok = {}, adatok, beallit, egyediMezok, s
         );
     } else if (tipus === 'bool') {
         bemenet = (
-            <div className="harom-allas" role="radiogroup" aria-labelledby={`${id}-cimke`}>
-                {[['true', 'Igen'], ['false', 'Nem'], ['', 'Nincs megadva']].map(([v, felirat]) => (
-                    <button key={felirat} type="button" role="radio" aria-checked={ertek === v} className={`csip ${ertek === v ? 'aktiv' : ''}`} onClick={() => beallit(mezo, v)}>
+            <div className="harom-allas" role="radiogroup" aria-labelledby={id + '-cimke'}>
+                {[['true', 'Igen'], ['false', 'Nem'], ['', 'Nincs megadva']].map(([valasz, felirat]) => (
+                    <button key={felirat} type="button" role="radio" aria-checked={ertek === valasz} className={ertek === valasz ? 'csip aktiv' : 'csip'} onClick={() => beallit(mezo, valasz)}>
                         {felirat}
                     </button>
                 ))}
@@ -63,15 +98,15 @@ const Mezo = ({ mezo, cimke, tipus, opciok = {}, adatok, beallit, egyediMezok, s
                     className="bemenet"
                     id={id}
                     type={tipus}
-                    inputMode={tipus === 'number' ? (opciok.tort ? 'decimal' : 'numeric') : undefined}
-                    min={tipus === 'number' ? (opciok.min ?? 0) : undefined}
-                    max={mezo === 'evjarat' ? maxEvjarat : opciok.max}
-                    step={tipus === 'number' ? (opciok.tort ? 0.1 : 1) : undefined}
+                    inputMode={inputMode}
+                    min={min}
+                    max={max}
+                    step={step}
                     maxLength={opciok.maxLength}
                     placeholder={placeholder}
                     required={kotelezo}
                     value={ertek}
-                    onChange={(e) => beallit(mezo, opciok.nagybetu ? e.target.value.toUpperCase() : e.target.value)}
+                    onChange={inputValtozas}
                 />
                 {egyseg && <span>{egyseg}</span>}
             </div>
@@ -79,8 +114,8 @@ const Mezo = ({ mezo, cimke, tipus, opciok = {}, adatok, beallit, egyediMezok, s
     }
 
     return (
-        <div className={`mezo ${tipus === 'textarea' ? 'mezo-szeles' : ''}`}>
-            <span id={`${id}-cimke`}>
+        <div className={tipus === 'textarea' ? 'mezo mezo-szeles' : 'mezo'}>
+            <span id={id + '-cimke'}>
                 {tipus === 'bool' ? cimke : <label htmlFor={id}>{cimke}</label>}
                 {kotelezo && <small className="kotelezo" aria-hidden="true">*</small>}
             </span>
@@ -90,16 +125,41 @@ const Mezo = ({ mezo, cimke, tipus, opciok = {}, adatok, beallit, egyediMezok, s
     );
 };
 
+// felszereltség kiválasztása (gombok csoportonként + saját extrák)
 const Felszereltseg = ({ lista, setLista }) => {
     const [uj, setUj] = useState('');
-    const ismert = new Set(Object.values(FELSZERELTSEG_CSOPORTOK).flat());
-    const egyedi = lista.filter((elem) => !ismert.has(elem));
 
-    const valtas = (elem) => setLista(lista.includes(elem) ? lista.filter((e) => e !== elem) : [...lista, elem]);
+    // az összes előre megadott extra
+    const ismert = [];
+    for (const csoport in FELSZERELTSEG_CSOPORTOK) {
+        for (const elem of FELSZERELTSEG_CSOPORTOK[csoport]) {
+            ismert.push(elem);
+        }
+    }
+    // amiket kézzel írtak be
+    const egyedi = lista.filter((elem) => !ismert.includes(elem));
+
+    const valtas = (elem) => {
+        if (lista.includes(elem)) {
+            setLista(lista.filter((masik) => masik !== elem));
+        } else {
+            setLista([...lista, elem]);
+        }
+    };
+
     const hozzaad = () => {
         const tiszta = uj.trim();
-        if (tiszta && !lista.includes(tiszta)) setLista([...lista, tiszta]);
+        if (tiszta && !lista.includes(tiszta)) {
+            setLista([...lista, tiszta]);
+        }
         setUj('');
+    };
+
+    const enterre = (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // ne küldje el az egész űrlapot
+            hozzaad();
+        }
     };
 
     return (
@@ -109,7 +169,7 @@ const Felszereltseg = ({ lista, setLista }) => {
                     <legend>{csoport}</legend>
                     <div className="szuro-csipek">
                         {elemek.map((elem) => (
-                            <button key={elem} type="button" className={`csip ${lista.includes(elem) ? 'aktiv' : ''}`} aria-pressed={lista.includes(elem)} onClick={() => valtas(elem)}>
+                            <button key={elem} type="button" className={lista.includes(elem) ? 'csip aktiv' : 'csip'} aria-pressed={lista.includes(elem)} onClick={() => valtas(elem)}>
                                 {lista.includes(elem) && <Ikon nev="pipa" meret={12} />} {elem}
                             </button>
                         ))}
@@ -120,7 +180,7 @@ const Felszereltseg = ({ lista, setLista }) => {
                 <legend>Egyéb extrák</legend>
                 <div className="szuro-csipek">
                     {egyedi.map((elem) => (
-                        <button key={elem} type="button" className="csip aktiv" onClick={() => valtas(elem)} aria-label={`${elem} eltávolítása`}>
+                        <button key={elem} type="button" className="csip aktiv" onClick={() => valtas(elem)} aria-label={elem + ' eltávolítása'}>
                             {elem} <Ikon nev="x" meret={12} />
                         </button>
                     ))}
@@ -133,7 +193,7 @@ const Felszereltseg = ({ lista, setLista }) => {
                         value={uj}
                         aria-label="Új extra"
                         onChange={(e) => setUj(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); hozzaad(); } }}
+                        onKeyDown={enterre}
                     />
                     <button type="button" className="gomb gomb-uveg gomb-kicsi" onClick={hozzaad} disabled={!uj.trim()}>Hozzáadás</button>
                 </div>
@@ -142,9 +202,22 @@ const Felszereltseg = ({ lista, setLista }) => {
     );
 };
 
+// az autó hirdetés teljes űrlapja (új autó és szerkesztés)
 const AutoUrlap = ({ adatok, setAdatok, egyediMezok, setEgyediMezok, telephelyek, onUjKep, penzugy = false }) => {
-    const beallit = (mezo, ertek) => setAdatok((elozo) => ({ ...elozo, [mezo]: ertek }));
-    const setKepek = (frissito) => setAdatok((elozo) => ({ ...elozo, kepek: typeof frissito === 'function' ? frissito(elozo.kepek) : frissito }));
+    const beallit = (mezo, ertek) => {
+        setAdatok((elozo) => ({ ...elozo, [mezo]: ertek }));
+    };
+
+    // a KepKezelo függvényt is adhat (mint a setState), ezért azt is kezeljük
+    const setKepek = (frissito) => {
+        setAdatok((elozo) => {
+            let ujKepek = frissito;
+            if (typeof frissito === 'function') {
+                ujKepek = frissito(elozo.kepek);
+            }
+            return { ...elozo, kepek: ujKepek };
+        });
+    };
 
     return (
         <div className="auto-urlap">

@@ -1,9 +1,6 @@
-/*
- * A kereskedés adatai egy helyen.
- * FONTOS: az alábbi jogi és elérhetőségi adatok MINTAÉRTÉKEK – élesítés előtt
- * cserélni kell őket a valós cégadatokra. A telephelyek (cím, nyitvatartás,
- * telefon) az admin felületen, az adatbázisban kezelhetők.
- */
+// A cég adatai.
+// FONTOS: ezek csak minta adatok, élesítés előtt ki kell cserélni a valódiakra!
+// A telephelyeket (cím, nyitvatartás, telefon) az admin felületen lehet szerkeszteni.
 export const CEG = {
     nev: 'Veltrix Autók',
     jogiNev: 'Veltrix Autó Kft.',
@@ -14,10 +11,10 @@ export const CEG = {
     telefon: '+36 1 000 0000',
     adatvedelmiEmail: 'adatvedelem@veltrix.hu',
     tarhelySzolgaltato: 'a tárhelyszolgáltató neve és címe',
-    // A hitelkalkulátor alapértelmezett, tájékoztató jellegű THM-je (%).
+    // a hitelkalkulátor THM-je (%)
     thm: 9.9,
-    // Facebook Messenger asztali megosztáshoz (opcionális): https://developers.facebook.com/apps
+    // Messenger megosztáshoz kell (nem kötelező)
     facebookAppId: import.meta.env.VITE_FACEBOOK_APP_ID || '',
-    // A jogi dokumentumok hatálybalépése.
+    // mikortól érvényesek a jogi dokumentumok
     jogiDatum: '2026. november 20.',
 };
