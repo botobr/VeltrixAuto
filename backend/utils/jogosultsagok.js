@@ -1,32 +1,44 @@
-/*
- * Szerepkörök és jogosultságok – az egyetlen hely, ahol eldől, ki mit tehet.
- * A backend minden védett útvonala ezekből a jogokból dolgozik, és a frontend
- * is ugyanezt a listát kapja meg (a felhasználó `jogok` mezőjében).
- */
+// Szerepkörök és jogosultságok.
+// Itt van megadva, hogy melyik szerepkör mit csinálhat. A frontend is ezt a listát kapja meg.
 
 const SZEREPKOROK = ['admin', 'ertekesito', 'felhasznalo'];
 
 const JOGOK = {
-    /** Belépés a kereskedői felületre (dashboard, hirdetések, érdeklődések). */
+    // admin felület megnyitása (dashboard, hirdetések, érdeklődések)
     kezelofelulet: ['admin', 'ertekesito'],
-    /** Hirdetés létrehozása, szerkesztése, státusz, képfeltöltés. */
+    // hirdetés létrehozása, szerkesztése, képfeltöltés
     hirdetesSzerkesztes: ['admin', 'ertekesito'],
     hirdetesTorles: ['admin'],
     erdeklodesKezeles: ['admin', 'ertekesito'],
     erdeklodesTorles: ['admin'],
-    /** Tuning alkatrészek (webshop termékek) létrehozása, szerkesztése, készlet. */
+    // webshop termékek szerkesztése, készlet
     alkatreszSzerkesztes: ['admin', 'ertekesito'],
     alkatreszTorles: ['admin'],
-    /** Webshop rendelések megtekintése, státusz, fizetés rögzítése. */
+    // webshop rendelések kezelése
     rendelesKezeles: ['admin', 'ertekesito'],
     telephelyKezeles: ['admin'],
     felhasznaloKezeles: ['admin'],
-    /** Pénzügyi adatok: bevétel (autó és webshop), eladási ár (később beszerzési ár, haszon). */
+    // pénzügyi adatok (bevétel, eladási ár)
     penzugy: ['admin'],
 };
 
-const vanJoga = (szerepkor, jog) => Boolean(JOGOK[jog]?.includes(szerepkor));
+// megnézi, hogy a szerepkörnek van-e ilyen joga
+const vanJoga = (szerepkor, jog) => {
+    if (!JOGOK[jog]) {
+        return false;
+    }
+    return JOGOK[jog].includes(szerepkor);
+};
 
-const szerepkorJogai = (szerepkor) => Object.keys(JOGOK).filter((jog) => vanJoga(szerepkor, jog));
+// a szerepkör összes joga egy tömbben
+const szerepkorJogai = (szerepkor) => {
+    const jogok = [];
+    for (const jog in JOGOK) {
+        if (vanJoga(szerepkor, jog)) {
+            jogok.push(jog);
+        }
+    }
+    return jogok;
+};
 
 module.exports = { SZEREPKOROK, JOGOK, vanJoga, szerepkorJogai };

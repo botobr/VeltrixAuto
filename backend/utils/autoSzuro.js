@@ -2,9 +2,9 @@ const TelephelyModel = require('../models/Telephely');
 const { autoSlug } = require('./slug');
 
 const NAP_MS = 24 * 60 * 60 * 1000;
-const UJ_AUTO_NAPOK = 7;
+const UJ_AUTO_NAPOK = 7; // ennyi napig számít újnak egy hirdetés
 
-/** Az /api/autok által elfogadott szűrőparaméterek – a mentett keresés is csak ezeket tárolhatja. */
+// az /api/autok ezeket a szűrőket fogadja el (mentett keresésben is csak ezek lehetnek)
 const SZURO_PARAMETEREK = [
     'q', 'marka', 'modell', 'uzemanyag', 'valto', 'hajtas', 'kivitel', 'megye', 'telephely',
     'minAr', 'maxAr', 'evjaratTol', 'evjaratIg', 'kmTol', 'kmIg', 'teljesitmenyTol', 'teljesitmenyIg',
@@ -20,116 +20,227 @@ const rendezesiSorrend = {
     kmNovekvo: { kmora_allas: 1, _id: 1 },
 };
 
+// a regex speciális karaktereit levédjük, hogy a felhasználó ne tudjon regexet beírni
 const biztonsagos = (ertek) => String(ertek).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const pontosEgyezes = (ertek) => new RegExp(`^${biztonsagos(String(ertek).trim())}$`, 'i');
-const lista = (ertek) => String(ertek).split(',').map((elem) => elem.trim()).filter(Boolean).slice(0, 12);
-const szamVagyNull = (ertek) => {
-    if (ertek === undefined || ertek === null || ertek === '') return null;
-    const szam = Number(ertek);
-    return Number.isFinite(szam) ? szam : null;
+
+// kis- és nagybetűre nem érzékeny, pontos egyezés
+const pontosEgyezes = (ertek) => new RegExp('^' + biztonsagos(String(ertek).trim()) + '$', 'i');
+
+// "Benzin,Dízel" -> ['Benzin', 'Dízel'] (max 12 elem)
+const lista = (ertek) => {
+    const elemek = [];
+    for (const resz of String(ertek).split(',')) {
+        const tisztitott = resz.trim();
+        if (tisztitott) {
+            elemek.push(tisztitott);
+        }
+    }
+    return elemek.slice(0, 12);
 };
 
-/** Ami a nyilvános oldalon egyáltalán megjelenhet: látható és nem járt le. */
-const publikusFeltetelek = (most = new Date()) => [
-    { lathato: { $ne: false } },
-    { $or: [{ lejarat: null }, { lejarat: { $gt: most } }] },
-];
+const szamVagyNull = (ertek) => {
+    if (ertek === undefined || ertek === null || ertek === '') {
+        return null;
+    }
+    const szam = Number(ertek);
+    if (Number.isFinite(szam)) {
+        return szam;
+    }
+    return null;
+};
 
+// a nyilvános oldalon csak a látható és le nem járt hirdetések jelennek meg
+const publikusFeltetelek = (most = new Date()) => {
+    return [
+        { lathato: { $ne: false } },
+        { $or: [{ lejarat: null }, { lejarat: { $gt: most } }] },
+    ];
+};
+
+// tól-ig szűrő egy mezőre (pl. ár), null ha egyik sincs megadva
 const tartomany = (mezo, tol, ig) => {
     const min = szamVagyNull(tol);
     const max = szamVagyNull(ig);
-    if (min === null && max === null) return null;
+    if (min === null && max === null) {
+        return null;
+    }
+
     const feltetel = {};
-    if (min !== null) feltetel.$gte = min;
-    if (max !== null) feltetel.$lte = max;
-    return { [mezo]: feltetel };
+    if (min !== null) {
+        feltetel.$gte = min;
+    }
+    if (max !== null) {
+        feltetel.$lte = max;
+    }
+
+    const eredmeny = {};
+    eredmeny[mezo] = feltetel;
+    return eredmeny;
 };
 
-/**
- * A lekérdezési paraméterekből MongoDB-szűrőt épít.
- * @param {object} p – a query paraméterek (stringek)
- * @param {{ publikus?: boolean, elkeltekIs?: boolean }} opciok
- */
+// A kapott paraméterekből (pl. ?marka=BMW&minAr=1000000) MongoDB szűrőt készít.
 const szuroEpitese = async (p = {}, { publikus = true, elkeltekIs = false } = {}) => {
-    const feltetelek = publikus ? publikusFeltetelek() : [];
-    const szoveg = (kulcs) => (typeof p[kulcs] === 'string' && p[kulcs].trim() ? p[kulcs].trim() : null);
+    let feltetelek = [];
+    if (publikus) {
+        feltetelek = publikusFeltetelek();
+    }
 
-    if (publikus && !elkeltekIs) feltetelek.push({ statusz: { $ne: 'elkelt' } });
+    // visszaadja a paraméter értékét, ha nem üres szöveg
+    const szoveg = (kulcs) => {
+        if (typeof p[kulcs] === 'string' && p[kulcs].trim() !== '') {
+            return p[kulcs].trim();
+        }
+        return null;
+    };
 
+    if (publikus && !elkeltekIs) {
+        feltetelek.push({ statusz: { $ne: 'elkelt' } });
+    }
+
+    // szabadszavas keresés: minden szónak illeszkednie kell valamelyik mezőre
     const q = szoveg('q');
     if (q) {
-        for (const kifejezes of q.split(/\s+/).slice(0, 6)) {
-            const minta = new RegExp(biztonsagos(kifejezes), 'i');
-            const vagy = ['marka', 'modell', 'uzemanyag', 'kivitel', 'szin', 'valto', 'felszereltseg']
-                .map((mezo) => ({ [mezo]: minta }));
-            if (/^\d{4}$/.test(kifejezes)) vagy.push({ evjarat: Number(kifejezes) });
+        const szavak = q.split(/\s+/).slice(0, 6);
+        for (const szo of szavak) {
+            const minta = new RegExp(biztonsagos(szo), 'i');
+            const vagy = [
+                { marka: minta },
+                { modell: minta },
+                { uzemanyag: minta },
+                { kivitel: minta },
+                { szin: minta },
+                { valto: minta },
+                { felszereltseg: minta },
+            ];
+            // ha évszámot írt be, az évjáratra is keresünk
+            if (/^\d{4}$/.test(szo)) {
+                vagy.push({ evjarat: Number(szo) });
+            }
             feltetelek.push({ $or: vagy });
         }
     }
 
-    if (szoveg('marka')) feltetelek.push({ marka: pontosEgyezes(p.marka) });
-    if (szoveg('modell')) feltetelek.push({ modell: pontosEgyezes(p.modell) });
-
-    for (const mezo of ['uzemanyag', 'valto', 'hajtas', 'kivitel']) {
-        if (szoveg(mezo)) feltetelek.push({ [mezo]: { $in: lista(p[mezo]).map(pontosEgyezes) } });
+    if (szoveg('marka')) {
+        feltetelek.push({ marka: pontosEgyezes(p.marka) });
+    }
+    if (szoveg('modell')) {
+        feltetelek.push({ modell: pontosEgyezes(p.modell) });
     }
 
-    for (const [mezo, tol, ig] of [
-        ['vetel_ar', 'minAr', 'maxAr'],
-        ['evjarat', 'evjaratTol', 'evjaratIg'],
-        ['kmora_allas', 'kmTol', 'kmIg'],
-        ['teljesitmeny', 'teljesitmenyTol', 'teljesitmenyIg'],
-    ]) {
-        const feltetel = tartomany(mezo, p[tol], p[ig]);
-        if (feltetel) feltetelek.push(feltetel);
+    // ezeknél több érték is megadható vesszővel
+    const tobbErtekuMezok = ['uzemanyag', 'valto', 'hajtas', 'kivitel'];
+    for (const mezo of tobbErtekuMezok) {
+        if (szoveg(mezo)) {
+            const feltetel = {};
+            feltetel[mezo] = { $in: lista(p[mezo]).map(pontosEgyezes) };
+            feltetelek.push(feltetel);
+        }
     }
 
+    const tartomanyok = [
+        tartomany('vetel_ar', p.minAr, p.maxAr),
+        tartomany('evjarat', p.evjaratTol, p.evjaratIg),
+        tartomany('kmora_allas', p.kmTol, p.kmIg),
+        tartomany('teljesitmeny', p.teljesitmenyTol, p.teljesitmenyIg),
+    ];
+    for (const feltetel of tartomanyok) {
+        if (feltetel) {
+            feltetelek.push(feltetel);
+        }
+    }
+
+    // telephely szerint, vagy ha az nincs, megye szerint
     if (szoveg('telephely') && /^[a-f0-9]{24}$/i.test(p.telephely)) {
         feltetelek.push({ telephely: p.telephely });
     } else if (szoveg('megye')) {
         const telephelyek = await TelephelyModel.find({ megye: { $in: lista(p.megye).map(pontosEgyezes) } }).select('_id');
-        feltetelek.push({ telephely: { $in: telephelyek.map((t) => t._id) } });
+        const telephelyIdk = telephelyek.map((telephely) => telephely._id);
+        feltetelek.push({ telephely: { $in: telephelyIdk } });
     }
 
-    if (p.ujak === '1') feltetelek.push({ createdAt: { $gte: new Date(Date.now() - UJ_AUTO_NAPOK * NAP_MS) } });
-    if (p.garancias === '1') feltetelek.push({ garancia_honap: { $gt: 0 } });
+    if (p.ujak === '1') {
+        const hatar = new Date(Date.now() - UJ_AUTO_NAPOK * NAP_MS);
+        feltetelek.push({ createdAt: { $gte: hatar } });
+    }
+    if (p.garancias === '1') {
+        feltetelek.push({ garancia_honap: { $gt: 0 } });
+    }
 
-    return feltetelek.length ? { $and: feltetelek } : {};
+    if (feltetelek.length === 0) {
+        return {};
+    }
+    return { $and: feltetelek };
 };
 
-const rendezesEpitese = (rendezes) => rendezesiSorrend[Object.hasOwn(rendezesiSorrend, rendezes) ? rendezes : 'ujElol'];
+const rendezesEpitese = (rendezes) => {
+    if (Object.hasOwn(rendezesiSorrend, rendezes)) {
+        return rendezesiSorrend[rendezes];
+    }
+    return rendezesiSorrend.ujElol;
+};
 
-/** Csak az engedélyezett, nem üres szűrőket tartja meg (mentett kereséshez). */
+// mentett kereséshez: csak az ismert és nem üres szűrőket tartjuk meg
 const parameterekTisztitasa = (nyers = {}) => {
     const eredmeny = {};
     for (const kulcs of SZURO_PARAMETEREK) {
         const ertek = nyers[kulcs];
-        if (typeof ertek === 'string' && ertek.trim() && ertek.length <= 200) eredmeny[kulcs] = ertek.trim();
-        if (typeof ertek === 'number' && Number.isFinite(ertek)) eredmeny[kulcs] = String(ertek);
+        if (typeof ertek === 'string' && ertek.trim() && ertek.length <= 200) {
+            eredmeny[kulcs] = ertek.trim();
+        }
+        if (typeof ertek === 'number' && Number.isFinite(ertek)) {
+            eredmeny[kulcs] = String(ertek);
+        }
     }
     return eredmeny;
 };
 
-const alvazszamMaszk = (alvazszam) => (alvazszam ? `${alvazszam.slice(0, 11)}••••••` : '');
+// az alvázszám végét eltakarjuk a nyilvános oldalon
+const alvazszamMaszk = (alvazszam) => {
+    if (!alvazszam) {
+        return '';
+    }
+    return alvazszam.slice(0, 11) + '••••••';
+};
 
-/**
- * Az autó válaszformája. Nyilvános nézetben a belső adatok (statisztika, teljes
- * alvázszám, Cloudinary-azonosítók) nem kerülnek ki; a pénzügyi adatok (eladási
- * ár és dátum) csak `penzugy` jog mellett.
- */
+// Az autó adatai, amit a frontendnek küldünk.
+// Sima látogató nem látja a belső adatokat (statisztika, teljes alvázszám, kép azonosítók),
+// az eladási árat és dátumot pedig csak az admin, ha van pénzügyi joga.
 const autoValasz = (auto, { admin = false, penzugy = false } = {}) => {
-    const adat = auto.toObject ? auto.toObject({ virtuals: false }) : { ...auto };
+    let adat;
+    if (auto.toObject) {
+        adat = auto.toObject({ virtuals: false });
+    } else {
+        adat = { ...auto };
+    }
+
+    // régi autóknál csak egy kép mező volt
     if ((!adat.kepek || adat.kepek.length === 0) && adat.kep) {
         adat.kepek = [{ url: adat.kep, publicId: adat.kepPublicId || '', tipus: 'kulso', leiras: '' }];
     }
-    adat.kepek = adat.kepek || [];
-    adat.kep = adat.kepek[0]?.url || null;
+    if (!adat.kepek) {
+        adat.kepek = [];
+    }
+
+    if (adat.kepek.length > 0) {
+        adat.kep = adat.kepek[0].url;
+    } else {
+        adat.kep = null;
+    }
+
     adat.slug = autoSlug(adat);
-    adat.uj = Boolean(adat.createdAt) && Date.now() - new Date(adat.createdAt).getTime() < UJ_AUTO_NAPOK * NAP_MS;
+
+    adat.uj = false;
+    if (adat.createdAt) {
+        const eltelt = Date.now() - new Date(adat.createdAt).getTime();
+        if (eltelt < UJ_AUTO_NAPOK * NAP_MS) {
+            adat.uj = true;
+        }
+    }
 
     if (!admin) {
         adat.alvazszam = alvazszamMaszk(adat.alvazszam);
-        adat.kepek = adat.kepek.map(({ url, tipus, leiras }) => ({ url, tipus, leiras }));
+        // a képeknél a Cloudinary azonosító nem kell
+        adat.kepek = adat.kepek.map((kep) => ({ url: kep.url, tipus: kep.tipus, leiras: kep.leiras }));
         delete adat.kepPublicId;
         delete adat.megtekintesek;
         delete adat.telefonKattintasok;

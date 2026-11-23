@@ -1,17 +1,34 @@
 const { szerepkorJogai } = require('./jogosultsagok');
 
-const felhasznaloValasz = (user) => {
-    const userData = user.toObject ? user.toObject() : { ...user };
-    delete userData.jelszo;
-    delete userData.mentettKeresesek;
-    delete userData.emailHitelesitoTokenHash;
-    delete userData.emailHitelesitoLejarat;
-    delete userData.jelszoVisszaallitoTokenHash;
-    delete userData.jelszoVisszaallitoLejarat;
-    userData.kedvencek = (userData.kedvencek || []).map(String);
-    // A frontend ebből dönti el, mit mutasson; a tényleges ellenőrzés mindig a szerveren történik.
-    userData.jogok = szerepkorJogai(userData.statusz);
-    return userData;
+// A felhasználó adatai, amiket visszaküldünk a frontendnek (jelszó és tokenek nélkül).
+const felhasznaloValasz = (felhasznalo) => {
+    let adatok;
+    if (felhasznalo.toObject) {
+        adatok = felhasznalo.toObject();
+    } else {
+        adatok = { ...felhasznalo };
+    }
+
+    // ezeket nem szabad kiküldeni
+    delete adatok.jelszo;
+    delete adatok.mentettKeresesek;
+    delete adatok.emailHitelesitoTokenHash;
+    delete adatok.emailHitelesitoLejarat;
+    delete adatok.jelszoVisszaallitoTokenHash;
+    delete adatok.jelszoVisszaallitoLejarat;
+
+    // a kedvencek id-jai szövegként kellenek
+    const kedvencek = [];
+    if (adatok.kedvencek) {
+        for (const id of adatok.kedvencek) {
+            kedvencek.push(String(id));
+        }
+    }
+    adatok.kedvencek = kedvencek;
+
+    // a frontend ebből tudja, mit mutasson (az ellenőrzés úgyis a szerveren van)
+    adatok.jogok = szerepkorJogai(adatok.statusz);
+    return adatok;
 };
 
 module.exports = felhasznaloValasz;

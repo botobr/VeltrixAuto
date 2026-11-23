@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { kepSchema } = require('./Auto');
 const { KATEGORIAK, egysegar } = require('../utils/webshop');
 
-/** Mely autókra illik: üres modell = a márka minden modellje; üres évjárat = nincs korlát. */
+// Melyik autókra jó az alkatrész (ha nincs modell megadva, akkor a márka összes modelljére)
 const kompatibilitasSchema = new mongoose.Schema(
     {
         marka: { type: String, required: true, trim: true, maxlength: 60 },
@@ -30,11 +30,11 @@ const alkatreszSchema = new mongoose.Schema(
         rovidLeiras: { type: String, trim: true, maxlength: 300, default: '' },
         leiras: { type: String, trim: true, maxlength: 8000, default: '' },
 
-        // Bruttó árak forintban; az akciós ár csak akkor él, ha kisebb a normál árnál.
+        // árak forintban
         ar: { type: Number, required: true, min: 0 },
         akciosAr: { type: Number, min: 0, default: null },
         keszlet: { type: Number, required: true, min: 0, default: 0 },
-        // A ténylegesen fizetendő ár (akciós vagy normál) – szűréshez és rendezéshez, mentéskor frissül.
+        // ennyit kell fizetni (akciós vagy sima ár), a szűréshez kell
         aktualisAr: { type: Number, default: 0 },
 
         kepek: { type: [kepSchema], default: [] },
@@ -45,15 +45,19 @@ const alkatreszSchema = new mongoose.Schema(
         lathato: { type: Boolean, default: true },
         kiemelt: { type: Boolean, default: false },
 
-        // Statisztika
+        // statisztika
         eladottDb: { type: Number, default: 0 },
         megtekintesek: { type: Number, default: 0 },
     },
     { timestamps: true },
 );
 
+// mentés előtt beállítjuk az aktuális árat
 alkatreszSchema.pre('validate', function () {
-    if (this.akciosAr !== null && this.akciosAr >= this.ar) this.akciosAr = null;
+    // ha az akciós ár nem kisebb a sima árnál, akkor nincs akció
+    if (this.akciosAr !== null && this.akciosAr >= this.ar) {
+        this.akciosAr = null;
+    }
     this.aktualisAr = egysegar(this);
 });
 

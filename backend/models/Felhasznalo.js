@@ -5,7 +5,7 @@ const { SZEREPKOROK } = require('../utils/jogosultsagok');
 const mentettKeresesSchema = new mongoose.Schema(
     {
         nev: { type: String, required: true, trim: true, maxlength: 80 },
-        // A szűrőparaméterek ugyanabban a formában, ahogy az /api/autok várja őket.
+        // a szűrő beállításai (ugyanúgy, ahogy az /api/autok kapja)
         parameterek: { type: Map, of: String, default: {} },
         ertesites: { type: Boolean, default: true },
         utolsoMegtekintes: { type: Date, default: Date.now },
@@ -13,7 +13,7 @@ const mentettKeresesSchema = new mongoose.Schema(
     { timestamps: true },
 );
 
-const userSchema = new mongoose.Schema(
+const felhasznaloSchema = new mongoose.Schema(
     {
         nev: {
             type: String,
@@ -33,7 +33,7 @@ const userSchema = new mongoose.Schema(
             required: true,
             minlength: 6,
         },
-        // A régi, már létező fiókok visszamenőleg hitelesítettnek számítanak.
+        // a régi fiókoknál nem volt e-mail megerősítés, ezért alapból true
         emailHitelesitve: { type: Boolean, default: true },
         emailHitelesitoTokenHash: { type: String, default: null, select: false },
         emailHitelesitoLejarat: { type: Date, default: null, select: false },
@@ -57,7 +57,8 @@ const userSchema = new mongoose.Schema(
     { timestamps: true },
 );
 
-userSchema.pre('save', async function () {
+// mentés előtt titkosítjuk a jelszót, ha változott
+felhasznaloSchema.pre('save', async function () {
     if (!this.isModified('jelszo')) {
         return;
     }
@@ -65,11 +66,12 @@ userSchema.pre('save', async function () {
     this.jelszo = await bcrypt.hash(this.jelszo, 12);
 });
 
-userSchema.methods.jelszoEgyezik = function (jelszo) {
+// bejelentkezésnél ezzel nézzük meg, hogy jó-e a jelszó
+felhasznaloSchema.methods.jelszoEgyezik = function (jelszo) {
     return bcrypt.compare(jelszo, this.jelszo);
 };
 
-const FelhasznaloModel = mongoose.model('user', userSchema);
+const FelhasznaloModel = mongoose.model('user', felhasznaloSchema);
 
 module.exports = FelhasznaloModel;
 module.exports.SZEREPKOROK = SZEREPKOROK;

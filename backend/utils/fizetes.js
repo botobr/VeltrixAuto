@@ -2,92 +2,127 @@ const Stripe = require('stripe');
 const { oldalUrl } = require('./email');
 const { SZALLITASI_MODOK } = require('./webshop');
 
-/*
- * Online kártyás fizetés – Stripe Checkout (a Stripe saját fizetőoldala, így
- * kártyaadat soha nem jut el a mi szerverünkre). Ez az egyetlen fájl, amely a
- * szolgáltatót ismeri: másik szolgáltatóra (Barion, SimplePay) váltáskor ezt
- * a három függvényt kell újraírni.
- *
- * Beállítás (.env): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET.
- * Ha nincs beállítva, a kártyás fizetés egyszerűen nem választható.
- */
+// Online kártyás fizetés Stripe Checkouttal.
+// A vevő a Stripe saját oldalán fizet, így a kártyaadatok nem jönnek el a mi szerverünkre.
+// A .env-ben kell: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+// Ha ezek nincsenek beállítva, a kártyás fizetés nem választható.
 
-let kliens;
+let kliens = null;
+
 const stripe = () => {
-    if (!kliens) kliens = new Stripe(process.env.STRIPE_SECRET_KEY);
+    if (kliens === null) {
+        kliens = new Stripe(process.env.STRIPE_SECRET_KEY);
+    }
     return kliens;
 };
 
-const kartyaElerheto = () => Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
-
-// A forint a Stripe-nál „két tizedes” pénznem: az összeget 100-zal szorozva kell megadni.
-const fillerben = (forint) => Math.round(forint) * 100;
-
-/**
- * Termékkép a fizetőoldalra (kis bélyegkép a név mellett): csak nyilvános https-kép
- * mehet, mert a Stripe tölti le. Cloudinary-képből négyzetes, a termékre fókuszáló
- * (g_auto) kivágást kérünk, hogy a kis méretben is kitöltse a keretet.
- */
-const stripeKep = (url) => {
-    if (typeof url !== 'string' || !url.startsWith('https://')) return null;
-    return url.includes('res.cloudinary.com') && url.includes('/upload/')
-        ? url.replace('/upload/', '/upload/c_fill,g_auto,w_200,h_200,f_jpg,q_auto/')
-        : url;
+const kartyaElerheto = () => {
+    if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET) {
+        return true;
+    }
+    return false;
 };
 
-/** Fizetési munkamenet indítása; a vevőt a visszakapott URL-re kell irányítani. */
-const fizetesInditasa = async (rendeles, hozzaferesKulcs) => {
-    const vissza = `${oldalUrl()}/rendeles/${encodeURIComponent(rendeles.rendelesSzam)}?kulcs=${hozzaferesKulcs}`;
-    const tetel = (nev, egysegar, mennyiseg = 1, kep = null) => ({
+// A Stripe-nál a forintot 100-zal szorozva kell megadni (fillérben).
+const fillerben = (forint) => Math.round(forint) * 100;
+
+// Termékkép a Stripe fizetőoldalra. Csak https kép jó, mert a Stripe tölti le.
+// A Cloudinary képből kis négyzetes képet kérünk.
+const stripeKep = (url) => {
+    if (typeof url !== 'string' || !url.startsWith('https://')) {
+        return null;
+    }
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+        return url.replace('/upload/', '/upload/c_fill,g_auto,w_200,h_200,f_jpg,q_auto/');
+    }
+    return url;
+};
+
+// egy sor a Stripe fizetőoldalon
+const stripeTetel = (nev, egysegar, mennyiseg = 1, kep = null) => {
+    const termek = { name: nev };
+    const kepUrl = stripeKep(kep);
+    if (kepUrl) {
+        termek.images = [kepUrl];
+    }
+
+    return {
         quantity: mennyiseg,
         price_data: {
             currency: 'huf',
             unit_amount: fillerben(egysegar),
-            product_data: { name: nev, ...(stripeKep(kep) ? { images: [stripeKep(kep)] } : {}) },
+            product_data: termek,
         },
-    });
+    };
+};
+
+// Elindítja a fizetést, a vevőt a visszakapott url-re kell átirányítani.
+const fizetesInditasa = async (rendeles, hozzaferesKulcs) => {
+    const vissza = oldalUrl() + '/rendeles/' + encodeURIComponent(rendeles.rendelesSzam) + '?kulcs=' + hozzaferesKulcs;
+
+    const sorok = [];
+    for (const tetel of rendeles.tetelek) {
+        sorok.push(stripeTetel(tetel.nev + ' (' + tetel.cikkszam + ')', tetel.egysegar, tetel.mennyiseg, tetel.kep));
+    }
+
+    // A szállítás mindig külön sor (ingyenesnél 0 Ft), mert így a Stripe
+    // a termékeket listában, kis képpel mutatja.
+    let szallitasNev = 'Szállítás';
+    if (rendeles.szallitas && SZALLITASI_MODOK[rendeles.szallitas.mod]) {
+        szallitasNev = SZALLITASI_MODOK[rendeles.szallitas.mod].nev;
+    }
+    if (rendeles.osszegek.szallitas > 0) {
+        sorok.push(stripeTetel('Szállítási díj – ' + szallitasNev, rendeles.osszegek.szallitas));
+    } else {
+        sorok.push(stripeTetel(szallitasNev + ' – ingyenes', 0));
+    }
+
+    if (rendeles.osszegek.kezelesiDij > 0) {
+        sorok.push(stripeTetel('Kezelési díj', rendeles.osszegek.kezelesiDij));
+    }
+
     const munkamenet = await stripe().checkout.sessions.create({
         mode: 'payment',
         customer_email: rendeles.vevo.email,
         client_reference_id: String(rendeles._id),
         metadata: { rendelesId: String(rendeles._id), rendelesSzam: rendeles.rendelesSzam },
-        line_items: [
-            ...rendeles.tetelek.map((t) => tetel(`${t.nev} (${t.cikkszam})`, t.egysegar, t.mennyiseg, t.kep)),
-            // A szállítás mindig külön sor (ingyenesnél 0 Ft): így a Stripe a tételeket kompakt listában,
-            // kis képpel a név mellett mutatja – egyetlen sornál nagy, különálló termékképet tenne ki.
-            tetel(
-                rendeles.osszegek.szallitas > 0
-                    ? `Szállítási díj – ${SZALLITASI_MODOK[rendeles.szallitas?.mod]?.nev || 'szállítás'}`
-                    : `${SZALLITASI_MODOK[rendeles.szallitas?.mod]?.nev || 'Szállítás'} – ingyenes`,
-                rendeles.osszegek.szallitas,
-            ),
-            ...(rendeles.osszegek.kezelesiDij > 0 ? [tetel('Kezelési díj', rendeles.osszegek.kezelesiDij)] : []),
-        ],
-        // A lefoglalt készlet 30 perc után felszabadul, ha a fizetés nem történik meg.
+        line_items: sorok,
+        // 30 perc után lejár, és a lefoglalt készlet visszakerül
         expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-        success_url: `${vissza}&fizetes=siker`,
-        cancel_url: `${vissza}&fizetes=megszakitva`,
+        success_url: vissza + '&fizetes=siker',
+        cancel_url: vissza + '&fizetes=megszakitva',
         locale: 'hu',
     });
+
     return { url: munkamenet.url, munkamenetId: munkamenet.id };
 };
 
-/**
- * A szolgáltató visszajelzésének ellenőrzése (aláírás!) és egységes formára hozása.
- * Visszaad: { tipus: 'fizetve' | 'lejart' | null, munkamenetId, rendelesId }.
- */
+// A Stripe értesítésének (webhook) ellenőrzése az aláírással.
+// Visszaadja: { tipus: 'fizetve' | 'lejart' | null, munkamenetId, rendelesId }
 const webhookFeldolgozasa = (nyersTorzs, alairas) => {
+    // ha az aláírás rossz, ez hibát dob
     const esemeny = stripe().webhooks.constructEvent(nyersTorzs, alairas, process.env.STRIPE_WEBHOOK_SECRET);
-    const munkamenet = esemeny.data?.object || {};
-    const alap = { munkamenetId: munkamenet.id, rendelesId: munkamenet.metadata?.rendelesId || munkamenet.client_reference_id };
-    if ((esemeny.type === 'checkout.session.completed' && munkamenet.payment_status === 'paid')
-        || esemeny.type === 'checkout.session.async_payment_succeeded') {
-        return { ...alap, tipus: 'fizetve' };
+
+    let munkamenet = {};
+    if (esemeny.data && esemeny.data.object) {
+        munkamenet = esemeny.data.object;
     }
-    if (esemeny.type === 'checkout.session.expired' || esemeny.type === 'checkout.session.async_payment_failed') {
-        return { ...alap, tipus: 'lejart' };
+
+    let rendelesId = munkamenet.client_reference_id;
+    if (munkamenet.metadata && munkamenet.metadata.rendelesId) {
+        rendelesId = munkamenet.metadata.rendelesId;
     }
-    return { ...alap, tipus: null };
+
+    let tipus = null;
+    if (esemeny.type === 'checkout.session.completed' && munkamenet.payment_status === 'paid') {
+        tipus = 'fizetve';
+    } else if (esemeny.type === 'checkout.session.async_payment_succeeded') {
+        tipus = 'fizetve';
+    } else if (esemeny.type === 'checkout.session.expired' || esemeny.type === 'checkout.session.async_payment_failed') {
+        tipus = 'lejart';
+    }
+
+    return { munkamenetId: munkamenet.id, rendelesId: rendelesId, tipus: tipus };
 };
 
 module.exports = { kartyaElerheto, fizetesInditasa, webhookFeldolgozasa };

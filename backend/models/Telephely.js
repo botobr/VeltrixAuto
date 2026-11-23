@@ -1,13 +1,15 @@
 const mongoose = require('mongoose');
 
 const NAPOK = ['hetfo', 'kedd', 'szerda', 'csutortok', 'pentek', 'szombat', 'vasarnap'];
+const IDO_MINTA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const nyitvatartasSchema = new mongoose.Schema(
     {
         nap: { type: String, enum: NAPOK, required: true },
         zarva: { type: Boolean, default: false },
-        nyitas: { type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/, default: '09:00' },
-        zaras: { type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/, default: '17:00' },
+        // óra:perc formátum, pl. 09:00
+        nyitas: { type: String, match: IDO_MINTA, default: '09:00' },
+        zaras: { type: String, match: IDO_MINTA, default: '17:00' },
     },
     { _id: false },
 );

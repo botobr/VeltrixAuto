@@ -1,10 +1,8 @@
 const { mezoErteke, kepekErvenyesitese } = require('./autoMezok');
 
-/*
- * A webshop (tuning alkatrészek) üzleti szabályai egy helyen: kategóriák,
- * szállítási és fizetési módok díjakkal, a termékadatok ellenőrzése és a
- * rendelés végösszegének kiszámítása. Az árakat MINDIG a szerver számolja.
- */
+// A webshop beállításai és számolásai: kategóriák, szállítás, fizetés,
+// a termék adatainak ellenőrzése és a rendelés végösszege.
+// Fontos: az árat mindig a szerver számolja ki, nem a frontend!
 
 const KATEGORIAK = {
     futomu: 'Futómű',
@@ -45,10 +43,14 @@ const MAX_TETEL = 30;
 const MAX_MENNYISEG = 99;
 const ALACSONY_KESZLET = 2;
 
-/** A ténylegesen fizetendő egységár (akciós, ha van). */
-const egysegar = (alkatresz) => (alkatresz.akciosAr !== null && alkatresz.akciosAr !== undefined && alkatresz.akciosAr < alkatresz.ar
-    ? alkatresz.akciosAr
-    : alkatresz.ar);
+// ennyit kell fizetni egy darabért (ha van akció, akkor az akciós ár)
+const egysegar = (alkatresz) => {
+    const akcios = alkatresz.akciosAr;
+    if (akcios !== null && akcios !== undefined && akcios < alkatresz.ar) {
+        return akcios;
+    }
+    return alkatresz.ar;
+};
 
 // ---------- Termék (alkatrész) adatai ----------
 
@@ -74,59 +76,98 @@ const CIMKEK = {
 };
 
 const maxEvjarat = () => new Date().getFullYear() + 2;
-const szoveg = (ertek, max) => (typeof ertek === 'string' ? ertek.trim().slice(0, max) : '');
 
+// szöveg levágva a megadott hosszra, ha nem szöveg, akkor ''
+const szoveg = (ertek, max) => {
+    if (typeof ertek !== 'string') {
+        return '';
+    }
+    return ertek.trim().slice(0, max);
+};
+
+// melyik autókra jó az alkatrész (sorok listája)
 const kompatibilitasEllenorzese = (nyers, hibak) => {
-    if (nyers === undefined || nyers === null) return [];
+    if (nyers === undefined || nyers === null) {
+        return [];
+    }
     if (!Array.isArray(nyers)) {
         hibak.push('Kompatibilitás: listát kell megadni.');
         return [];
     }
-    if (nyers.length > 100) hibak.push('Kompatibilitás: legfeljebb 100 sor adható meg.');
+    if (nyers.length > 100) {
+        hibak.push('Kompatibilitás: legfeljebb 100 sor adható meg.');
+    }
+
     const sorok = [];
-    for (const [i, sor] of nyers.slice(0, 100).entries()) {
-        const marka = szoveg(sor?.marka, 60);
+    for (let i = 0; i < nyers.length && i < 100; i++) {
+        const sor = nyers[i] || {};
+        const sorszam = i + 1;
+
+        const marka = szoveg(sor.marka, 60);
         if (!marka) {
-            hibak.push(`Kompatibilitás ${i + 1}. sor: a márka kötelező.`);
+            hibak.push(`Kompatibilitás ${sorszam}. sor: a márka kötelező.`);
             continue;
         }
-        const evjarat = (ertek) => {
-            if (ertek === '' || ertek === null || ertek === undefined) return null;
-            const szam = Number(ertek);
-            if (!Number.isInteger(szam) || szam < 1886 || szam > maxEvjarat()) {
-                hibak.push(`Kompatibilitás ${i + 1}. sor: érvénytelen évjárat.`);
-                return null;
-            }
-            return szam;
-        };
-        const evjaratTol = evjarat(sor.evjaratTol);
-        const evjaratIg = evjarat(sor.evjaratIg);
-        if (evjaratTol && evjaratIg && evjaratTol > evjaratIg) hibak.push(`Kompatibilitás ${i + 1}. sor: a „tól” évjárat nem lehet nagyobb az „ig”-nél.`);
-        sorok.push({ marka, modell: szoveg(sor.modell, 80), evjaratTol, evjaratIg });
+
+        const evjaratTol = evjaratEllenorzese(sor.evjaratTol, sorszam, hibak);
+        const evjaratIg = evjaratEllenorzese(sor.evjaratIg, sorszam, hibak);
+        if (evjaratTol && evjaratIg && evjaratTol > evjaratIg) {
+            hibak.push(`Kompatibilitás ${sorszam}. sor: a „tól” évjárat nem lehet nagyobb az „ig”-nél.`);
+        }
+
+        sorok.push({ marka: marka, modell: szoveg(sor.modell, 80), evjaratTol: evjaratTol, evjaratIg: evjaratIg });
     }
     return sorok;
 };
 
+// egy évjárat ellenőrzése a kompatibilitás sorban (üres is lehet)
+const evjaratEllenorzese = (ertek, sorszam, hibak) => {
+    if (ertek === '' || ertek === null || ertek === undefined) {
+        return null;
+    }
+    const szam = Number(ertek);
+    if (!Number.isInteger(szam) || szam < 1886 || szam > maxEvjarat()) {
+        hibak.push(`Kompatibilitás ${sorszam}. sor: érvénytelen évjárat.`);
+        return null;
+    }
+    return szam;
+};
+
+// műszaki paraméterek (név - érték párok), az üres sorokat kihagyjuk
 const parameterekEllenorzese = (nyers, hibak) => {
-    if (nyers === undefined || nyers === null) return [];
+    if (nyers === undefined || nyers === null) {
+        return [];
+    }
     if (!Array.isArray(nyers)) {
         hibak.push('Paraméterek: listát kell megadni.');
         return [];
     }
-    if (nyers.length > 40) hibak.push('Paraméterek: legfeljebb 40 sor adható meg.');
-    return nyers.slice(0, 40)
-        .map((sor) => ({ nev: szoveg(sor?.nev, 60), ertek: szoveg(sor?.ertek, 120) }))
-        .filter((sor) => sor.nev && sor.ertek);
+    if (nyers.length > 40) {
+        hibak.push('Paraméterek: legfeljebb 40 sor adható meg.');
+    }
+
+    const parameterek = [];
+    for (let i = 0; i < nyers.length && i < 40; i++) {
+        const sor = nyers[i] || {};
+        const nev = szoveg(sor.nev, 60);
+        const ertek = szoveg(sor.ertek, 120);
+        if (nev && ertek) {
+            parameterek.push({ nev: nev, ertek: ertek });
+        }
+    }
+    return parameterek;
 };
 
-/** A teljes termékűrlapot ellenőrzi; visszaadja a tisztított adatokat és a hibalistát. */
+// Az egész termék űrlap ellenőrzése. Visszaadja a tisztított adatokat és a hibákat.
 const alkatreszEllenorzese = (nyers = {}) => {
     const hibak = [];
     const adatok = {};
-    for (const [nev, leiro] of Object.entries(MEZOK)) {
-        adatok[nev] = mezoErteke(nev, leiro, nyers[nev], hibak, CIMKEK);
+    for (const nev in MEZOK) {
+        adatok[nev] = mezoErteke(nev, MEZOK[nev], nyers[nev], hibak, CIMKEK);
     }
-    if (adatok.cikkszam) adatok.cikkszam = adatok.cikkszam.toUpperCase();
+    if (adatok.cikkszam) {
+        adatok.cikkszam = adatok.cikkszam.toUpperCase();
+    }
     if (adatok.akciosAr !== null && adatok.ar !== null && adatok.akciosAr >= adatok.ar) {
         hibak.push('Az akciós árnak kisebbnek kell lennie a normál árnál.');
     }
@@ -139,52 +180,111 @@ const alkatreszEllenorzese = (nyers = {}) => {
     return { adatok, hibak };
 };
 
-/** Gyors admin-módosítás (lista nézetből): készlet, ár, láthatóság, kiemelés. */
+// az admin listában gyorsan átállítható mezők
 const GYORS_MEZOK = ['keszlet', 'ar', 'akciosAr', 'lathato', 'kiemelt'];
+
 const gyorsModositasEllenorzese = (nyers = {}) => {
     const hibak = [];
     const adatok = {};
+    let db = 0;
     for (const nev of GYORS_MEZOK) {
-        if (Object.hasOwn(nyers, nev)) adatok[nev] = mezoErteke(nev, MEZOK[nev], nyers[nev], hibak, CIMKEK);
+        if (Object.hasOwn(nyers, nev)) {
+            adatok[nev] = mezoErteke(nev, MEZOK[nev], nyers[nev], hibak, CIMKEK);
+            db++;
+        }
     }
-    if (Object.keys(adatok).length === 0) hibak.push('Nincs módosítandó adat.');
+    if (db === 0) {
+        hibak.push('Nincs módosítandó adat.');
+    }
     return { adatok, hibak };
 };
 
 // ---------- Kosár és rendelés ----------
 
-/** A kosár nyers tételeiből [{ id, mennyiseg }] – ismétlődés összevonva, hibás sorok kiszűrve. */
+// A frontendről jövő kosár ellenőrzése: [{ id, mennyiseg }]
+// Ha egy termék többször szerepel, összeadjuk, a hibás sorokat kihagyjuk.
 const kosarTetelek = (nyers) => {
-    if (!Array.isArray(nyers)) return [];
-    const osszevont = new Map();
-    for (const tetel of nyers.slice(0, MAX_TETEL * 2)) {
-        const id = typeof tetel?.id === 'string' && /^[a-f0-9]{24}$/i.test(tetel.id) ? tetel.id : null;
-        const mennyiseg = Number(tetel?.mennyiseg);
-        if (!id || !Number.isInteger(mennyiseg) || mennyiseg < 1) continue;
-        osszevont.set(id, Math.min((osszevont.get(id) || 0) + mennyiseg, MAX_MENNYISEG));
+    if (!Array.isArray(nyers)) {
+        return [];
     }
-    return [...osszevont.entries()].slice(0, MAX_TETEL).map(([id, mennyiseg]) => ({ id, mennyiseg }));
+
+    const tetelek = [];
+    for (let i = 0; i < nyers.length && i < MAX_TETEL * 2; i++) {
+        const tetel = nyers[i] || {};
+        const mennyiseg = Number(tetel.mennyiseg);
+
+        // érvényes MongoDB id kell és pozitív egész mennyiség
+        if (typeof tetel.id !== 'string' || !/^[a-f0-9]{24}$/i.test(tetel.id)) {
+            continue;
+        }
+        if (!Number.isInteger(mennyiseg) || mennyiseg < 1) {
+            continue;
+        }
+
+        const meglevo = tetelek.find((elem) => elem.id === tetel.id);
+        if (meglevo) {
+            meglevo.mennyiseg = Math.min(meglevo.mennyiseg + mennyiseg, MAX_MENNYISEG);
+        } else {
+            tetelek.push({ id: tetel.id, mennyiseg: Math.min(mennyiseg, MAX_MENNYISEG) });
+        }
+    }
+    return tetelek.slice(0, MAX_TETEL);
 };
 
-/** Az adott szállítási módhoz választható fizetési módok (a kártya csak beállított Stripe mellett). */
-const fizetesiModok = (szallitasiMod, { kartyaElerheto }) => Object.entries(FIZETESI_MODOK)
-    .filter(([kulcs, mod]) => (kulcs !== 'kartya' || kartyaElerheto) && (!szallitasiMod || mod.szallitas.includes(szallitasiMod)))
-    .map(([kulcs, mod]) => ({ kulcs, nev: mod.nev, dij: mod.dij, online: Boolean(mod.online) }));
+// A szállítási módhoz választható fizetési módok.
+// A kártyás fizetés csak akkor jelenik meg, ha a Stripe be van állítva.
+const fizetesiModok = (szallitasiMod, { kartyaElerheto }) => {
+    const modok = [];
+    for (const kulcs in FIZETESI_MODOK) {
+        const mod = FIZETESI_MODOK[kulcs];
+        if (kulcs === 'kartya' && !kartyaElerheto) {
+            continue;
+        }
+        if (szallitasiMod && !mod.szallitas.includes(szallitasiMod)) {
+            continue;
+        }
+        modok.push({ kulcs: kulcs, nev: mod.nev, dij: mod.dij, online: Boolean(mod.online) });
+    }
+    return modok;
+};
 
-/**
- * A rendelés összegei. `tetelek`: [{ alkatresz (adatbázisból), mennyiseg }].
- * A szállítási díj a termékösszegtől függ (ingyenes határ felett 0).
- */
+// A rendelés összegeinek kiszámítása.
+// tetelek: [{ alkatresz (az adatbázisból), mennyiseg }]
 const rendelesSzamitas = ({ tetelek, szallitasiMod, fizetesiMod }) => {
-    const sorok = tetelek.map(({ alkatresz, mennyiseg }) => {
-        const ar = egysegar(alkatresz);
-        return { alkatresz, mennyiseg, egysegar: ar, sorosszeg: ar * mennyiseg };
-    });
-    const termekek = sorok.reduce((osszeg, sor) => osszeg + sor.sorosszeg, 0);
+    const sorok = [];
+    let termekek = 0;
+    for (const tetel of tetelek) {
+        const ar = egysegar(tetel.alkatresz);
+        const sorosszeg = ar * tetel.mennyiseg;
+        sorok.push({ alkatresz: tetel.alkatresz, mennyiseg: tetel.mennyiseg, egysegar: ar, sorosszeg: sorosszeg });
+        termekek = termekek + sorosszeg;
+    }
+
+    // szállítási díj: egy összeg felett ingyenes
     const szallitas = SZALLITASI_MODOK[szallitasiMod];
-    const szallitasiDij = !szallitas || (szallitas.ingyenesHatar !== null && termekek >= szallitas.ingyenesHatar) ? 0 : szallitas.dij;
-    const kezelesiDij = FIZETESI_MODOK[fizetesiMod]?.dij || 0;
-    return { sorok, osszegek: { termekek, szallitas: szallitasiDij, kezelesiDij, vegosszeg: termekek + szallitasiDij + kezelesiDij } };
+    let szallitasiDij = 0;
+    if (szallitas) {
+        szallitasiDij = szallitas.dij;
+        if (szallitas.ingyenesHatar !== null && termekek >= szallitas.ingyenesHatar) {
+            szallitasiDij = 0;
+        }
+    }
+
+    // kezelési díj (pl. utánvétnél)
+    let kezelesiDij = 0;
+    if (FIZETESI_MODOK[fizetesiMod]) {
+        kezelesiDij = FIZETESI_MODOK[fizetesiMod].dij;
+    }
+
+    return {
+        sorok: sorok,
+        osszegek: {
+            termekek: termekek,
+            szallitas: szallitasiDij,
+            kezelesiDij: kezelesiDij,
+            vegosszeg: termekek + szallitasiDij + kezelesiDij,
+        },
+    };
 };
 
 module.exports = {

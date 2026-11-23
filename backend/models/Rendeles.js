@@ -12,7 +12,7 @@ const cimSchema = new mongoose.Schema(
     { _id: false },
 );
 
-/** A tétel a rendelés pillanatában rögzített adatokkal – a termék későbbi változása nem írja át. */
+// a tétel adatait elmentjük a rendeléskor, így ha később változik a termék ára, a rendelés nem változik
 const tetelSchema = new mongoose.Schema(
     {
         alkatresz: { type: mongoose.Schema.Types.ObjectId, ref: 'alkatresz', required: true },
@@ -37,7 +37,7 @@ const esemenySchema = new mongoose.Schema(
 const rendelesSchema = new mongoose.Schema(
     {
         rendelesSzam: { type: String, required: true, unique: true },
-        // A visszaigazoló oldal bejelentkezés nélküli megnyitásához (a rendelésszám önmagában kitalálható lenne).
+        // titkos kulcs, ezzel lehet bejelentkezés nélkül megnézni a rendelést
         hozzaferesKulcs: { type: String, required: true, select: false },
         felhasznalo: { type: mongoose.Schema.Types.ObjectId, ref: 'user', default: null, index: true },
 
@@ -65,7 +65,7 @@ const rendelesSchema = new mongoose.Schema(
             mod: { type: String, required: true, enum: Object.keys(FIZETESI_MODOK) },
             statusz: { type: String, enum: ['fuggo', 'fizetve'], default: 'fuggo' },
             fizetveEkkor: { type: Date, default: null },
-            // Online fizetésnél a szolgáltató munkamenet-azonosítója (pl. Stripe Checkout Session).
+            // Stripe fizetésnél a Stripe munkamenet azonosítója
             munkamenetId: { type: String, default: null, index: true },
         },
 
@@ -73,7 +73,7 @@ const rendelesSchema = new mongoose.Schema(
         esemenyek: { type: [esemenySchema], default: [] },
         vevoMegjegyzes: { type: String, trim: true, maxlength: 1000, default: '' },
         belsoMegjegyzes: { type: String, trim: true, maxlength: 2000, default: '' },
-        // Lemondáskor egyszer adjuk vissza a készletet (ismételt lemondás / webhook ne duplázza).
+        // lemondáskor csak egyszer adjuk vissza a készletet
         keszletVisszaadva: { type: Boolean, default: false },
     },
     { timestamps: true },
@@ -83,7 +83,8 @@ rendelesSchema.index({ createdAt: -1 });
 
 const RendelesModel = mongoose.model('rendeles', rendelesSchema);
 
-/** Egymást követő rendelésszám: VX-2026-00001 (atomikus számlálóval). */
+// rendelésszám generálása, pl. VX-2026-00001
+// egy külön számlálót növelünk az adatbázisban
 const szamlaloSchema = new mongoose.Schema({ _id: String, ertek: { type: Number, default: 0 } });
 const SzamlaloModel = mongoose.models.szamlalo || mongoose.model('szamlalo', szamlaloSchema);
 
@@ -94,7 +95,8 @@ const kovetkezoRendelesSzam = async (most = new Date()) => {
         { $inc: { ertek: 1 } },
         { upsert: true, returnDocument: 'after' },
     );
-    return `VX-${ev}-${String(szamlalo.ertek).padStart(5, '0')}`;
+    const sorszam = String(szamlalo.ertek).padStart(5, '0');
+    return 'VX-' + ev + '-' + sorszam;
 };
 
 module.exports = RendelesModel;

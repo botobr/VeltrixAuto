@@ -8,10 +8,8 @@ const MAX_KEP = 30;
 
 const aktualisEv = () => new Date().getFullYear();
 
-/*
- * Az autó minden szerkeszthető mezőjének leírása. Ugyanebből a táblázatból
- * dolgozik a validáció, így új mezőnél csak ide kell felvenni.
- */
+// Az autó mezői és a szabályaik. Az ellenőrzés ebből a listából dolgozik,
+// így ha új mező kell, elég csak ide felvenni.
 const MEZOK = {
     marka: { tipus: 'szoveg', kotelezo: true, max: 60 },
     modell: { tipus: 'szoveg', kotelezo: true, max: 80 },
@@ -44,7 +42,7 @@ const MEZOK = {
     kiemelt: { tipus: 'logikai', alap: false },
 
     statusz: { tipus: 'enum', ertekek: STATUSZOK, alap: 'elerheto' },
-    // Üresen hagyva elkelt autónál a modell tölti ki (mai nap, illetve a vételár).
+    // ha üresen marad, eladott autónál a modell tölti ki
     eladas_datum: { tipus: 'datum' },
     eladasi_ar: { tipus: 'szam', min: 0, max: 1e11, egesz: true },
     felszereltseg: { tipus: 'lista', maxElem: 120, max: 60 },
@@ -70,35 +68,88 @@ const CIMKEK = {
     elado_telefonszam: 'Kapcsolattartó telefonszáma', leiras: 'Leírás',
 };
 
-const ures = (ertek) => ertek === undefined || ertek === null || (typeof ertek === 'string' && !ertek.trim());
+// üres-e az érték (undefined, null vagy csak szóköz)
+const ures = (ertek) => {
+    if (ertek === undefined || ertek === null) {
+        return true;
+    }
+    if (typeof ertek === 'string' && ertek.trim() === '') {
+        return true;
+    }
+    return false;
+};
 
+// Egy mező ellenőrzése. Visszaadja a tisztított értéket, a hibákat a hibak tömbbe teszi.
 const mezoErteke = (nev, leiro, nyers, hibak, cimkek = CIMKEK) => {
     const cimke = cimkek[nev] || nev;
 
+    // igen/nem mező
     if (leiro.tipus === 'logikai') {
-        if (ures(nyers)) return leiro.alap ?? null;
-        if (typeof nyers === 'boolean') return nyers;
-        if (nyers === 'true' || nyers === 'false') return nyers === 'true';
+        if (ures(nyers)) {
+            if (leiro.alap !== undefined) {
+                return leiro.alap;
+            }
+            return null;
+        }
+        if (typeof nyers === 'boolean') {
+            return nyers;
+        }
+        if (nyers === 'true') {
+            return true;
+        }
+        if (nyers === 'false') {
+            return false;
+        }
         hibak.push(`${cimke}: érvénytelen érték.`);
         return null;
     }
 
+    // szöveges lista (pl. felszereltség)
     if (leiro.tipus === 'lista') {
-        if (ures(nyers)) return [];
-        if (!Array.isArray(nyers) || nyers.some((elem) => typeof elem !== 'string')) {
+        if (ures(nyers)) {
+            return [];
+        }
+        if (!Array.isArray(nyers)) {
             hibak.push(`${cimke}: szöveges listát kell megadni.`);
             return [];
         }
-        const lista = [...new Set(nyers.map((elem) => elem.trim()).filter(Boolean))];
-        if (lista.length > leiro.maxElem) hibak.push(`${cimke}: legfeljebb ${leiro.maxElem} elem adható meg.`);
-        if (lista.some((elem) => elem.length > leiro.max)) hibak.push(`${cimke}: egy elem legfeljebb ${leiro.max} karakter lehet.`);
+
+        const lista = [];
+        for (const elem of nyers) {
+            if (typeof elem !== 'string') {
+                hibak.push(`${cimke}: szöveges listát kell megadni.`);
+                return [];
+            }
+            const tisztitott = elem.trim();
+            // üres és duplikált elemek kihagyása
+            if (tisztitott && !lista.includes(tisztitott)) {
+                lista.push(tisztitott);
+            }
+        }
+
+        if (lista.length > leiro.maxElem) {
+            hibak.push(`${cimke}: legfeljebb ${leiro.maxElem} elem adható meg.`);
+        }
+        for (const elem of lista) {
+            if (elem.length > leiro.max) {
+                hibak.push(`${cimke}: egy elem legfeljebb ${leiro.max} karakter lehet.`);
+                break;
+            }
+        }
         return lista;
     }
 
     if (ures(nyers)) {
-        if (leiro.kotelezo) hibak.push(`${cimke}: kötelező mező.`);
-        if (leiro.alap !== undefined) return leiro.alap;
-        return leiro.tipus === 'szoveg' ? '' : null;
+        if (leiro.kotelezo) {
+            hibak.push(`${cimke}: kötelező mező.`);
+        }
+        if (leiro.alap !== undefined) {
+            return leiro.alap;
+        }
+        if (leiro.tipus === 'szoveg') {
+            return '';
+        }
+        return null;
     }
 
     if (leiro.tipus === 'szoveg' || leiro.tipus === 'enum') {
@@ -111,21 +162,46 @@ const mezoErteke = (nev, leiro, nyers, hibak, cimkek = CIMKEK) => {
             hibak.push(`${cimke}: nem engedélyezett érték.`);
             return null;
         }
-        if (leiro.max && ertek.length > leiro.max) hibak.push(`${cimke}: legfeljebb ${leiro.max} karakter lehet.`);
-        if (leiro.minta && !leiro.minta.test(ertek)) hibak.push(leiro.mintaHiba || `${cimke}: érvénytelen formátum.`);
-        return nev === 'alvazszam' ? ertek.toUpperCase() : ertek;
+        if (leiro.max && ertek.length > leiro.max) {
+            hibak.push(`${cimke}: legfeljebb ${leiro.max} karakter lehet.`);
+        }
+        if (leiro.minta && !leiro.minta.test(ertek)) {
+            hibak.push(leiro.mintaHiba || `${cimke}: érvénytelen formátum.`);
+        }
+        if (nev === 'alvazszam') {
+            return ertek.toUpperCase();
+        }
+        return ertek;
     }
 
     if (leiro.tipus === 'szam') {
-        const szam = typeof nyers === 'number' ? nyers : Number(String(nyers).replace(',', '.'));
-        const max = typeof leiro.max === 'function' ? leiro.max() : leiro.max;
+        let szam;
+        if (typeof nyers === 'number') {
+            szam = nyers;
+        } else {
+            // a tizedesvesszőt is elfogadjuk
+            szam = Number(String(nyers).replace(',', '.'));
+        }
+
+        // az évjáratnál a maximum függvény (jövő év)
+        let max = leiro.max;
+        if (typeof leiro.max === 'function') {
+            max = leiro.max();
+        }
+
         if (!Number.isFinite(szam)) {
             hibak.push(`${cimke}: számot kell megadni.`);
             return null;
         }
-        if (leiro.egesz && !Number.isInteger(szam)) hibak.push(`${cimke}: egész számot kell megadni.`);
-        if (leiro.min !== undefined && szam < leiro.min) hibak.push(`${cimke}: legalább ${leiro.min} lehet.`);
-        if (max !== undefined && szam > max) hibak.push(`${cimke}: legfeljebb ${max} lehet.`);
+        if (leiro.egesz && !Number.isInteger(szam)) {
+            hibak.push(`${cimke}: egész számot kell megadni.`);
+        }
+        if (leiro.min !== undefined && szam < leiro.min) {
+            hibak.push(`${cimke}: legalább ${leiro.min} lehet.`);
+        }
+        if (max !== undefined && szam > max) {
+            hibak.push(`${cimke}: legfeljebb ${max} lehet.`);
+        }
         return szam;
     }
 
@@ -149,11 +225,16 @@ const mezoErteke = (nev, leiro, nyers, hibak, cimkek = CIMKEK) => {
     return null;
 };
 
+// csak a saját Cloudinary fiókunkból származó képeket fogadjuk el
 const cloudinaryUrlElotag = () => {
     const felho = process.env.CLOUDINARY_API_CLOUD_NAME;
-    return felho ? `https://res.cloudinary.com/${felho}/` : 'https://res.cloudinary.com/';
+    if (felho) {
+        return 'https://res.cloudinary.com/' + felho + '/';
+    }
+    return 'https://res.cloudinary.com/';
 };
 
+// a képek listájának ellenőrzése
 const kepekErvenyesitese = (nyers, hibak) => {
     if (!Array.isArray(nyers) || nyers.length === 0) {
         hibak.push('Legalább egy képet fel kell tölteni.');
@@ -165,33 +246,53 @@ const kepekErvenyesitese = (nyers, hibak) => {
     }
     const elotag = cloudinaryUrlElotag();
     const kepek = [];
+    const publicIdk = [];
+    let duplikalt = false;
+
     for (const kep of nyers) {
-        const ervenyes = kep && typeof kep === 'object'
-            && typeof kep.url === 'string' && kep.url.startsWith(elotag)
-            && typeof kep.publicId === 'string' && kep.publicId.startsWith('veltrix/autok/');
+        let ervenyes = true;
+        if (!kep || typeof kep !== 'object') {
+            ervenyes = false;
+        } else if (typeof kep.url !== 'string' || !kep.url.startsWith(elotag)) {
+            ervenyes = false;
+        } else if (typeof kep.publicId !== 'string' || !kep.publicId.startsWith('veltrix/autok/')) {
+            ervenyes = false;
+        }
+
         if (!ervenyes) {
             hibak.push('Érvénytelen kép a listában – töltsd fel újra.');
             return [];
         }
-        kepek.push({
-            url: kep.url,
-            publicId: kep.publicId,
-            tipus: KEP_TIPUSOK.includes(kep.tipus) ? kep.tipus : 'egyeb',
-            leiras: typeof kep.leiras === 'string' ? kep.leiras.trim().slice(0, 120) : '',
-        });
+
+        let tipus = 'egyeb';
+        if (KEP_TIPUSOK.includes(kep.tipus)) {
+            tipus = kep.tipus;
+        }
+        let leiras = '';
+        if (typeof kep.leiras === 'string') {
+            leiras = kep.leiras.trim().slice(0, 120);
+        }
+
+        if (publicIdk.includes(kep.publicId)) {
+            duplikalt = true;
+        }
+        publicIdk.push(kep.publicId);
+
+        kepek.push({ url: kep.url, publicId: kep.publicId, tipus: tipus, leiras: leiras });
     }
-    if (new Set(kepek.map((kep) => kep.publicId)).size !== kepek.length) {
+
+    if (duplikalt) {
         hibak.push('Ugyanaz a kép többször szerepel.');
     }
     return kepek;
 };
 
-/** A teljes űrlapot ellenőrzi; visszaadja a tisztított adatokat és a hibalistát. */
+// Az egész autó űrlap ellenőrzése. Visszaadja a tisztított adatokat és a hibákat.
 const autoAdatokEllenorzese = (nyers = {}) => {
     const hibak = [];
     const adatok = {};
-    for (const [nev, leiro] of Object.entries(MEZOK)) {
-        adatok[nev] = mezoErteke(nev, leiro, nyers[nev], hibak);
+    for (const nev in MEZOK) {
+        adatok[nev] = mezoErteke(nev, MEZOK[nev], nyers[nev], hibak);
     }
     adatok.kepek = kepekErvenyesitese(nyers.kepek, hibak);
 
@@ -205,16 +306,22 @@ const autoAdatokEllenorzese = (nyers = {}) => {
     return { adatok, hibak };
 };
 
-/** Csak a gyors admin-műveletekhez (státusz, láthatóság, kiemelés, lejárat). */
+// az admin listában gyorsan átállítható mezők
 const ALLAPOT_MEZOK = ['statusz', 'lathato', 'kiemelt', 'lejarat'];
 
 const allapotEllenorzese = (nyers = {}) => {
     const hibak = [];
     const adatok = {};
+    let db = 0;
     for (const nev of ALLAPOT_MEZOK) {
-        if (Object.hasOwn(nyers, nev)) adatok[nev] = mezoErteke(nev, MEZOK[nev], nyers[nev], hibak);
+        if (Object.hasOwn(nyers, nev)) {
+            adatok[nev] = mezoErteke(nev, MEZOK[nev], nyers[nev], hibak);
+            db++;
+        }
     }
-    if (Object.keys(adatok).length === 0) hibak.push('Nincs módosítandó adat.');
+    if (db === 0) {
+        hibak.push('Nincs módosítandó adat.');
+    }
     return { adatok, hibak };
 };
 
@@ -227,7 +334,7 @@ module.exports = {
     MAX_KEP,
     autoAdatokEllenorzese,
     allapotEllenorzese,
-    // A webshop-termékek validációja is ezeket használja.
+    // az alkatrészek ellenőrzése is ezeket használja
     mezoErteke,
     kepekErvenyesitese,
 };

@@ -5,7 +5,7 @@ const ERDEKLODES_STATUSZOK = ['uj', 'folyamatban', 'lezart'];
 const erdeklodesSchema = new mongoose.Schema(
     {
         auto: { type: mongoose.Schema.Types.ObjectId, ref: 'auto', required: true, index: true },
-        // Az autó neve rögzítve, hogy törölt autónál is olvasható maradjon az érdeklődés.
+        // az autó nevét is elmentjük, hogy az autó törlése után is látszódjon
         autoNev: { type: String, trim: true, default: '' },
         nev: { type: String, required: true, trim: true, maxlength: 100 },
         email: { type: String, required: true, trim: true, lowercase: true, maxlength: 120 },
