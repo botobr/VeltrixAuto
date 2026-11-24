@@ -19,6 +19,7 @@ const ACEL_V = '#c3c8ce';
 const defs = (szin) => `
 <defs>
   <radialGradient id="hatter" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ece7da"/></radialGradient>
+  <radialGradient id="hatterEgyedi" cx="50%" cy="38%" r="78%"><stop offset="0" stop-color="#ffffff"/><stop offset=".62" stop-color="#f1f3f4"/><stop offset="1" stop-color="#e1e6e9"/></radialGradient>
   <linearGradient id="fem" x1="0" x2="1"><stop offset="0" stop-color="#6d737a"/><stop offset=".35" stop-color="#e3e6e9"/><stop offset=".6" stop-color="#9aa1a8"/><stop offset="1" stop-color="#5d6268"/></linearGradient>
   <linearGradient id="femV" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e3e6e9"/><stop offset=".5" stop-color="#9aa1a8"/><stop offset="1" stop-color="#5d6268"/></linearGradient>
   <linearGradient id="szin" x1="0" x2="1"><stop offset="0" stop-color="${szin}" stop-opacity=".75"/><stop offset=".4" stop-color="${szin}"/><stop offset="1" stop-color="${szin}" stop-opacity=".7"/></linearGradient>
@@ -307,14 +308,22 @@ const RAJZOK = {
 // k: { rajz, szin, gyarto, cimke, felniSzin, kullok }
 const termekKep = (k) => {
     const rajz = RAJZOK[k.rajz] || RAJZOK.chipbox;
+  const hatter = k.egyediHatter
+    ? '<rect width="800" height="600" fill="url(#hatterEgyedi)"/><circle cx="400" cy="280" r="230" fill="#ffffff" opacity=".24"/><path d="M0 454 Q200 424 400 454 T800 454 V600 H0 Z" fill="#dce2e6" opacity=".42"/><path d="M0 472 H800" stroke="#c99a35" stroke-opacity=".2" stroke-width="2"/>'
+    : '<rect width="800" height="600" fill="url(#hatter)"/>';
+  const talajArnyek = k.egyediHatter
+    ? '<ellipse cx="400" cy="548" rx="280" ry="20" fill="#29313a" opacity=".1"/>'
+    : '<ellipse cx="400" cy="548" rx="300" ry="22" fill="#000" opacity=".08"/>';
     return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
 ${defs(k.szin)}
-<rect width="800" height="600" fill="url(#hatter)"/>
-<ellipse cx="400" cy="548" rx="300" ry="22" fill="#000" opacity=".08"/>
+${hatter}
+${talajArnyek}
 <g filter="url(#arnyek)">${rajz(k)}</g>
 <rect x="36" y="36" width="8" height="40" rx="4" fill="${k.szin}"/>
 <text x="56" y="66" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="32" font-weight="900" fill="#1c1d20" letter-spacing="1">${esc(k.gyarto.toUpperCase())}</text>
-<text x="764" y="566" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#7b7f86" text-anchor="end">${esc(k.cimke)}</text>
+<rect x="36" y="486" width="728" height="78" rx="18" fill="#ffffff" fill-opacity=".92"/>
+<text x="58" y="520" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#1c1d20">${esc(k.termeknev || k.cimke)}</text>
+<text x="58" y="548" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="600" fill="#7b7f86">${esc(k.cimke)}</text>
 </svg>`;
 };
 

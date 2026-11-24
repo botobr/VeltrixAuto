@@ -9,6 +9,7 @@
 // láthatóság stb. marad úgy, ahogy az adminban beállították.
 
 const dotenv = require('dotenv');
+const { Readable } = require('node:stream');
 
 dotenv.config({ quiet: true });
 
@@ -26,14 +27,43 @@ const { termekKep } = require('./mintaAlkatreszek/kepek');
 const MAPPA = 'veltrix/autok';
 // ezeket a mezőket frissítjük a már meglévő termékeknél
 const KATALOGUS_MEZOK = ['nev', 'gyarto', 'kategoria', 'rovidLeiras', 'leiras', 'parameterek', 'kompatibilitas', 'univerzalis'];
+// Kereskedői termékfotó a részletező galériába; a listakártya generált borítója ettől változatlan marad.
+// A forrás termékoldala és képe: https://www.sportseats4u.co.uk/product/sparco-sprint-fia-motorsport-bucket-seat-2025/
+const VALOS_TERMEK_FOTOK = {
+    'SPA-8001': {
+        url: 'https://www.sportseats4u.co.uk/wp-content/uploads/sites/2/2024/11/Sparco-Sprint-FIA-Motorsport-Bucket-Seat-BRR0003B0-NR-K0100N-GSM-Performance-7-1.jpg',
+        forras: 'https://www.sportseats4u.co.uk/product/sparco-sprint-fia-motorsport-bucket-seat-2025/',
+        leiras: 'Sparco Sprint termékfotó · Forrás: GSM Sport Seats',
+    },
+};
 
 // parancssori kapcsolók
 const szaraz = process.argv.includes('--szaraz');
 const torles = process.argv.includes('--torles');
 const kepekUjra = process.argv.includes('--kepek-ujra');
 
-const kepNev = (cikkszam) => 'minta-alkatresz-' + slugify(cikkszam);
+const kepNev = (cikkszam) => `minta-alkatresz-${slugify(cikkszam)}`;
 const kepPublicId = (cikkszam) => MAPPA + '/' + kepNev(cikkszam);
+const termekFotokPublicIdje = (cikkszam) => `${MAPPA}/termekfoto-${slugify(cikkszam)}`;
+
+/** Legfeljebb `db` párhuzamos feladat; a hibákat összegyűjti, nem áll le miattuk. */
+const parhuzamosan = async (lista, db, feladat) => {
+    const hibak = [];
+    let kovetkezo = 0;
+    const dolgozo = async () => {
+        while (kovetkezo < lista.length) {
+            const elem = lista[kovetkezo];
+            kovetkezo += 1;
+            try {
+                await feladat(elem);
+            } catch (error) {
+                hibak.push(`${elem.cikkszam}: ${error.message || error}`);
+            }
+        }
+    };
+    await Promise.all(Array.from({ length: db }, dolgozo));
+    return hibak;
+};
 
 // a termék képe (SVG-ből generálva) feltöltése JPG-ként
 const kepFeltoltes = async (termek) => {
@@ -49,6 +79,7 @@ const kepFeltoltes = async (termek) => {
     return { url: eredmeny.secure_url, publicId: eredmeny.public_id, tipus: 'kulso', leiras: '' };
 };
 
+
 // van-e már a terméknek minta képe
 const vanMintaKepe = (meglevo, cikkszam) => {
     if (!meglevo) {
@@ -63,27 +94,78 @@ const vanMintaKepe = (meglevo, cikkszam) => {
 };
 
 // a minta termékek törlése
+// a minta termékek törlése
 const torlesFuttatasa = async (termekek) => {
     const cikkszamok = termekek.map((termek) => termek.cikkszam);
-    const meglevok = await AlkatreszModel.find({ cikkszam: { $in: cikkszamok } }).select('cikkszam kepek');
+    const meglevok = await AlkatreszModel.find({
+        cikkszam: { $in: cikkszamok }
+    }).select('cikkszam kepek');
+
     console.log(meglevok.length + ' minta-termék található az adatbázisban.');
-    if (szaraz) {
-        return;
-    }
 
-    await AlkatreszModel.deleteMany({ _id: { $in: meglevok.map((termek) => termek._id) } });
+    if (szaraz) return;
 
-    // csak a minta képeket töröljük (amit az adminban cseréltek, azt nem)
-    const kepek = [];
-    for (const termek of meglevok) {
-        for (const kep of termek.kepek) {
-            if (kep.publicId.startsWith(MAPPA + '/minta-alkatresz-')) {
-                kepek.push(kep.publicId);
-            }
-        }
-    }
+    await AlkatreszModel.deleteMany({
+        _id: { $in: meglevok.map((termek) => termek._id) }
+    });
+
+    const kepek = meglevok.flatMap((termek) =>
+        termek.kepek
+            .map((kep) => kep.publicId)
+            .filter((id) => id.startsWith(`${MAPPA}/minta-alkatresz-`))
+    );
+
     await kepekTorlese(kepek);
-    console.log('Törölve: ' + meglevok.length + ' termék, ' + kepek.length + ' kép.');
+
+    console.log(`Törölve: ${meglevok.length} termék, ${kepek.length} kép.`);
+};
+
+// valódi kereskedői termékfotó feltöltése
+const termekFotoFeltoltes = async (termek) => {
+    const foto = VALOS_TERMEK_FOTOK[termek.cikkszam];
+
+    const valasz = await fetch(foto.url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
+            Referer: foto.forras,
+        },
+    });
+
+    if (!valasz.ok) {
+        throw new Error(`A termékfotó letöltése sikertelen (${valasz.status}).`);
+    }
+
+    const tartalomTipus = valasz.headers.get('content-type') || '';
+
+    if (!tartalomTipus.startsWith('image/')) {
+        throw new Error('A termékfotó forrása nem képfájl.');
+    }
+
+    const buffer = Buffer.from(await valasz.arrayBuffer());
+
+    if (buffer.length > 12 * 1024 * 1024) {
+        throw new Error('A termékfotó túl nagy (max. 12 MB).');
+    }
+
+    const eredmeny = await new Promise((resolve, reject) => {
+        const feltolto = cloudinary.uploader.upload_stream({
+            folder: MAPPA,
+            public_id: `termekfoto-${slugify(termek.cikkszam)}`,
+            overwrite: true,
+            resource_type: 'image',
+        }, (error, feltoltes) =>
+            error ? reject(error) : resolve(feltoltes)
+        );
+
+        Readable.from(buffer).pipe(feltolto);
+    });
+
+    return {
+        url: eredmeny.secure_url,
+        publicId: eredmeny.public_id,
+        tipus: 'termek',
+        leiras: foto.leiras
+    };
 };
 
 // feltöltés / frissítés
@@ -123,6 +205,7 @@ const feltoltes = async (termekek) => {
     }
 
     const hibak = [];
+
 
     // 1. képek feltöltése
     const ujKepek = {};

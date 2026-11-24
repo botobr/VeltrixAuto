@@ -18,6 +18,7 @@ export const KEP_TIPUSOK = {
     motorter: 'Motortér',
     csomagter: 'Csomagtér',
     serules: 'Sérülés',
+    termek: 'Termékfotó',
     egyeb: 'Egyéb',
 };
 

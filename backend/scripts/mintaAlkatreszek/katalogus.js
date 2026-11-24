@@ -232,7 +232,7 @@ const SABLONOK = [
 
     // BELTÉR
     { kat: 'belter', gyarto: 'Sparco', nev: 'Sprint kagylóülés (FIA)', rajz: 'ules', ar: 279000, univerzalis: true, cikk: 8001, kiemelt: 1,
-        rovid: 'FIA-homologizált üvegszálas kagylóülés – oldalsó konzol külön rendelhető.', param: [['Homologizáció', 'FIA 8855-1999'], ['Anyag', 'Üvegszál']] },
+        rovid: 'FIA-homologizált acélvázas kagylóülés – oldalsó konzol külön rendelhető.', param: [['Homologizáció', 'FIA 8855-1999'], ['Váz', 'Acél']] },
     { kat: 'belter', gyarto: 'Recaro', nev: 'Pole Position kagylóülés', rajz: 'ules', ar: 649000, univerzalis: true, cikk: 7000,
         rovid: 'A Recaro ikonikus versenyülése, utcai autóba is TÜV-papírokkal.', param: [['Homologizáció', 'FIA, ABE'], ['Anyag', 'Szálerősítésű műanyag']] },
     { kat: 'belter', gyarto: 'OMP', nev: '4 pontos biztonsági öv', rajz: 'ov', ar: 49900, univerzalis: true, cikk: 7700,
@@ -366,7 +366,7 @@ const katalogus = () => {
             kompatibilitas: kompatibilitas,
             lathato: true,
             kiemelt: false,
-            kep: { rajz: s.rajz, szin: szin, gyarto: s.gyarto, cimke: cimke, kullok: s.kullok, felniSzin: s.felniSzin },
+            kep: { rajz: s.rajz, szin: szin, gyarto: s.gyarto, termeknev: `${s.nev}${nevVege ? ` – ${nevVege}` : ''}`, cimke: cimke, kullok: s.kullok, felniSzin: s.felniSzin },
         };
         termekek.push(termek);
         return termek;
@@ -388,7 +388,6 @@ const katalogus = () => {
                 sajat.push(felvesz(s, { cel: P[kulcs], nevVege: P[kulcs].nev, sorszam: s.platform.indexOf(kulcs) }));
             }
         }
-
         // a sablon első néhány terméke kiemelt
         const kiemeltDb = s.kiemelt || 0;
         for (let i = 0; i < kiemeltDb && i < sajat.length; i++) {

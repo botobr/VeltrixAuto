@@ -6,7 +6,7 @@ import './Galeria.css';
 // képgaléria az adatlapon: nagy kép, bélyegképek, típus szerinti szűrés, nagyítás
 const Galeria = ({ kepek, nev, cimkek = null }) => {
     const [szuro, setSzuro] = useState('osszes');
-    const [aktiv, setAktiv] = useState(0);
+    const [aktiv, setAktiv] = useState(() => Math.max(0, kepek.findIndex((kep) => kep.tipus === 'termek')));
     const [nagyitva, setNagyitva] = useState(false);
     const erintesKezdet = useRef(null);
     const bezaroGomb = useRef(null);
@@ -129,6 +129,8 @@ const Galeria = ({ kepek, nev, cimkek = null }) => {
                 )}
                 <span className="galeria-szamlalo">{index + 1} / {lathato.length}</span>
             </div>
+
+            {kep.leiras && <p className="galeria-kep-forras">{kep.leiras}</p>}
 
             {tipusok.length > 1 && (
                 <div className="galeria-szurok" role="tablist" aria-label="Képek típus szerint">

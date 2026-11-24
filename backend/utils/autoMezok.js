@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const VALTOK = ['Manuális', 'Automata', 'Félautomata', 'Fokozatmentes (CVT)'];
 const HAJTASOK = ['Elsőkerék', 'Hátsókerék', 'Összkerék'];
 const STATUSZOK = ['elerheto', 'foglalt', 'elkelt'];
-const KEP_TIPUSOK = ['kulso', 'belso', 'muszerfal', 'motorter', 'csomagter', 'serules', 'egyeb'];
+const KEP_TIPUSOK = ['kulso', 'belso', 'muszerfal', 'motorter', 'csomagter', 'serules', 'termek', 'egyeb'];
 const MAX_KEP = 30;
 
 const aktualisEv = () => new Date().getFullYear();
